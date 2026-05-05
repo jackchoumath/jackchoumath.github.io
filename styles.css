@@ -1,0 +1,132 @@
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  background-color: #ffffff;
+  color: #222;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 800px;
+  margin: 100px auto 60px auto; /* push content down */
+  padding: 0 20px;
+}
+
+header {
+  margin-bottom: 40px;
+}
+
+h1 {
+  font-size: 2.5em;
+  margin-bottom: 5px;
+}
+
+.subtitle {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+nav {
+  margin-top: 10px;
+}
+
+nav a {
+  margin-right: 15px;
+  text-decoration: none;
+  color: #0056b3;
+  font-weight: 500;
+}
+
+nav a:hover {
+  text-decoration: underline;
+}
+
+h2 {
+  margin-top: 40px;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 5px;
+}
+
+p {
+  line-height: 1.6;
+}
+
+ul {
+  padding-left: 20px;
+}
+
+li {
+  margin-bottom: 10px;
+}
+
+a {
+  color: #0056b3;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+footer {
+  margin-top: 60px;
+  font-size: 0.9em;
+  color: #888;
+}
+
+/* Top navbar */
+.topnav {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  background-color: #ffffff;
+  border-bottom: 1px solid #ddd;
+  z-index: 1000;
+}
+
+.nav-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-name {
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
+.nav-links a {
+  margin-left: 15px;
+  text-decoration: none;
+  color: #0056b3;
+}
+
+.nav-links a:hover {
+  text-decoration: underline;
+}
+
+a {
+  text-decoration: none;
+  color: #0056b3;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.talk-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.talk-date {
+  text-align: right;
+  white-space: nowrap;
+  color: #555;
+  font-size: 0.95em;
+  margin-left: 30px;
+}
