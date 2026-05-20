@@ -130,23 +130,29 @@ a:hover {
   font-size: 0.95em;
   margin-left: 30px;
 }
+
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 5px;
+  margin-top: 40px;
+}
+
+.section-header h2 {
+  margin: 0;
+  border: none;
+  padding: 0;
 }
 
 .slides-button {
-  font-size: 0.95em;
-  padding: 6px 14px;
-  border: 1px solid #cccccc;
-  border-radius: 6px;
-  color: #222;
-  background-color: #f8f8f8;
   text-decoration: none;
-  transition: background-color 0.2s ease;
+  color: #0056b3;
+  font-size: 1em;
 }
 
 .slides-button:hover {
-  background-color: #eeeeee;
+  text-decoration: underline;
 }
