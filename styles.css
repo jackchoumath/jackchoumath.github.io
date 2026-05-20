@@ -130,3 +130,23 @@ a:hover {
   font-size: 0.95em;
   margin-left: 30px;
 }
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.slides-button {
+  font-size: 0.95em;
+  padding: 6px 14px;
+  border: 1px solid #cccccc;
+  border-radius: 6px;
+  color: #222;
+  background-color: #f8f8f8;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.slides-button:hover {
+  background-color: #eeeeee;
+}
