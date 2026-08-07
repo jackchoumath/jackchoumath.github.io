@@ -147,12 +147,14 @@ a:hover {
   padding: 0;
 }
 
-.slides-button {
+.slides-button,
+.section-link {
   text-decoration: none;
   color: #0056b3;
   font-size: 1em;
 }
 
-.slides-button:hover {
+.slides-button:hover,
+.section-link:hover {
   text-decoration: underline;
 }
