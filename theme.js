@@ -2,6 +2,7 @@
   const root = document.documentElement;
   const storageKey = "jack-chou-theme";
   const systemPreference = window.matchMedia("(prefers-color-scheme: dark)");
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
   function storedTheme() {
     try {
@@ -43,7 +44,28 @@
 
     document.querySelectorAll(".dark-mode-toggle").forEach(function (button) {
       button.addEventListener("click", function () {
-        applyTheme(root.dataset.theme === "dark" ? "light" : "dark", true);
+        const nextTheme = root.dataset.theme === "dark" ? "light" : "dark";
+
+        if (!document.startViewTransition || reducedMotion.matches) {
+          applyTheme(nextTheme, true);
+          return;
+        }
+
+        const bounds = button.getBoundingClientRect();
+        const originX = bounds.left + bounds.width / 2;
+        const originY = bounds.top + bounds.height / 2;
+        const radius = Math.hypot(
+          Math.max(originX, window.innerWidth - originX),
+          Math.max(originY, window.innerHeight - originY)
+        );
+
+        root.style.setProperty("--theme-origin-x", `${originX}px`);
+        root.style.setProperty("--theme-origin-y", `${originY}px`);
+        root.style.setProperty("--theme-reveal-radius", `${radius}px`);
+
+        document.startViewTransition(function () {
+          applyTheme(nextTheme, true);
+        });
       });
     });
   }
