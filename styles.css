@@ -473,12 +473,9 @@ h3 {
 }
 
 .proceedings-section,
+.posters-section,
 .previous-courses {
   margin-top: 4.5rem;
-}
-
-.posters-section {
-  margin-top: 6rem;
 }
 
 .talk-list {
