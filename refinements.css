@@ -1,0 +1,10 @@
+/* Refinements scoped to Home and Talks. */
+.home-interest { font-family: var(--sans); font-size: 1.1rem; line-height: 1.7; }
+.intro { padding-bottom: 2.75rem; }
+.background { grid-template-columns: 190px minmax(0, 1fr); gap: 2.5rem; padding-top: 2.5rem; }
+.background p { font-size: 1.1rem; line-height: 1.7; }
+.talk-group + .talk-group { margin-top: 3rem; }
+@media (max-width: 760px) {
+  .background { grid-template-columns: 1fr; gap: 1.15rem; padding-top: 2rem; }
+  .intro { padding-bottom: 2.5rem; }
+}
