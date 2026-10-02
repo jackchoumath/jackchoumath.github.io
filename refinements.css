@@ -8,3 +8,5 @@
   .background { grid-template-columns: 1fr; gap: 1.15rem; padding-top: 2rem; }
   .intro { padding-bottom: 2.5rem; }
 }
+.talk-group[hidden] + .talk-group { margin-top: 0; }
+.talk-group .section-heading[hidden] { display: none; }
