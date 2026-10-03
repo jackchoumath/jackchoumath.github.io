@@ -30,7 +30,7 @@
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (!saved || saved.version !== 1 || !Number.isSafeInteger(saved.stage) || saved.stage < 1 ||
-          !Array.isArray(saved.permutation) || saved.permutation.length < 5 || saved.permutation.length > 13 ||
+          !Array.isArray(saved.permutation) || saved.permutation.length < 5 || saved.permutation.length > 17 ||
           ![...saved.permutation].sort((a, b) => a - b).every((value, index) => value === index + 1) ||
           E.isDominant(saved.permutation) || !Array.isArray(saved.history)) return null;
       const n = saved.permutation.length;

@@ -435,10 +435,10 @@
     return catalog;
   }
 
-  // Grow the board at difficulty boundaries, then every five stages up to 13.
+  // Grow the board at difficulty boundaries, then every five stages up to 17.
   function stageSize(stage) {
     if (!Number.isInteger(stage) || stage < 1) throw new RangeError("The stage number must be a positive integer.");
-    return stage <= 3 ? 5 : stage <= 6 ? 6 : stage <= 10 ? 7 : Math.min(13, 8 + Math.floor((stage - 11) / 5));
+    return stage <= 3 ? 5 : stage <= 6 ? 6 : stage <= 10 ? 7 : Math.min(17, 8 + Math.floor((stage - 11) / 5));
   }
 
   function stageTier(stage) {
@@ -451,7 +451,7 @@
     n = n === undefined ? scheduledSize : n;
     rng = rng || Math.random;
     seen = seen || [];
-    if (!Number.isInteger(n) || n < 3 || n > 13) throw new RangeError("Progressive stages support sizes 3 through 13.");
+    if (!Number.isInteger(n) || n < 3 || n > 17) throw new RangeError("Progressive stages support sizes 3 through 17.");
     var catalog = stageCatalog(n);
     var seenKeys = new Set(Array.from(seen, function (item) {
       if (Array.isArray(item)) return item.join(",");

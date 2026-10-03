@@ -90,7 +90,7 @@ their displayed difficulty is recalculated from the actual permutation.
 
 Board sizes increase alongside the difficulty bands: 5 × 5 for stages 1–3,
 6 × 6 for stages 4–6, 7 × 7 for stages 7–10, and 8 × 8 for stages 11–15.
-The size then increases every five stages, reaching 13 × 13 at stage 36
+The size then increases every five stages, reaching 17 × 17 at stage 56
 and staying there. Sizes through eight use complete permutation catalogs;
 larger sizes use bounded, reproducible samples to keep puzzle generation fast.
 Existing saved puzzles retain their original size until the player advances

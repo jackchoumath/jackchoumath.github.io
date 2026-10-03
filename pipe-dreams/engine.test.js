@@ -426,7 +426,8 @@ console.log("Pattern difficulty: all 5,040 S7 classifications independently veri
 // The default progression grows at difficulty boundaries, while callers that
 // explicitly supply a size (including restored games) retain that size.
 const sizeBoundaries = [[1, 5], [3, 5], [4, 6], [6, 6], [7, 7], [10, 7], [11, 8], [15, 8],
-  [16, 9], [20, 9], [21, 10], [25, 10], [26, 11], [30, 11], [31, 12], [35, 12], [36, 13], [100, 13]];
+  [16, 9], [20, 9], [21, 10], [25, 10], [26, 11], [30, 11], [31, 12], [35, 12], [36, 13], [40, 13],
+  [41, 14], [45, 14], [46, 15], [50, 15], [51, 16], [55, 16], [56, 17], [60, 17], [100, 17]];
 for (const [number, size] of sizeBoundaries) {
   assert.equal(engine.stageSize(number), size);
   assert.equal(engine.progressiveStage(number, undefined, rng).n, size);
@@ -443,13 +444,14 @@ for (const invalid of [0, -1, 1.5, "1", null, NaN, Infinity]) {
 assert.equal(engine.progressiveStage(1, 7, rng).n, 7);
 assert.equal(engine.progressiveStage(20, 5, rng).n, 5);
 assert.equal(engine.progressiveStage(1, 13, rng).n, 13);
-assert.throws(() => engine.progressiveStage(1, 14, rng), RangeError);
+assert.equal(engine.progressiveStage(1, 17, rng).n, 17);
+assert.throws(() => engine.progressiveStage(1, 18, rng), RangeError);
 
 let growingStages = 0;
 for (let run = 0; run < 10; run += 1) {
   const seen = [];
   let previousBand = 0;
-  for (let number = 1; number <= 40; number += 1) {
+  for (let number = 1; number <= 60; number += 1) {
     const stage = engine.progressiveStage(number, undefined, rng, seen);
     const size = engine.stageSize(number);
     const key = stage.permutation.join(",");
@@ -485,7 +487,7 @@ for (let run = 0; run < 10; run += 1) {
     growingStages += 1;
   }
 }
-console.log(`Board growth: size boundaries, explicit size overrides, and ${growingStages} seeded S5–S13 stages passed; legal canonical paths attain independently checked Rajchgot targets.`);
+console.log(`Board growth: size boundaries, explicit size overrides, and ${growingStages} seeded S5–S17 stages passed; legal canonical paths attain independently checked Rajchgot targets.`);
 
 // Sampled catalogs remain stable between fresh engine instances, while stage
 // selection still honors randomness and every supported saved-key format.
@@ -497,12 +499,15 @@ const freshEngine = (() => {
   return sandbox.module.exports;
 })();
 let catalogTime = 0;
+const catalogTimes = [];
 let largeStages = 0;
-for (let size = 9; size <= 13; size += 1) {
+for (let size = 9; size <= 17; size += 1) {
   const stageNumber = 16 + (size - 9) * 5;
   const coldStarted = Date.now();
   const first = freshEngine.progressiveStage(stageNumber, size, () => 0.37);
-  catalogTime += Date.now() - coldStarted;
+  const coldTime = Date.now() - coldStarted;
+  catalogTime += coldTime;
+  catalogTimes.push(`S${size}: ${coldTime} ms`);
   assert.equal(first.permutation.join(","), engine.progressiveStage(stageNumber, size, () => 0.37).permutation.join(","));
   const key = first.permutation.join(",");
   for (const savedKey of [key, first.permutation.slice()]) {
@@ -551,18 +556,18 @@ for (let size = 9; size <= 13; size += 1) {
     }
   }
 }
-const boundedPuzzle = engine.progressiveStage(100, 13, rng);
+const boundedPuzzle = engine.progressiveStage(100, 17, rng);
 for (const limits of [{ maxStates: 0 }, { timeLimitMs: 0 }]) {
-  assert.throws(() => engine.findWinningPath(boundedPuzzle.board, boundedPuzzle.target, 13, limits),
+  assert.throws(() => engine.findWinningPath(boundedPuzzle.board, boundedPuzzle.target, 17, limits),
     error => error.code === "SEARCH_LIMIT", "a search cutoff is unknown, never a false dead end");
 }
 for (const limits of [{ maxStates: -1 }, { maxStates: 1.5 }, { timeLimitMs: -1 }, { timeLimitMs: NaN }]) {
-  assert.throws(() => engine.findWinningPath(boundedPuzzle.board, boundedPuzzle.target, 13, limits), RangeError);
+  assert.throws(() => engine.findWinningPath(boundedPuzzle.board, boundedPuzzle.target, 17, limits), RangeError);
 }
 assert.equal(engine.findWinningPath(Array(25).fill(0), 1, 5, { maxStates: 1 }), null,
   "a fully explored dead end still returns null");
 assert.deepEqual(engine.findWinningPath(Array(25).fill(0), 0, 5, { maxStates: 0, timeLimitMs: 0 }), []);
-console.log(`Large boards: ${largeStages} distinct sampled S9–S13 stages and every intermediate canonical hint passed; five fresh catalogs took ${catalogTime} ms combined. Search cutoffs stay distinct from proven dead ends.`);
+console.log(`Large boards: ${largeStages} distinct sampled S9–S17 stages and every intermediate canonical hint passed; nine fresh catalogs took ${catalogTime} ms combined (${catalogTimes.join(", ")}). Search cutoffs stay distinct from proven dead ends.`);
 console.log(`500 seeded S7 stages and arbitrary-state solver paths passed. Total: ${Date.now() - started} ms.`);
 
 // Optional complete S7 audit, including boards the game does not happen to

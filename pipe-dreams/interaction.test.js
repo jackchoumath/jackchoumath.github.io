@@ -140,8 +140,11 @@ function simplePermutation(n) {
 async function dynamicSizeChecks() {
   assertBoardSize(start(), 5);
   assertBoardSize(start(null), 5);
+  const oversized = start(savedGame(simplePermutation(18), [], 68));
+  assertBoardSize(oversized, 5);
+  assert.equal(oversized.state().stage, 1, 'an unsupported size-18 save is replaced with a fresh game');
 
-  for (const [n, stage] of [[5, 1], [6, 4], [7, 7], [8, 11], [9, 16], [10, 21], [11, 26], [12, 31], [13, 36]]) {
+  for (const [n, stage] of [[5, 1], [6, 4], [7, 7], [8, 11], [9, 16], [10, 21], [11, 26], [12, 31], [13, 36], [14, 41], [15, 46], [16, 51], [17, 56]]) {
     const permutation = simplePermutation(n);
     let app = start(savedGame(permutation, [], stage));
     assertBoardSize(app, n);
@@ -170,14 +173,14 @@ async function dynamicSizeChecks() {
 
   // Completing a stage rebuilds the board at each growth boundary. Use real,
   // legally completed histories so restoration validates the entire route.
-  for (const [stage, n] of [[3, 5], [6, 6], [10, 7], [15, 8], [20, 9], [25, 10], [30, 11], [35, 12], [68, 13]]) {
+  for (const [stage, n] of [[3, 5], [6, 6], [10, 7], [15, 8], [20, 9], [25, 10], [30, 11], [35, 12], [40, 13], [45, 14], [50, 15], [55, 16], [68, 17]]) {
     const permutation = simplePermutation(n);
     const app = start(savedGame(permutation, E.maximalPath(permutation), stage));
     assertBoardSize(app, n);
     assert.equal(app.pendingAdvances(), 1);
     await app.advance();
     assert.equal(app.state().stage, stage + 1);
-    const nextSize = Math.min(n + 1, 13);
+    const nextSize = Math.min(n + 1, 17);
     assertBoardSize(app, nextSize);
     assert.equal(E.isDominant(app.state().permutation), false);
     assert.equal(app.state().seen.at(-1), app.state().permutation.join(','), 'saved keys separate two-digit permutation values');
@@ -205,25 +208,27 @@ async function dynamicSizeChecks() {
   assertBoardSize(app, 5);
   assert.equal(app.state().stage, 2, 'finishing an old saved puzzle adopts the current size progression');
 
-  // Older versions capped all later stages at size eight. Preserve an active
-  // puzzle until the player finishes it.
-  const cappedPermutation = simplePermutation(8);
-  const cappedSave = savedGame(cappedPermutation, [{from: 8, to: 1, type: 'ladder'}], 68);
-  const cappedApp = start(cappedSave);
-  assertBoardSize(cappedApp, 8);
-  assert.equal(cappedApp.state().stage, 68);
-  assert.deepEqual(cappedApp.state().board, cappedSave.board, 'an old late-stage save keeps its progress');
-  assert(cappedApp.cell(8).classList.contains('k-origin'));
-  await cappedApp.click(8);
-  await cappedApp.advance();
-  assertBoardSize(cappedApp, 13);
-  assert.equal(cappedApp.state().stage, 69);
+  // Older versions capped all later stages at eight or thirteen. Preserve
+  // an active puzzle until the player finishes it, then use the new size.
+  for (const oldSize of [8, 13]) {
+    const cappedPermutation = simplePermutation(oldSize);
+    const cappedSave = savedGame(cappedPermutation, [{from: oldSize, to: 1, type: 'ladder'}], 68);
+    const cappedApp = start(cappedSave);
+    assertBoardSize(cappedApp, oldSize);
+    assert.equal(cappedApp.state().stage, 68);
+    assert.deepEqual(cappedApp.state().board, cappedSave.board, 'an old late-stage save keeps its progress');
+    assert(cappedApp.cell(oldSize).classList.contains('k-origin'));
+    await cappedApp.click(oldSize);
+    await cappedApp.advance();
+    assertBoardSize(cappedApp, 17);
+    assert.equal(cappedApp.state().stage, 69);
+  }
 }
 
 async function boundedHintChecks() {
-  const permutation = [1, 3, 4, 2, 5, 6, 7];
-  const saved = savedGame(permutation, [{from: 7, to: 1, type: 'ladder'}]);
-  const ordinaryPath = E.findWinningPath(saved.board, E.maximumCrossings(permutation), 7);
+  const permutation = [1, 3, 4, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
+  const saved = savedGame(permutation, [{from: 17, to: 1, type: 'ladder'}], 68);
+  const ordinaryPath = E.findWinningPath(saved.board, E.maximumCrossings(permutation), 17);
   assert(ordinaryPath && ordinaryPath.length, 'fixture has a route without consuming the pending addition');
   const limited = () => Object.assign(new Error('Search budget exhausted'), {code: 'SEARCH_LIMIT'});
 
@@ -232,7 +237,7 @@ async function boundedHintChecks() {
     const engine = {...E, findWinningPath(board, target, n, options) {
       attemptedBoards.push([...board]);
       assert.equal(target, E.maximumCrossings(permutation));
-      assert.equal(n, 7);
+      assert.equal(n, 17);
       assert.deepEqual([...options.permutation], permutation);
       assert(options.maxStates > 0 && options.timeLimitMs > 0, 'hints use bounded search');
       if (attemptedBoards.length === 1 || currentResult === 'limit') throw limited();
@@ -329,16 +334,16 @@ async function firstVisitRulesChecks() {
 }
 
 async function resetStageChecks() {
-  const permutation = [1, 4, 3, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13];
-  const pending = savedGame(permutation, [{from: 14, to: 2, type: 'ladder'}], 68);
+  const permutation = [1, 4, 3, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
+  const pending = savedGame(permutation, [{from: 18, to: 2, type: 'ladder'}], 68);
   pending.seen = ['1,3,2,4,5', permutation.join(',')];
   let hintCalls = 0;
   const engine = {...E, findWinningPath() { hintCalls += 1; return []; }};
   let app = start(pending, engine);
-  assertBoardSize(app, 13);
-  assert(app.cell(14).classList.contains('k-origin'));
-  await app.click(13);
-  assert(app.cell(13).classList.contains('selected'));
+  assertBoardSize(app, 17);
+  assert(app.cell(18).classList.contains('k-origin'));
+  await app.click(17);
+  assert(app.cell(17).classList.contains('selected'));
   assert(app.cell(1).classList.contains('destination'));
   const before = app.state();
 
@@ -352,12 +357,12 @@ async function resetStageChecks() {
   for (const key of ['u', 'h', 'Escape']) await app.key(key);
   assert.deepEqual(app.state(), before, 'game shortcuts are inactive while confirmation is open');
   assert.equal(hintCalls, 0, 'the hint shortcut cannot start a search behind the confirmation');
-  assert(app.cell(13).classList.contains('selected'), 'Escape does not clear the underlying selection');
+  assert(app.cell(17).classList.contains('selected'), 'Escape does not clear the underlying selection');
   await app.button('reset-stage-no');
   assert.equal(app.get('reset-stage-dialog').open, false);
   assert.deepEqual(app.state(), before, 'No keeps the stage, permutation, board, history, and seen puzzles');
-  assert(app.cell(14).classList.contains('k-origin'), 'No keeps the option to add a cell');
-  assert(app.cell(13).classList.contains('selected'), 'No keeps the selected cell');
+  assert(app.cell(18).classList.contains('k-origin'), 'No keeps the option to add a cell');
+  assert(app.cell(17).classList.contains('selected'), 'No keeps the selected cell');
   assert(app.cell(1).classList.contains('destination'), 'No keeps the selected destination');
 
   await app.button('reset-stage-button');
@@ -617,7 +622,7 @@ async function main() {
   await firstVisitRulesChecks();
   await resetStageChecks();
   await automaticAdvanceChecks();
-  console.log('Interaction checks passed: legal moves, persistent cell addition, overlapping landings, bounded hints, undo/reload, dynamic sizes 5–13, growth boundaries, legacy saves, pattern-based difficulty restoration, first-visit rules, confirmed stage resets, and automatic advancement with cancellation and dialog pauses.');
+  console.log('Interaction checks passed: legal moves, persistent cell addition, overlapping landings, bounded hints, undo/reload, dynamic sizes 5–17, growth boundaries, legacy saves, size-18 save rejection, pattern-based difficulty restoration, first-visit rules, confirmed stage resets, and automatic advancement with cancellation and dialog pauses.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; });
