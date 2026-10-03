@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#f3f0e7">
   <meta name="description" content="A pipe dream puzzle about moving and adding cells.">
   <title>Pipe dreams</title>
-  <link rel="stylesheet" href="style.css?v=20261003-labels">
+  <link rel="stylesheet" href="style.css?v=20261003-header">
   <script src="engine.js?v=20261003-n17" defer></script>
-  <script src="app.js?v=20261003-n17" defer></script>
+  <script src="app.js?v=20261003-leave" defer></script>
 </head>
 <body>
   <main class="game">
@@ -17,17 +17,17 @@
       <div class="board-meta">
         <div class="stage-stack">
           <span class="stage">Stage <span id="stage-number">01</span></span>
-          <span id="difficulty-label" class="difficulty"></span>
           <button id="reset-stage-button" class="icon-button stage-reset" type="button" aria-label="Reset to stage 1" title="Reset to stage 1">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5v14M20 5l-10 7 10 7Z"/></svg>
           </button>
-        </div>
-        <div id="board-score" class="score" aria-label="Filled cells and maximum">
-          <span id="current-count">—</span><span class="score-divider" aria-hidden="true">/</span><span id="target-count">—</span>
+          <span id="difficulty-label" class="difficulty"></span>
         </div>
       </div>
+      <div id="board-score" class="score" aria-label="Filled cells and maximum">
+        <span id="current-count">—</span><span class="score-divider" aria-hidden="true">/</span><span id="target-count">—</span>
+      </div>
       <nav class="controls" aria-label="Game controls">
-        <a class="icon-button" href="../index.html" aria-label="Back to Jack Chou’s website" title="Back to website">
+        <a id="leave-game-button" class="icon-button" href="../index.html" aria-label="Back to Jack Chou’s website" title="Back to website">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 5-7 7 7 7M7 12h14"/></svg>
         </a>
         <span class="control-divider" aria-hidden="true"></span>
@@ -49,6 +49,14 @@
     <p id="status-message" class="sr-only" role="status" aria-live="polite"></p>
     <p id="notice" class="notice" hidden></p>
   </main>
+
+  <dialog id="leave-game-dialog" class="rules-dialog reset-dialog" aria-labelledby="leave-game-question">
+    <p id="leave-game-question">Leave game?</p>
+    <div class="dialog-actions">
+      <button id="leave-game-no" class="dialog-button" type="button" autofocus>No</button>
+      <button id="leave-game-yes" class="dialog-button confirm-reset" type="button">Yes</button>
+    </div>
+  </dialog>
 
   <dialog id="reset-stage-dialog" class="rules-dialog reset-dialog" aria-labelledby="reset-stage-question">
     <p id="reset-stage-question">Are you sure you want to reset stage?</p>

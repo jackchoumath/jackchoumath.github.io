@@ -65,7 +65,11 @@ function savedGame(permutation, history = [], stage = 1) {
 
 function start(saved, engine = E, options = {}) {
   const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
-  const elements = new Map([...html.matchAll(/id="([^"]+)"/g)].map(match => [match[1], new Element()]));
+  const elements = new Map([...html.matchAll(/<([a-z][\w-]*)\b([^>]*\bid="([^"]+)"[^>]*)>/g)].map(match => {
+    const element = new Element(match[1]);
+    for (const attribute of match[2].matchAll(/([\w-]+)="([^"]*)"/g)) element.setAttribute(attribute[1], attribute[2]);
+    return [match[3], element];
+  }));
   const document = new Element();
   document.getElementById = id => elements.get(id) || null;
   document.createElement = tagName => new Element(tagName);
@@ -86,8 +90,9 @@ function start(saved, engine = E, options = {}) {
   // Hold completion delays until the test advances time. Hint delays remain
   // asynchronous, including the explicit timer hook used by race tests.
   const completionTimers = [];
+  const navigations = [];
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8'), {
-    window: {PipeDreamEngine: engine}, document, localStorage,
+    window: {PipeDreamEngine: engine, location: {assign: destination => navigations.push(destination)}}, document, localStorage,
     setTimeout(callback, delay) {
       if (delay >= 500) {
         const timer = {callback, delay, active: true};
@@ -114,6 +119,7 @@ function start(saved, engine = E, options = {}) {
       for (const timer of pending) { timer.active = false; await timer.callback(); }
     },
     completionTimers,
+    navigations,
     storage
   };
 }
@@ -479,7 +485,8 @@ async function automaticAdvanceChecks() {
 
   for (const [open, close, dialog] of [
     ['rules-button', 'close-rules', 'rules-dialog'],
-    ['reset-stage-button', 'reset-stage-no', 'reset-stage-dialog']
+    ['reset-stage-button', 'reset-stage-no', 'reset-stage-dialog'],
+    ['leave-game-button', 'leave-game-no', 'leave-game-dialog']
   ]) {
     app = start(won);
     await app.button(open);
@@ -502,6 +509,77 @@ async function automaticAdvanceChecks() {
   await beforeReset();
   await app.advance();
   assert.deepEqual(app.state(), reset, 'old completion cannot advance the reset game');
+}
+
+async function leaveGameChecks() {
+  const permutation = [1, 4, 3, 2, 5];
+  const pending = savedGame(permutation, [{from: 6, to: 2, type: 'ladder'}], 3);
+  let hintCalls = 0;
+  const engine = {...E, findWinningPath() { hintCalls += 1; return []; }};
+  const app = start(pending, engine);
+  await app.click(5);
+  assert(app.cell(5).classList.contains('selected'));
+  const before = app.state();
+  const rulesPreference = app.storage.get(RULES_SEEN_KEY);
+
+  await app.button('leave-game-yes');
+  assert.deepEqual(app.navigations, [], 'a hidden Yes button cannot navigate');
+  let prevented = false;
+  await app.get('leave-game-button').emit('click', {preventDefault() { prevented = true; }});
+  assert(prevented, 'the website link waits for confirmation instead of navigating immediately');
+  assert.equal(app.get('leave-game-dialog').open, true);
+  assert.deepEqual(app.navigations, []);
+  for (const key of ['u', 'h', 'Escape']) await app.key(key);
+  await app.button('hint-button');
+  assert.equal(hintCalls, 0, 'shortcuts and direct hints stay inactive while deciding whether to leave');
+  assert.deepEqual(app.state(), before);
+  assert(app.cell(5).classList.contains('selected'), 'Escape does not clear the board selection behind the dialog');
+  await app.button('leave-game-no');
+  assert.equal(app.get('leave-game-dialog').open, false);
+  assert.deepEqual(app.navigations, [], 'No stays in the game');
+  assert.deepEqual(app.state(), before, 'No preserves the stage and all saved progress');
+  assert(app.cell(6).classList.contains('k-origin'), 'No preserves the option to add a cell');
+  assert(app.cell(5).classList.contains('selected'), 'No preserves the selected cell');
+
+  await app.button('leave-game-button');
+  // Native <dialog> Escape emits cancel, then closes when not prevented.
+  await app.get('leave-game-dialog').emit('cancel');
+  app.get('leave-game-dialog').close();
+  assert.deepEqual(app.navigations, [], 'native Escape dismissal does not leave the game');
+  assert.deepEqual(app.state(), before);
+  await app.button('leave-game-button');
+  await app.button('leave-game-yes');
+  assert.deepEqual(app.navigations, ['../index.html'], 'Yes follows the existing home link');
+  assert.deepEqual(app.state(), before, 'leaving keeps saved progress intact');
+  assert.equal(app.storage.get(RULES_SEEN_KEY), rulesPreference);
+
+  const simple = simplePermutation(5);
+  const won = savedGame(simple, E.maximalPath(simple), 3);
+  const completed = start(won);
+  const staleCompletion = completed.completionTimers.at(-1).callback;
+  await completed.button('leave-game-button');
+  assert.equal(completed.pendingAdvances(), 0, 'the leave dialog cancels automatic advancement');
+  await staleCompletion();
+  await completed.advance();
+  assert.equal(completed.state().stage, 3, 'a previously queued completion cannot advance behind the leave dialog');
+  await completed.button('leave-game-yes');
+  await staleCompletion();
+  await completed.advance();
+  assert.equal(completed.state().stage, 3, 'leaving cannot advance saved progress during navigation');
+  assert.deepEqual(completed.navigations, ['../index.html']);
+
+  const timers = [];
+  const racing = start(pending, engine, {setTimeout: callback => timers.push(callback)});
+  const beforeHint = racing.state();
+  const queuedHint = racing.button('hint-button');
+  assert.equal(timers.length, 1);
+  await racing.button('leave-game-button');
+  timers.shift()();
+  await queuedHint;
+  assert.equal(hintCalls, 0, 'a queued hint is discarded when the leave dialog opens');
+  assert.deepEqual(racing.state(), beforeHint);
+  assert.equal(racing.get('hint-button').disabled, false);
+  assert(!racing.get('board').children.some(cell => /selected|destination|hint-source/.test(cell.className)));
 }
 
 async function main() {
@@ -622,7 +700,8 @@ async function main() {
   await firstVisitRulesChecks();
   await resetStageChecks();
   await automaticAdvanceChecks();
-  console.log('Interaction checks passed: legal moves, persistent cell addition, overlapping landings, bounded hints, undo/reload, dynamic sizes 5–17, growth boundaries, legacy saves, size-18 save rejection, pattern-based difficulty restoration, first-visit rules, confirmed stage resets, and automatic advancement with cancellation and dialog pauses.');
+  await leaveGameChecks();
+  console.log('Interaction checks passed: legal moves, persistent cell addition, overlapping landings, bounded hints, undo/reload, dynamic sizes 5–17, growth boundaries, legacy saves, size-18 save rejection, pattern-based difficulty restoration, first-visit rules, confirmed stage resets, confirmed website navigation, and automatic advancement with cancellation and dialog pauses.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; });

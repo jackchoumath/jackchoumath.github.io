@@ -57,6 +57,9 @@
 
   function target() { return E.maximumCrossings(game.permutation); }
   function solved() { return E.countCells(game.board) === target(); }
+  function dialogOpen() {
+    return $('rules-dialog').open || $('reset-stage-dialog').open || $('leave-game-dialog').open;
+  }
   function announce(message, notice = '') {
     $('status-message').textContent = message;
     $('notice').textContent = notice;
@@ -132,7 +135,7 @@
   }
 
   function syncAutoAdvance() {
-    if (!solved() || $('rules-dialog').open || $('reset-stage-dialog').open) {
+    if (!solved() || dialogOpen()) {
       cancelAutoAdvance();
       return;
     }
@@ -143,7 +146,7 @@
     advanceTimer = setTimeout(() => {
       if (version !== advanceVersion || game !== completedGame) return;
       advanceTimer = null;
-      if (solved() && !$('rules-dialog').open && !$('reset-stage-dialog').open) newStage();
+      if (solved() && !dialogOpen()) newStage();
     }, 650);
   }
 
@@ -236,7 +239,7 @@
   }
 
   async function hint() {
-    if (hintBusy || solved()) return;
+    if (hintBusy || solved() || dialogOpen()) return;
     hintBusy = true;
     const hintGame = game;
     const snapshot = game.board.join('');
@@ -244,7 +247,7 @@
     render();
     // Yield a paint before searching, with a bounded budget for larger boards.
     await new Promise(resolve => setTimeout(resolve, 30));
-    if (hintGame !== game || snapshot !== game.board.join('') || $('reset-stage-dialog').open) {
+    if (hintGame !== game || snapshot !== game.board.join('') || dialogOpen()) {
       hintBusy = false;
       render();
       return;
@@ -338,6 +341,18 @@
 
   $('undo-button').addEventListener('click', undo);
   $('restart-button').addEventListener('click', restart);
+  $('leave-game-button').addEventListener('click', event => {
+    event.preventDefault();
+    $('leave-game-dialog').showModal();
+    syncAutoAdvance();
+  });
+  $('leave-game-no').addEventListener('click', () => $('leave-game-dialog').close());
+  $('leave-game-yes').addEventListener('click', () => {
+    if (!$('leave-game-dialog').open) return;
+    cancelAutoAdvance();
+    save();
+    window.location.assign($('leave-game-button').getAttribute('href'));
+  });
   $('reset-stage-button').addEventListener('click', () => {
     $('reset-stage-dialog').showModal();
     syncAutoAdvance();
@@ -352,6 +367,7 @@
   $('close-rules').addEventListener('click', () => $('rules-dialog').close());
   $('rules-dialog').addEventListener('close', syncAutoAdvance);
   $('reset-stage-dialog').addEventListener('close', syncAutoAdvance);
+  $('leave-game-dialog').addEventListener('close', syncAutoAdvance);
   $('rules-dialog').addEventListener('click', event => {
     if (event.target === $('rules-dialog')) {
       const bounds = $('rules-dialog').getBoundingClientRect();
@@ -359,7 +375,7 @@
     }
   });
   document.addEventListener('keydown', event => {
-    if ($('rules-dialog').open || $('reset-stage-dialog').open || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName) || event.altKey) return;
+    if (dialogOpen() || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName) || event.altKey) return;
     const key = event.key.toLowerCase();
     if ((event.ctrlKey || event.metaKey) && key === 'z') { event.preventDefault(); undo(); return; }
     if (event.ctrlKey || event.metaKey) return;
