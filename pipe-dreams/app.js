@@ -13,6 +13,7 @@
   let hintBusy = false;
   let advanceTimer = null;
   let advanceVersion = 0;
+  let leaveAttemptVersion = 0;
   let game;
 
   function size() { return game.permutation.length; }
@@ -343,6 +344,8 @@
   $('restart-button').addEventListener('click', restart);
   $('leave-game-button').addEventListener('click', event => {
     event.preventDefault();
+    leaveAttemptVersion += 1;
+    $('leave-game-help').hidden = true;
     $('leave-game-dialog').showModal();
     syncAutoAdvance();
   });
@@ -351,7 +354,15 @@
     if (!$('leave-game-dialog').open) return;
     cancelAutoAdvance();
     save();
-    window.location.assign($('leave-game-button').getAttribute('href'));
+    const attempt = ++leaveAttemptVersion;
+    window.close();
+    // Directly opened tabs may not be closable by the page. Keep the choice
+    // open and offer a manual close without navigating away or losing progress.
+    setTimeout(() => {
+      if (attempt === leaveAttemptVersion && !window.closed && $('leave-game-dialog').open) {
+        $('leave-game-help').hidden = false;
+      }
+    }, 250);
   });
   $('reset-stage-button').addEventListener('click', () => {
     $('reset-stage-dialog').showModal();
@@ -367,7 +378,10 @@
   $('close-rules').addEventListener('click', () => $('rules-dialog').close());
   $('rules-dialog').addEventListener('close', syncAutoAdvance);
   $('reset-stage-dialog').addEventListener('close', syncAutoAdvance);
-  $('leave-game-dialog').addEventListener('close', syncAutoAdvance);
+  $('leave-game-dialog').addEventListener('close', () => {
+    leaveAttemptVersion += 1;
+    syncAutoAdvance();
+  });
   $('rules-dialog').addEventListener('click', event => {
     if (event.target === $('rules-dialog')) {
       const bounds = $('rules-dialog').getBoundingClientRect();

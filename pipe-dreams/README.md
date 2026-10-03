@@ -27,8 +27,10 @@ next stage after a brief pause showing the completed board. Opening the rules,
 reset confirmation, or leave confirmation pauses that transition; undoing or restarting cancels it.
 The reset icon beside the stage number returns to a fresh stage 1 after a
 Yes/No confirmation. Choosing No or pressing Escape keeps the current game.
-The back-to-website button asks “Leave game?”; Yes returns to the website while
-preserving saved progress, and No or Escape keeps playing.
+The top-right X button asks “Leave game?”; Yes saves progress and closes the
+game tab, while No or Escape keeps playing. Tabs opened with the homepage Play
+button can close themselves. If the browser blocks closing a directly opened
+tab, the dialog explains how to close it manually.
 
 Keyboard: arrows navigate the board; Enter or Space selects a cell; U or
 Ctrl/Cmd+Z undoes; H shows a hint; Escape clears a selection

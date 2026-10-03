@@ -68,12 +68,14 @@ function start(saved, engine = E, options = {}) {
   const elements = new Map([...html.matchAll(/<([a-z][\w-]*)\b([^>]*\bid="([^"]+)"[^>]*)>/g)].map(match => {
     const element = new Element(match[1]);
     for (const attribute of match[2].matchAll(/([\w-]+)="([^"]*)"/g)) element.setAttribute(attribute[1], attribute[2]);
+    element.hidden = /(?:^|\s)hidden(?:\s|=|$)/.test(match[2]);
     return [match[3], element];
   }));
   const document = new Element();
   document.getElementById = id => elements.get(id) || null;
   document.createElement = tagName => new Element(tagName);
   const storage = options.storage || new Map();
+  const browserEvents = [];
   if (saved != null) storage.set(STORAGE_KEY, JSON.stringify(saved));
   const localStorage = {
     getItem(key) {
@@ -85,24 +87,42 @@ function start(saved, engine = E, options = {}) {
       assert([STORAGE_KEY, RULES_SEEN_KEY].includes(key));
       if (options.storageDenied) throw new Error('Storage unavailable');
       storage.set(key, String(value));
+      browserEvents.push({type: 'save', key});
     }
   };
   // Hold completion delays until the test advances time. Hint delays remain
   // asynchronous, including the explicit timer hook used by race tests.
   const completionTimers = [];
+  const leaveFallbackTimers = [];
   const navigations = [];
+  const closeCalls = [];
+  const browserWindow = {
+    PipeDreamEngine: engine, closed: false,
+    location: {assign: destination => navigations.push(destination)},
+    close() {
+      closeCalls.push(JSON.parse(storage.get(STORAGE_KEY) ?? null));
+      browserEvents.push({type: 'close'});
+      if (!options.closeBlocked) this.closed = true;
+    }
+  };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8'), {
-    window: {PipeDreamEngine: engine, location: {assign: destination => navigations.push(destination)}}, document, localStorage,
+    window: browserWindow, document, localStorage,
     setTimeout(callback, delay) {
       if (delay >= 500) {
         const timer = {callback, delay, active: true};
         completionTimers.push(timer);
         return timer;
       }
+      if (delay >= 100) {
+        const timer = {callback, delay, active: true};
+        leaveFallbackTimers.push(timer);
+        return timer;
+      }
       return options.setTimeout ? options.setTimeout(callback, delay) : setImmediate(callback);
     },
     clearTimeout(timer) {
       if (completionTimers.includes(timer)) timer.active = false;
+      else if (leaveFallbackTimers.includes(timer)) timer.active = false;
       else if (!options.setTimeout) clearImmediate(timer);
     }
   }, {filename: 'app.js'});
@@ -119,6 +139,16 @@ function start(saved, engine = E, options = {}) {
       for (const timer of pending) { timer.active = false; await timer.callback(); }
     },
     completionTimers,
+    leaveFallbackTimers,
+    async leaveFallback() {
+      for (const timer of leaveFallbackTimers.filter(timer => timer.active)) {
+        timer.active = false;
+        await timer.callback();
+      }
+    },
+    closed: () => browserWindow.closed,
+    closeCalls,
+    browserEvents,
     navigations,
     storage
   };
@@ -523,12 +553,10 @@ async function leaveGameChecks() {
   const rulesPreference = app.storage.get(RULES_SEEN_KEY);
 
   await app.button('leave-game-yes');
-  assert.deepEqual(app.navigations, [], 'a hidden Yes button cannot navigate');
-  let prevented = false;
-  await app.get('leave-game-button').emit('click', {preventDefault() { prevented = true; }});
-  assert(prevented, 'the website link waits for confirmation instead of navigating immediately');
+  assert.equal(app.closeCalls.length, 0, 'a hidden Yes button cannot close the game');
+  await app.button('leave-game-button');
   assert.equal(app.get('leave-game-dialog').open, true);
-  assert.deepEqual(app.navigations, []);
+  assert.equal(app.closeCalls.length, 0, 'opening the confirmation does not close the game');
   for (const key of ['u', 'h', 'Escape']) await app.key(key);
   await app.button('hint-button');
   assert.equal(hintCalls, 0, 'shortcuts and direct hints stay inactive while deciding whether to leave');
@@ -536,7 +564,7 @@ async function leaveGameChecks() {
   assert(app.cell(5).classList.contains('selected'), 'Escape does not clear the board selection behind the dialog');
   await app.button('leave-game-no');
   assert.equal(app.get('leave-game-dialog').open, false);
-  assert.deepEqual(app.navigations, [], 'No stays in the game');
+  assert.equal(app.closeCalls.length, 0, 'No stays in the game');
   assert.deepEqual(app.state(), before, 'No preserves the stage and all saved progress');
   assert(app.cell(6).classList.contains('k-origin'), 'No preserves the option to add a cell');
   assert(app.cell(5).classList.contains('selected'), 'No preserves the selected cell');
@@ -545,13 +573,19 @@ async function leaveGameChecks() {
   // Native <dialog> Escape emits cancel, then closes when not prevented.
   await app.get('leave-game-dialog').emit('cancel');
   app.get('leave-game-dialog').close();
-  assert.deepEqual(app.navigations, [], 'native Escape dismissal does not leave the game');
+  assert.equal(app.closeCalls.length, 0, 'native Escape dismissal does not leave the game');
   assert.deepEqual(app.state(), before);
   await app.button('leave-game-button');
   await app.button('leave-game-yes');
-  assert.deepEqual(app.navigations, ['../index.html'], 'Yes follows the existing home link');
+  assert.equal(app.closed(), true, 'Yes closes the game tab when the browser permits it');
+  assert.deepEqual(app.closeCalls, [before], 'Yes saves the current game before closing');
+  assert.deepEqual(app.browserEvents.slice(-2), [{type: 'save', key: STORAGE_KEY}, {type: 'close'}],
+    'the final save happens before the close request');
+  assert.deepEqual(app.navigations, [], 'leaving does not replace the game tab with another website');
   assert.deepEqual(app.state(), before, 'leaving keeps saved progress intact');
   assert.equal(app.storage.get(RULES_SEEN_KEY), rulesPreference);
+  await app.leaveFallback();
+  assert.equal(app.get('leave-game-help').hidden, true, 'a successful close does not show browser instructions');
 
   const simple = simplePermutation(5);
   const won = savedGame(simple, E.maximalPath(simple), 3);
@@ -565,8 +599,45 @@ async function leaveGameChecks() {
   await completed.button('leave-game-yes');
   await staleCompletion();
   await completed.advance();
-  assert.equal(completed.state().stage, 3, 'leaving cannot advance saved progress during navigation');
-  assert.deepEqual(completed.navigations, ['../index.html']);
+  assert.equal(completed.state().stage, 3, 'leaving cannot advance saved progress during tab closure');
+  assert.equal(completed.closeCalls.length, 1);
+
+  const blocked = start(won, E, {closeBlocked: true});
+  const completedSave = blocked.state();
+  await blocked.button('leave-game-button');
+  await blocked.button('leave-game-yes');
+  assert.equal(blocked.closed(), false);
+  assert.deepEqual(blocked.closeCalls, [completedSave], 'a blocked close still saves progress first');
+  assert.equal(blocked.get('leave-game-help').hidden, true, 'instructions wait for the attempted close');
+  await blocked.leaveFallback();
+  assert.equal(blocked.get('leave-game-help').hidden, false, 'a blocked close explains how to close the tab');
+  assert.equal(blocked.get('leave-game-dialog').open, true, 'the player retains the confirmation options');
+  assert.equal(blocked.pendingAdvances(), 0, 'a blocked close keeps completion paused');
+  await blocked.advance();
+  assert.deepEqual(blocked.state(), completedSave);
+  assert.deepEqual(blocked.navigations, [], 'a blocked close does not navigate elsewhere');
+  await blocked.button('leave-game-no');
+  assert.equal(blocked.get('leave-game-dialog').open, false, 'No remains available when closing is blocked');
+  assert.equal(blocked.pendingAdvances(), 1, 'No resumes completion after a blocked close');
+  await blocked.button('leave-game-button');
+  assert.equal(blocked.get('leave-game-help').hidden, true, 'reopening the dialog clears the old instructions');
+  await blocked.button('leave-game-yes');
+  const staleFallback = blocked.leaveFallbackTimers.at(-1).callback;
+  await blocked.button('leave-game-no');
+  await staleFallback();
+  assert.equal(blocked.get('leave-game-help').hidden, true, 'a dismissed close attempt cannot show instructions');
+  await blocked.button('leave-game-button');
+  await staleFallback();
+  assert.equal(blocked.get('leave-game-help').hidden, true, 'an earlier close attempt cannot change a reopened dialog');
+  assert.equal(blocked.pendingAdvances(), 0);
+  await blocked.button('leave-game-yes');
+  await blocked.leaveFallback();
+  assert.equal(blocked.get('leave-game-help').hidden, false, 'a fresh blocked attempt still shows instructions');
+  await blocked.get('leave-game-dialog').emit('cancel');
+  blocked.get('leave-game-dialog').close();
+  assert.equal(blocked.get('leave-game-dialog').open, false, 'Escape remains available after a blocked close');
+  assert.equal(blocked.pendingAdvances(), 1);
+  assert.deepEqual(blocked.state(), completedSave);
 
   const timers = [];
   const racing = start(pending, engine, {setTimeout: callback => timers.push(callback)});
@@ -701,7 +772,7 @@ async function main() {
   await resetStageChecks();
   await automaticAdvanceChecks();
   await leaveGameChecks();
-  console.log('Interaction checks passed: legal moves, persistent cell addition, overlapping landings, bounded hints, undo/reload, dynamic sizes 5–17, growth boundaries, legacy saves, size-18 save rejection, pattern-based difficulty restoration, first-visit rules, confirmed stage resets, confirmed website navigation, and automatic advancement with cancellation and dialog pauses.');
+  console.log('Interaction checks passed: legal moves, persistent cell addition, overlapping landings, bounded hints, undo/reload, dynamic sizes 5–17, growth boundaries, legacy saves, size-18 save rejection, pattern-based difficulty restoration, first-visit rules, confirmed stage resets, confirmed tab closure with blocked-close recovery, and automatic advancement with cancellation and dialog pauses.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; });
