@@ -85,7 +85,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--sage); outline-
 .illegal-examples .move-diagram { min-height: 72px; }
 .illegal-examples figcaption { margin-top: 12px; color: #636b60; font-size: 13px; line-height: 1.7; }
 .blocked-jump-board { grid-template-rows: repeat(3, var(--mini-cell)); }
-.blocked-arrow { color: var(--coral-dark); font-size: 22px; }
+.blocked-arrow { width: 28px; height: 24px; flex-shrink: 0; color: var(--coral-dark); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .mini-board .attempted-source { outline: 2px solid var(--ink); outline-offset: 2px; }
 .mini-board .attempted-destination { border: 1px dashed var(--coral-dark); background: repeating-linear-gradient(135deg, transparent 0 4px, #c9664e40 4px 7px); }
 @keyframes arrive { from { opacity: .4; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
