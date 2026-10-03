@@ -25,7 +25,6 @@ Undo, Restart, and Hint help recover from positions that cannot reach the maximu
 using forward moves. Reaching the maximum cell count automatically starts the
 next stage after a brief pause showing the completed board. Opening the rules
 or reset confirmation pauses that transition; undoing or restarting cancels it.
-New puzzle replaces the current stage's permutation.
 The reset icon beneath the stage number returns to a fresh stage 1 after a
 Yes/No confirmation. Choosing No or pressing Escape keeps the current game.
 
@@ -95,7 +94,7 @@ The size then increases every five stages, reaching 13 × 13 at stage 36
 and staying there. Sizes through eight use complete permutation catalogs;
 larger sizes use bounded, reproducible samples to keep puzzle generation fast.
 Existing saved puzzles retain their original size until the player advances
-or requests a different permutation. All moves, targets, hints, keyboard
+or resets to stage 1. All moves, targets, hints, keyboard
 navigation, and saved histories use the actual permutation size.
 
 The board is the largest square fitting beneath a compact toolbar, centered

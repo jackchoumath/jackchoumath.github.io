@@ -166,11 +166,6 @@ async function dynamicSizeChecks() {
     assert.deepEqual(app.state().board, E.bottomDream(permutation), `Undo at size ${n}`);
     assert.equal(app.state().history.length, 0);
     assert.equal(app.pendingAdvances(), 0);
-    await app.button('new-game-button');
-    assertBoardSize(app, n);
-    assert.equal(app.state().stage, stage, 'shuffle retains the stage and its prescribed size');
-    assert.equal(E.isDominant(app.state().permutation), false);
-    assert.equal(app.state().seen.at(-1), app.state().permutation.join(','), 'saved keys separate two-digit permutation values');
   }
 
   // Completing a stage rebuilds the board at each growth boundary. Use real,
@@ -184,6 +179,8 @@ async function dynamicSizeChecks() {
     assert.equal(app.state().stage, stage + 1);
     const nextSize = Math.min(n + 1, 13);
     assertBoardSize(app, nextSize);
+    assert.equal(E.isDominant(app.state().permutation), false);
+    assert.equal(app.state().seen.at(-1), app.state().permutation.join(','), 'saved keys separate two-digit permutation values');
     assert.equal(app.cell(0).focused, true, 'advancing focuses the rebuilt board');
     assert.equal(app.cell(0).tabIndex, 0);
     assert.equal(app.state().history.length, 0);
@@ -203,12 +200,13 @@ async function dynamicSizeChecks() {
   assert.deepEqual(app.state().permutation, oldPermutation, 'an old S7 save keeps its permutation');
   assert.deepEqual(app.state().board, oldSave.board, 'an old S7 save keeps its progress');
   assert(app.cell(7).classList.contains('k-origin'));
-  await app.button('new-game-button');
+  await app.click(7);
+  await app.advance();
   assertBoardSize(app, 5);
-  assert.equal(app.state().stage, 1, 'explicit shuffle adopts the current size progression');
+  assert.equal(app.state().stage, 2, 'finishing an old saved puzzle adopts the current size progression');
 
   // Older versions capped all later stages at size eight. Preserve an active
-  // puzzle until the player finishes it or explicitly requests another one.
+  // puzzle until the player finishes it.
   const cappedPermutation = simplePermutation(8);
   const cappedSave = savedGame(cappedPermutation, [{from: 8, to: 1, type: 'ladder'}], 68);
   const cappedApp = start(cappedSave);
@@ -220,10 +218,6 @@ async function dynamicSizeChecks() {
   await cappedApp.advance();
   assertBoardSize(cappedApp, 13);
   assert.equal(cappedApp.state().stage, 69);
-  const reshuffledApp = start(cappedSave);
-  await reshuffledApp.button('new-game-button');
-  assertBoardSize(reshuffledApp, 13);
-  assert.equal(reshuffledApp.state().stage, 68);
 }
 
 async function boundedHintChecks() {
@@ -453,7 +447,7 @@ async function automaticAdvanceChecks() {
   await app.advance();
   assert.equal(app.state().stage, 4);
 
-  for (const button of ['undo-button', 'restart-button', 'new-game-button']) {
+  for (const button of ['undo-button', 'restart-button']) {
     app = start(won);
     const stale = app.completionTimers.at(-1).callback;
     await app.button(button);
@@ -511,6 +505,7 @@ async function main() {
   assert.equal(app.get('mode-ladder'), undefined);
   assert.equal(app.get('mode-k'), undefined);
   assert.equal(app.get('permutation'), undefined, 'the permutation is omitted from the header');
+  assert.equal(app.get('new-game-button'), undefined, 'the different-puzzle button is removed');
   await ladder(app, 7, 1);
   assert.equal(E.countCells(app.state().board), 1, 'first action always moves, including old K-mode saves');
   assert.equal(app.state().history[0].type, 'ladder');

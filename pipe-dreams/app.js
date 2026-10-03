@@ -143,7 +143,7 @@
     advanceTimer = setTimeout(() => {
       if (version !== advanceVersion || game !== completedGame) return;
       advanceTimer = null;
-      if (solved() && !$('rules-dialog').open && !$('reset-stage-dialog').open) newStage(true);
+      if (solved() && !$('rules-dialog').open && !$('reset-stage-dialog').open) newStage();
     }, 650);
   }
 
@@ -212,15 +212,15 @@
     announce('Stage restarted.');
   }
 
-  function newStage(advance) {
-    if (advance && !solved()) return;
-    game = freshGame(game.stage + (advance ? 1 : 0), game.seen);
+  function newStage() {
+    if (!solved()) return;
+    game = freshGame(game.stage + 1, game.seen);
     clearSelection();
     focusIndex = 0;
     save();
     render();
     announce(`Stage ${game.stage}. Reach ${target()} cells.`);
-    if (advance) cells[0].focus();
+    cells[0].focus();
   }
 
   function resetStage() {
@@ -345,7 +345,6 @@
   $('reset-stage-no').addEventListener('click', () => $('reset-stage-dialog').close());
   $('reset-stage-yes').addEventListener('click', resetStage);
   $('hint-button').addEventListener('click', hint);
-  $('new-game-button').addEventListener('click', () => newStage(false));
   $('rules-button').addEventListener('click', () => {
     $('rules-dialog').showModal();
     syncAutoAdvance();
