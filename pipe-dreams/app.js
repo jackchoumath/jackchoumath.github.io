@@ -11,6 +11,8 @@
   let hintSource = null;
   let focusIndex = 0;
   let hintBusy = false;
+  let advanceTimer = null;
+  let advanceVersion = 0;
   let game;
 
   function size() { return game.permutation.length; }
@@ -98,8 +100,6 @@
     $('undo-button').disabled = !game.history.length;
     $('restart-button').disabled = !game.history.length;
     $('hint-button').disabled = won || hintBusy;
-    $('stage-complete').hidden = !won;
-    $('next-button').hidden = !won;
     $('board').classList.toggle('solved', won);
 
     cells.forEach((cell, index) => {
@@ -122,7 +122,29 @@
         occupied ? `filled${movable.has(index) ? ', can move' : ', no legal move'}${selected === index ? ', selected' : ''}` : 'empty'}`);
       cell.firstElementChild.textContent = '';
     });
+    syncAutoAdvance();
+  }
 
+  function cancelAutoAdvance() {
+    if (advanceTimer !== null) clearTimeout(advanceTimer);
+    advanceTimer = null;
+    advanceVersion += 1;
+  }
+
+  function syncAutoAdvance() {
+    if (!solved() || $('rules-dialog').open || $('reset-stage-dialog').open) {
+      cancelAutoAdvance();
+      return;
+    }
+    if (advanceTimer !== null) return;
+    const completedGame = game;
+    const version = advanceVersion;
+    // Briefly show the completed board and count before starting the next stage.
+    advanceTimer = setTimeout(() => {
+      if (version !== advanceVersion || game !== completedGame) return;
+      advanceTimer = null;
+      if (solved() && !$('rules-dialog').open && !$('reset-stage-dialog').open) newStage(true);
+    }, 650);
   }
 
   function clearSelection() { selected = null; hintSource = null; lastAdded = null; }
@@ -151,9 +173,8 @@
       save();
       render();
       announce(solved()
-        ? `Stage ${game.stage} complete! You reached the maximum of ${target()} cells. Continue to the next stage.`
+        ? `Stage ${game.stage} complete! You reached the maximum of ${target()} cells. Moving to the next stage.`
         : `Added a cell at ${coordinate(index)}.${!legalMoves().length ? ' No forward moves remain. Undo or restart to try another route.' : ''}`);
-      if (solved()) $('next-button').focus();
       return;
     }
     hintSource = null;
@@ -317,14 +338,21 @@
 
   $('undo-button').addEventListener('click', undo);
   $('restart-button').addEventListener('click', restart);
-  $('reset-stage-button').addEventListener('click', () => $('reset-stage-dialog').showModal());
+  $('reset-stage-button').addEventListener('click', () => {
+    $('reset-stage-dialog').showModal();
+    syncAutoAdvance();
+  });
   $('reset-stage-no').addEventListener('click', () => $('reset-stage-dialog').close());
   $('reset-stage-yes').addEventListener('click', resetStage);
   $('hint-button').addEventListener('click', hint);
-  $('next-button').addEventListener('click', () => newStage(true));
   $('new-game-button').addEventListener('click', () => newStage(false));
-  $('rules-button').addEventListener('click', () => $('rules-dialog').showModal());
+  $('rules-button').addEventListener('click', () => {
+    $('rules-dialog').showModal();
+    syncAutoAdvance();
+  });
   $('close-rules').addEventListener('click', () => $('rules-dialog').close());
+  $('rules-dialog').addEventListener('close', syncAutoAdvance);
+  $('reset-stage-dialog').addEventListener('close', syncAutoAdvance);
   $('rules-dialog').addEventListener('click', event => {
     if (event.target === $('rules-dialog')) {
       const bounds = $('rules-dialog').getBoundingClientRect();
@@ -350,6 +378,6 @@
   } catch { /* The rules still open for a first visit when storage is unavailable. */ }
   save();
   render();
-  announce(solved() ? 'Maximum reached! Continue to the next stage.' : game.history.length ? 'Your game is restored. Keep going.' : 'Start with a filled cell. Every stage begins at the bottom pipe dream.');
+  announce(solved() ? 'Maximum reached! Moving to the next stage.' : game.history.length ? 'Your game is restored. Keep going.' : 'Start with a filled cell. Every stage begins at the bottom pipe dream.');
   if (firstVisit) $('rules-dialog').showModal();
 })();

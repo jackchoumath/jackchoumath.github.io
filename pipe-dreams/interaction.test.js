@@ -50,7 +50,11 @@ class Element {
   }
   focus() { this.focused = true; }
   showModal() { this.open = true; }
-  close() { this.open = false; }
+  close() {
+    const wasOpen = this.open;
+    this.open = false;
+    if (wasOpen) void this.emit('close');
+  }
 }
 
 function savedGame(permutation, history = [], stage = 1) {
@@ -79,9 +83,23 @@ function start(saved, engine = E, options = {}) {
       storage.set(key, String(value));
     }
   };
+  // Hold completion delays until the test advances time. Hint delays remain
+  // asynchronous, including the explicit timer hook used by race tests.
+  const completionTimers = [];
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8'), {
     window: {PipeDreamEngine: engine}, document, localStorage,
-    setTimeout: options.setTimeout || (callback => setImmediate(callback))
+    setTimeout(callback, delay) {
+      if (delay >= 500) {
+        const timer = {callback, delay, active: true};
+        completionTimers.push(timer);
+        return timer;
+      }
+      return options.setTimeout ? options.setTimeout(callback, delay) : setImmediate(callback);
+    },
+    clearTimeout(timer) {
+      if (completionTimers.includes(timer)) timer.active = false;
+      else if (!options.setTimeout) clearImmediate(timer);
+    }
   }, {filename: 'app.js'});
   return {
     get: id => elements.get(id),
@@ -90,6 +108,12 @@ function start(saved, engine = E, options = {}) {
     button: id => elements.get(id).emit('click'),
     key: key => document.emit('keydown', {key}),
     state: () => JSON.parse(storage.get(STORAGE_KEY) ?? null),
+    pendingAdvances: () => completionTimers.filter(timer => timer.active).length,
+    async advance() {
+      const pending = completionTimers.filter(timer => timer.active);
+      for (const timer of pending) { timer.active = false; await timer.callback(); }
+    },
+    completionTimers,
     storage
   };
 }
@@ -134,14 +158,14 @@ async function dynamicSizeChecks() {
     await app.click(n);
     assert.equal(E.countCells(app.state().board), E.maximumCrossings(permutation));
     assert.deepEqual(E.demazurePermutation(app.state().board, n), permutation);
-    assert.equal(app.get('next-button').hidden, false);
+    assert.equal(app.pendingAdvances(), 1);
     app = start(app.state());
     assertBoardSize(app, n);
     assert.equal(app.state().history[0].type, 'k-ladder');
     await app.button('undo-button');
     assert.deepEqual(app.state().board, E.bottomDream(permutation), `Undo at size ${n}`);
     assert.equal(app.state().history.length, 0);
-    assert.equal(app.get('next-button').hidden, true);
+    assert.equal(app.pendingAdvances(), 0);
     await app.button('new-game-button');
     assertBoardSize(app, n);
     assert.equal(app.state().stage, stage, 'shuffle retains the stage and its prescribed size');
@@ -155,15 +179,15 @@ async function dynamicSizeChecks() {
     const permutation = simplePermutation(n);
     const app = start(savedGame(permutation, E.maximalPath(permutation), stage));
     assertBoardSize(app, n);
-    assert.equal(app.get('next-button').hidden, false);
-    await app.button('next-button');
+    assert.equal(app.pendingAdvances(), 1);
+    await app.advance();
     assert.equal(app.state().stage, stage + 1);
     const nextSize = Math.min(n + 1, 13);
     assertBoardSize(app, nextSize);
     assert.equal(app.cell(0).focused, true, 'advancing focuses the rebuilt board');
     assert.equal(app.cell(0).tabIndex, 0);
     assert.equal(app.state().history.length, 0);
-    assert.equal(app.get('next-button').hidden, true);
+    assert.equal(app.pendingAdvances(), 0);
     const move = E.legalMoves(app.state().board, nextSize).find(candidate => candidate.type === 'ladder');
     assert(move, 'the enlarged board has a playable move');
     await ladder(app, move.from, move.to);
@@ -193,7 +217,7 @@ async function dynamicSizeChecks() {
   assert.deepEqual(cappedApp.state().board, cappedSave.board, 'an old late-stage save keeps its progress');
   assert(cappedApp.cell(8).classList.contains('k-origin'));
   await cappedApp.click(8);
-  await cappedApp.button('next-button');
+  await cappedApp.advance();
   assertBoardSize(cappedApp, 13);
   assert.equal(cappedApp.state().stage, 69);
   const reshuffledApp = start(cappedSave);
@@ -400,6 +424,87 @@ async function resetStageChecks() {
   assert(!racing.get('board').children.some(cell => /selected|destination|hint-source/.test(cell.className)));
 }
 
+async function automaticAdvanceChecks() {
+  const permutation = simplePermutation(5);
+  const won = savedGame(permutation, E.maximalPath(permutation), 3);
+  let app = start(savedGame(permutation, [], 3));
+  assert.equal(app.get('next-button'), undefined, 'completion no longer requires a button');
+  assert.equal(app.pendingAdvances(), 0, 'an unfinished board cannot advance');
+  await app.advance();
+  assert.equal(app.state().stage, 3);
+  await ladder(app, 5, 1);
+  assert.equal(app.pendingAdvances(), 0, 'moving a cell below the target does not advance');
+  await app.click(5);
+  assert.equal(app.state().stage, 3, 'the completed board remains visible during the short delay');
+  assert.equal(app.pendingAdvances(), 1);
+  await app.click(1);
+  assert.equal(app.pendingAdvances(), 1, 'additional clicks cannot queue duplicate advancement');
+  await app.advance();
+  assert.equal(app.state().stage, 4, 'reaching the maximum advances without another click');
+  assertBoardSize(app, 6);
+  assert.deepEqual(app.state().board, E.bottomDream(app.state().permutation));
+  assert.equal(app.cell(0).focused, true);
+  assert.equal(app.pendingAdvances(), 0);
+  await app.advance();
+  assert.equal(app.state().stage, 4, 'one completion advances exactly one stage');
+
+  app = start(won);
+  assert.equal(app.pendingAdvances(), 1, 'a completed saved board resumes automatic advancement');
+  await app.advance();
+  assert.equal(app.state().stage, 4);
+
+  for (const button of ['undo-button', 'restart-button', 'new-game-button']) {
+    app = start(won);
+    const stale = app.completionTimers.at(-1).callback;
+    await app.button(button);
+    assert.equal(app.pendingAdvances(), 0, `${button} cancels completion`);
+    const changed = app.state();
+    await stale();
+    await app.advance();
+    assert.deepEqual(app.state(), changed, `${button} cannot be undone by an old completion callback`);
+  }
+
+  // Undo and completion can reuse the very same game object. A callback for
+  // the earlier completion must not consume the new completion's delay.
+  app = start(won);
+  const staleCompletion = app.completionTimers.at(-1).callback;
+  await app.button('undo-button');
+  await ladder(app, 5, 1);
+  await app.click(5);
+  assert.equal(app.pendingAdvances(), 1);
+  await staleCompletion();
+  assert.equal(app.state().stage, 3, 'an older completion cannot advance a newly solved board');
+  assert.equal(app.pendingAdvances(), 1);
+  await app.advance();
+  assert.equal(app.state().stage, 4);
+
+  for (const [open, close, dialog] of [
+    ['rules-button', 'close-rules', 'rules-dialog'],
+    ['reset-stage-button', 'reset-stage-no', 'reset-stage-dialog']
+  ]) {
+    app = start(won);
+    await app.button(open);
+    assert.equal(app.get(dialog).open, true);
+    await app.advance();
+    assert.equal(app.state().stage, 3, 'an open dialog pauses automatic advancement');
+    await app.button(close);
+    assert.equal(app.pendingAdvances(), 1, 'closing a dialog resumes completion');
+    await app.advance();
+    assert.equal(app.state().stage, 4);
+  }
+
+  app = start(won);
+  const beforeReset = app.completionTimers.at(-1).callback;
+  await app.button('reset-stage-button');
+  await app.button('reset-stage-yes');
+  const reset = app.state();
+  assert.equal(reset.stage, 1);
+  assert.equal(app.pendingAdvances(), 0, 'confirmed reset cancels completion');
+  await beforeReset();
+  await app.advance();
+  assert.deepEqual(app.state(), reset, 'old completion cannot advance the reset game');
+}
+
 async function main() {
   const simple = [1, 3, 2, 4, 5, 6, 7];
   let app = start(savedGame(simple));
@@ -412,7 +517,7 @@ async function main() {
   assert(app.cell(7).classList.contains('k-origin'));
   assert.match(app.cell(7).getAttribute('aria-label'), /original position; add a cell here/);
   assert(!/No forward moves remain/.test(app.get('status-message').textContent));
-  assert.equal(app.get('next-button').hidden, true);
+  assert.equal(app.pendingAdvances(), 0);
 
   // No ordinary moves remain, but the pending conversion still solves it.
   assert.equal(E.legalMoves(app.state().board).length, 0);
@@ -424,12 +529,12 @@ async function main() {
   assert.equal(app.state().history.length, 1, 'conversion counts as the same move');
   assert.equal(app.state().history[0].type, 'k-ladder');
   assert.deepEqual(E.demazurePermutation(app.state().board), simple);
-  assert.equal(app.get('next-button').hidden, false);
+  assert.equal(app.pendingAdvances(), 1);
   assert(!app.cell(7).classList.contains('k-origin'));
   await app.button('undo-button');
   assert.deepEqual(app.state().board, E.bottomDream(simple), 'Undo reverses the entire K-ladder');
   assert.equal(app.state().history.length, 0);
-  assert.equal(app.get('next-button').hidden, true);
+  assert.equal(app.pendingAdvances(), 0);
 
   await ladder(app, 7, 1);
   app = start(app.state());
@@ -516,7 +621,8 @@ async function main() {
   await restoredDifficultyChecks();
   await firstVisitRulesChecks();
   await resetStageChecks();
-  console.log('Interaction checks passed: legal moves, persistent cell addition, overlapping landings, bounded hints, undo/reload, dynamic sizes 5–13, growth boundaries, legacy saves, pattern-based difficulty restoration, first-visit rules, and confirmed stage resets.');
+  await automaticAdvanceChecks();
+  console.log('Interaction checks passed: legal moves, persistent cell addition, overlapping landings, bounded hints, undo/reload, dynamic sizes 5–13, growth boundaries, legacy saves, pattern-based difficulty restoration, first-visit rules, confirmed stage resets, and automatic advancement with cancellation and dialog pauses.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; });
