@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f0e7">
+  <meta name="description" content="A pipe dream puzzle about moving and adding cells.">
+  <title>Pipe dreams</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="engine.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main class="game">
+    <h1 class="sr-only">Pipe dreams</h1>
+    <header class="topbar">
+      <div class="board-meta">
+        <div class="stage-stack">
+          <span class="stage">Stage <span id="stage-number">01</span><span id="difficulty-label" class="difficulty"></span></span>
+          <button id="reset-stage-button" class="icon-button stage-reset" type="button" aria-label="Reset to stage 1" title="Reset to stage 1">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5v14M20 5l-10 7 10 7Z"/></svg>
+          </button>
+        </div>
+        <div id="board-score" class="score" aria-label="Filled cells and maximum">
+          <span id="current-count">—</span><span class="score-divider" aria-hidden="true">/</span><span id="target-count">—</span>
+        </div>
+      </div>
+      <nav class="controls" aria-label="Game controls">
+        <a class="icon-button" href="../index.html" aria-label="Back to Jack Chou’s website" title="Back to website">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 5-7 7 7 7M7 12h14"/></svg>
+        </a>
+        <span class="control-divider" aria-hidden="true"></span>
+        <button id="undo-button" class="icon-button" type="button" disabled aria-label="Undo last move" title="Undo (U)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 4 10l5 5M4 10h10a6 6 0 0 1 0 12" transform="translate(0 -2)"/></svg>
+        </button>
+        <button id="restart-button" class="icon-button" type="button" aria-label="Restart this stage" title="Restart stage">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1 7M4 4v6h6"/></svg>
+        </button>
+        <button id="hint-button" class="icon-button" type="button" aria-label="Show a hint" title="Hint (H)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M8 14a6 6 0 1 1 8 0c-1 .8-1 1.5-1 2H9c0-.5 0-1.2-1-2Z"/></svg>
+        </button>
+        <button id="new-game-button" class="icon-button" type="button" aria-label="Try a different puzzle" title="Different puzzle">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h3c4 0 8 12 12 12h3m-4-4 4 4-4 4M3 18h3c1.8 0 3.5-2.3 5-5m2-3c1.5-2.4 3-4 5-4h3m-4-4 4 4-4 4"/></svg>
+        </button>
+        <button id="rules-button" class="icon-button" type="button" aria-label="Game rules" title="Rules">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4 2c-1 .7-1.5 1.2-1.5 2M12 17h.01"/></svg>
+        </button>
+        <span id="stage-complete" class="stage-complete" hidden>
+          <button id="next-button" class="icon-button next-button" type="button" hidden aria-label="Maximum reached. Next stage" title="Next stage">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16m-7-7 7 7-7 7"/></svg>
+          </button>
+        </span>
+      </nav>
+    </header>
+    <div id="board" class="board" role="group" aria-label="Pipe dream board"></div>
+    <p id="status-message" class="sr-only" role="status" aria-live="polite"></p>
+    <p id="notice" class="notice" hidden></p>
+  </main>
+
+  <dialog id="reset-stage-dialog" class="rules-dialog reset-dialog" aria-labelledby="reset-stage-question">
+    <p id="reset-stage-question">Are you sure you want to reset stage?</p>
+    <div class="dialog-actions">
+      <button id="reset-stage-no" class="dialog-button" type="button" autofocus>No</button>
+      <button id="reset-stage-yes" class="dialog-button confirm-reset" type="button">Yes</button>
+    </div>
+  </dialog>
+
+  <dialog id="rules-dialog" class="rules-dialog" aria-labelledby="rules-title">
+    <div class="dialog-heading">
+      <h2 id="rules-title">Rules</h2>
+      <button id="close-rules" class="icon-button" type="button" aria-label="Close rules" title="Close rules">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg>
+      </button>
+    </div>
+    <p>Reach the cell count above the board.</p>
+    <p>A small circle at the top right of a cell means it can be moved.</p>
+    <div class="rules-move-comparison">
+      <div>
+        <h3>Moving cells</h3>
+        <div class="move-diagram" role="img" aria-label="Move the bottom-left cell to the empty top-right square, leaving its original square empty."><span class="mini-board"><i></i><i></i><i class="filled"></i><i></i></span><span>→</span><span class="mini-board"><i></i><i class="filled"></i><i></i><i></i></span></div>
+        <div class="move-diagram jump-diagram" role="img" aria-label="A cell can also move up and right over two rows of filled pairs. The filled pairs remain in place, and the original square becomes empty."><span class="mini-board jump-board"><i></i><i></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i></i></span><span>→</span><span class="mini-board jump-board"><i></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i></i><i></i></span></div>
+        <p>Select a cell, then its outlined destination.</p>
+      </div>
+      <div>
+        <h3>Adding cells</h3>
+        <div class="move-diagram" role="img" aria-label="After moving a cell, click the plus at its original square to add a cell there."><span class="mini-board"><i></i><i class="filled"></i><i class="origin"></i><i></i></span><span>→</span><span class="mini-board"><i></i><i class="filled"></i><i class="filled added"></i><i></i></span></div>
+        <div class="move-diagram jump-diagram" role="img" aria-label="After a move over filled pairs, you can also add a cell at the highlighted original square. The filled pairs remain in place."><span class="mini-board jump-board"><i></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="origin"></i><i></i></span><span>→</span><span class="mini-board jump-board"><i></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled added"></i><i></i></span></div>
+        <p>Then click the + to add a cell at its original position.</p>
+      </div>
+    </div>
+    <p>The square to the right must be empty. Move to the right square of an empty pair above, jumping over rows only when both squares in each intervening row are filled.</p>
+  </dialog>
+</body>
+</html>
