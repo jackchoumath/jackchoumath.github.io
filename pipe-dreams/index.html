@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#f3f0e7">
   <meta name="description" content="A pipe dream puzzle about moving and adding cells.">
   <title>Pipe dreams</title>
-  <link rel="stylesheet" href="style.css?v=20261003-arrows">
+  <link rel="stylesheet" href="style.css?v=20261003-labels">
   <script src="engine.js?v=20261003-n17" defer></script>
   <script src="app.js?v=20261003-n17" defer></script>
 </head>
@@ -16,7 +16,8 @@
     <header class="topbar">
       <div class="board-meta">
         <div class="stage-stack">
-          <span class="stage">Stage <span id="stage-number">01</span><span id="difficulty-label" class="difficulty"></span></span>
+          <span class="stage">Stage <span id="stage-number">01</span></span>
+          <span id="difficulty-label" class="difficulty"></span>
           <button id="reset-stage-button" class="icon-button stage-reset" type="button" aria-label="Reset to stage 1" title="Reset to stage 1">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5v14M20 5l-10 7 10 7Z"/></svg>
           </button>

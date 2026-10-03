@@ -15,10 +15,10 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--sage); outline-
 .game { height: 100vh; height: 100dvh; min-height: 350px; display: flex; flex-direction: column; padding: 0 12px 12px; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 64px; flex-shrink: 0; }
 .board-meta { display: flex; align-items: center; gap: clamp(20px, 4vw, 64px); }
-.stage-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-.stage { font-size: 12px; white-space: nowrap; color: var(--muted); }
+.stage-stack { display: grid; grid-template-columns: max-content 28px; align-items: center; gap: 2px 8px; }
+.stage { grid-column: 1 / -1; font-size: 16px; white-space: nowrap; color: var(--muted); }
 #stage-number { color: var(--ink); font-variant-numeric: tabular-nums; }
-.difficulty { margin-left: 8px; font-size: 11px; }
+.difficulty { font-size: 14px; white-space: nowrap; color: var(--muted); }
 .score { display: flex; align-items: baseline; gap: 8px; font-size: 24px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .score-divider, #target-count { color: var(--muted); }
 .score.complete, .score.complete #target-count { color: var(--sage); }
@@ -93,7 +93,6 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--sage); outline-
   .game { padding: 0 8px 8px; }
   .topbar { flex-wrap: wrap; justify-content: center; gap: 0; padding: 8px 2px; }
   .board-meta { width: 100%; justify-content: space-between; gap: 12px; height: 52px; }
-  .stage { font-size: 11px; }
   .score { font-size: 21px; gap: 6px; }
   .controls { gap: 8px; }
   .board { width: min(100%, calc(100dvh - 116px)); }
