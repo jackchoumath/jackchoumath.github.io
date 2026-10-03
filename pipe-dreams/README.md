@@ -102,4 +102,6 @@ The board is the largest square fitting beneath a compact toolbar, centered
 with side margins when needed. Cell counts and stage appear above it; all
 empty squares share the same background. Controls are icons with hover labels
 and accessible names. The rules dialog uses “Moving cells” and “Adding cells,”
-with diagrams of adjacent moves and jumps over filled rows.
+with diagrams of adjacent moves and jumps over filled rows. Illegal examples
+show a jump blocked by a half-filled row and a destination whose left neighbor
+is occupied; outlined sources and striped destinations mark attempted moves.

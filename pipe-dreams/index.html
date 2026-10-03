@@ -83,7 +83,28 @@
         <p>Then click the + to add a cell at its original position.</p>
       </div>
     </div>
-    <p>The square to the right must be empty. Move to the right square of an empty pair above, jumping over rows only when both squares in each intervening row are filled.</p>
+    <p>Choose a cell with an empty square immediately to its right. Look upward through these two columns, skipping rows where both squares are filled. If the first remaining row has both squares empty, move the cell into its right square. A row with only one filled square blocks the move.</p>
+    <section class="rules-illegal" aria-labelledby="illegal-title">
+      <h3 id="illegal-title">Not allowed</h3>
+      <div class="illegal-examples">
+        <figure>
+          <div class="move-diagram" role="img" aria-label="Illegal jump: the outlined bottom-left cell tries to move to the top-right square, but the middle row has only its left square filled. The striped destination shows an attempted move, not a legal result.">
+            <span class="mini-board blocked-jump-board"><i></i><i></i><i class="filled"></i><i></i><i class="filled attempted-source"></i><i></i></span>
+            <span class="blocked-arrow" aria-hidden="true">↛</span>
+            <span class="mini-board blocked-jump-board"><i></i><i class="attempted-destination"></i><i class="filled"></i><i></i><i></i><i></i></span>
+          </div>
+          <figcaption>The outlined cell cannot jump over a row with only one filled square.</figcaption>
+        </figure>
+        <figure>
+          <div class="move-diagram" role="img" aria-label="Illegal destination: the outlined bottom-left cell tries to move to the top-right square, but the square immediately left of that destination is filled. The striped destination shows an attempted move, not a legal result.">
+            <span class="mini-board"><i class="filled"></i><i></i><i class="filled attempted-source"></i><i></i></span>
+            <span class="blocked-arrow" aria-hidden="true">↛</span>
+            <span class="mini-board"><i class="filled"></i><i class="attempted-destination"></i><i></i><i></i></span>
+          </div>
+          <figcaption>The square immediately left of the destination must be empty.</figcaption>
+        </figure>
+      </div>
+    </section>
   </dialog>
 </body>
 </html>
