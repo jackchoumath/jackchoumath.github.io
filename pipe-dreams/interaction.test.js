@@ -126,10 +126,11 @@ function start(saved, engine = E, options = {}) {
       else if (!options.setTimeout) clearImmediate(timer);
     }
   }, {filename: 'app.js'});
+  const cellAt = index => elements.get('board').children.find(cell => Number(cell.dataset.index) === index);
   return {
     get: id => elements.get(id),
-    cell: index => elements.get('board').children[index],
-    click: index => elements.get('board').children[index].emit('click'),
+    cell: cellAt,
+    click: index => cellAt(index).emit('click'),
     button: id => elements.get(id).emit('click'),
     key: key => document.emit('keydown', {key}),
     state: () => JSON.parse(storage.get(STORAGE_KEY) ?? null),
@@ -162,11 +163,21 @@ async function ladder(app, from, to) {
 
 function assertBoardSize(app, n) {
   assert.equal(app.state().permutation.length, n);
-  assert.equal(app.state().board.length, n * n);
-  assert.equal(app.get('board').children.length, n * n, `render all ${n} × ${n} cells`);
-  assert.equal(app.get('board').style.gridTemplateColumns, `repeat(${n}, minmax(0, 1fr))`);
-  assert.equal(app.get('board').style.gridTemplateRows, `repeat(${n}, minmax(0, 1fr))`);
-  assert.match(app.cell(n * n - 1).getAttribute('aria-label'), new RegExp(`Row ${n}, column ${n}:`));
+  assert.equal(app.state().board.length, n * n, 'saved boards retain the engine index stride');
+  const side = n - 1;
+  assert.equal(app.get('board').children.length, side * side, `render all ${side} × ${side} cells for S${n}`);
+  assert.equal(app.get('board').style.gridTemplateColumns, `repeat(${side}, minmax(0, 1fr))`);
+  assert.equal(app.get('board').style.gridTemplateRows, `repeat(${side}, minmax(0, 1fr))`);
+  for (let row = 0; row < side; row += 1) {
+    for (let col = 0; col < side; col += 1) {
+      const cell = app.get('board').children[row * side + col];
+      assert.equal(Number(cell.dataset.index), row * n + col, 'displayed positions map to unchanged engine indices');
+      assert.match(cell.getAttribute('aria-label'), new RegExp(`Row ${row + 1}, column ${col + 1}:`));
+    }
+    assert.equal(app.cell(row * n + n - 1), undefined, 'the unused final column is not rendered');
+    assert.equal(app.cell((n - 1) * n + row), undefined, 'the unused final row is not rendered');
+  }
+  assert.equal(app.cell(n * n - 1), undefined);
 }
 
 function simplePermutation(n) {
@@ -258,6 +269,52 @@ async function dynamicSizeChecks() {
     await cappedApp.advance();
     assertBoardSize(cappedApp, 17);
     assert.equal(cappedApp.state().stage, 69);
+  }
+}
+
+async function outerCellChecks() {
+  // The bottommost and rightmost playable squares are still visible. Walk a
+  // cell between them to catch accidental use of the shorter display stride.
+  for (let n = 5; n <= 17; n += 1) {
+    const permutation = Array.from({length: n}, (_, index) => index + 1);
+    [permutation[n - 2], permutation[n - 1]] = [permutation[n - 1], permutation[n - 2]];
+    let app = start(savedGame(permutation));
+    assertBoardSize(app, n);
+    const bottom = (n - 2) * n;
+    const right = n - 2;
+    await app.cell(bottom).emit('keydown', {key: 'ArrowDown'});
+    assert.equal(app.cell(bottom).tabIndex, 0, 'Down stays on the bottommost playable cell');
+    await app.cell(bottom).emit('keydown', {key: 'End'});
+    assert.equal(app.cell(bottom).tabIndex, 0, 'the last playable row ends at its first column');
+    let from = bottom;
+    while (from !== right) {
+      const to = from - n + 1;
+      await ladder(app, from, to);
+      assert.equal(app.state().board[from], 0);
+      assert.equal(app.state().board[to], 1);
+      assert(app.cell(from).classList.contains('k-origin'));
+      from = to;
+    }
+    assert.equal(app.state().history.length, n - 2);
+    assert.equal(E.countCells(app.state().board), 1, 'moving across the board preserves the count');
+    assert.deepEqual(E.demazurePermutation(app.state().board, n), permutation);
+    const progressed = app.state();
+    app = start(progressed);
+    assertBoardSize(app, n);
+    assert.deepEqual(app.state(), progressed, 'reloading preserves a move into the last visible column');
+    await app.cell(0).emit('keydown', {key: 'End'});
+    assert.equal(app.cell(right).tabIndex, 0, 'End reaches the rightmost playable cell');
+    await app.cell(right).emit('keydown', {key: 'ArrowRight'});
+    assert.equal(app.cell(right).tabIndex, 0, 'Right never focuses the removed final column');
+    await app.cell(right).emit('keydown', {key: 'ArrowDown'});
+    assert.equal(app.cell(right).tabIndex, 0, 'Down stays within the staircase at the right edge');
+    const origin = n + n - 3;
+    await app.click(origin);
+    assert.equal(app.state().history.at(-1).type, 'k-ladder');
+    assert.equal(E.countCells(app.state().board), 2);
+    await app.button('undo-button');
+    assert.equal(app.state().board[right], 0, 'Undo clears a destination in the last visible column');
+    assert.equal(app.state().board[origin], 1, 'Undo restores the preceding source using engine indices');
   }
 }
 
@@ -358,13 +415,15 @@ async function firstVisitRulesChecks() {
   const unavailable = start(undefined, E, {storageDenied: true});
   assert.equal(unavailable.get('rules-dialog').open, true,
     'denied storage does not prevent the first-visit rules from opening');
-  assert.equal(unavailable.get('board').children.length, 25);
+  assert.equal(unavailable.get('board').children.length, 16);
   await unavailable.button('close-rules');
-  const from = unavailable.get('board').children.findIndex(cell => cell.classList.contains('movable'));
-  assert(from >= 0, 'a playable board is still created without storage');
+  const sourceCell = unavailable.get('board').children.find(cell => cell.classList.contains('movable'));
+  assert(sourceCell, 'a playable board is still created without storage');
+  const from = Number(sourceCell.dataset.index);
   await unavailable.click(from);
-  const to = unavailable.get('board').children.findIndex(cell => cell.classList.contains('destination'));
-  assert(to >= 0);
+  const destinationCell = unavailable.get('board').children.find(cell => cell.classList.contains('destination'));
+  assert(destinationCell);
+  const to = Number(destinationCell.dataset.index);
   await unavailable.click(to);
   assert(unavailable.cell(from).classList.contains('k-origin'), 'play continues after dismissing the rules without storage');
 }
@@ -766,13 +825,14 @@ async function main() {
   assert.equal(app.state().history[2].type, 'k-ladder');
 
   await dynamicSizeChecks();
+  await outerCellChecks();
   await boundedHintChecks();
   await restoredDifficultyChecks();
   await firstVisitRulesChecks();
   await resetStageChecks();
   await automaticAdvanceChecks();
   await leaveGameChecks();
-  console.log('Interaction checks passed: legal moves, persistent cell addition, overlapping landings, bounded hints, undo/reload, dynamic sizes 5–17, growth boundaries, legacy saves, size-18 save rejection, pattern-based difficulty restoration, first-visit rules, confirmed stage resets, confirmed tab closure with blocked-close recovery, and automatic advancement with cancellation and dialog pauses.');
+  console.log('Interaction checks passed: legal moves, persistent cell addition, overlapping landings, bounded hints, undo/reload, S5–S17 displayed on 4×4–16×16 grids, outer playable cells and keyboard boundaries, growth boundaries, legacy saves, size-18 save rejection, pattern-based difficulty restoration, first-visit rules, confirmed stage resets, confirmed tab closure with blocked-close recovery, and automatic advancement with cancellation and dialog pauses.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; });

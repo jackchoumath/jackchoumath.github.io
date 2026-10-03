@@ -5,7 +5,7 @@
   const STORAGE_KEY = 'pipe-dreams-game-v1';
   const RULES_SEEN_KEY = 'pipe-dreams-rules-seen-v1';
   const $ = id => document.getElementById(id);
-  const cells = [];
+  const cells = new Map();
   let selected = null;
   let lastAdded = null;
   let hintSource = null;
@@ -224,7 +224,7 @@
     save();
     render();
     announce(`Stage ${game.stage}. Reach ${target()} cells.`);
-    cells[0].focus();
+    cells.get(0).focus();
   }
 
   function resetStage() {
@@ -235,7 +235,7 @@
     save();
     render();
     $('reset-stage-dialog').close();
-    cells[0].focus();
+    cells.get(0).focus();
     announce(`Stage reset to 1. Reach ${target()} cells.`);
   }
 
@@ -314,29 +314,34 @@
     event.preventDefault();
     focusIndex = destination;
     cells.forEach((cell, i) => { cell.tabIndex = i === destination ? 0 : -1; });
-    cells[destination].focus();
+    cells.get(destination).focus();
   }
 
   function rebuildBoard() {
     const n = size();
-    if (cells.length === n * n) return;
-    cells.length = 0;
+    const side = n - 1;
+    if (cells.size === side * side) return;
+    cells.clear();
     $('board').replaceChildren();
-    $('board').style.gridTemplateColumns = `repeat(${n}, minmax(0, 1fr))`;
-    $('board').style.gridTemplateRows = `repeat(${n}, minmax(0, 1fr))`;
-    $('board').setAttribute('aria-label', `${n} by ${n} pipe dream board`);
-    for (let index = 0; index < n * n; index += 1) {
-      const cell = document.createElement('button');
-      cell.type = 'button';
-      cell.dataset.index = index;
-      const piece = document.createElement('span');
-      piece.className = 'piece';
-      piece.setAttribute('aria-hidden', 'true');
-      cell.append(piece);
-      cell.addEventListener('click', () => selectCell(index));
-      cell.addEventListener('keydown', event => moveFocus(event, index));
-      $('board').append(cell);
-      cells.push(cell);
+    $('board').style.gridTemplateColumns = `repeat(${side}, minmax(0, 1fr))`;
+    $('board').style.gridTemplateRows = `repeat(${side}, minmax(0, 1fr))`;
+    $('board').setAttribute('aria-label', `${side} by ${side} pipe dream board`);
+    for (let row = 0; row < side; row += 1) {
+      for (let col = 0; col < side; col += 1) {
+        // Keep the engine's n-wide indices so existing moves and saves still match.
+        const index = row * n + col;
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.dataset.index = index;
+        const piece = document.createElement('span');
+        piece.className = 'piece';
+        piece.setAttribute('aria-hidden', 'true');
+        cell.append(piece);
+        cell.addEventListener('click', () => selectCell(index));
+        cell.addEventListener('keydown', event => moveFocus(event, index));
+        $('board').append(cell);
+        cells.set(index, cell);
+      }
     }
   }
 

@@ -38,7 +38,7 @@ or closes the rules. Progress is saved in this browser when local storage is ava
 
 ## Mathematical conventions
 
-- The board displays a full n × n square grid. Cells outside the staircase
+- For a permutation in S_n, the board displays a full (n−1) × (n−1) square grid. Cells outside the staircase
   `r + c < n - 1` in zero-based coordinates stay empty.
 - Stages sample non-dominant permutations from S_n within increasing difficulty
   bands, avoiding recent repeats. Difficulty is the number of distinct contained
@@ -92,14 +92,15 @@ five stages up to twelve at stage 51. The first stage has a known two-move
 solution requiring one additional cell. Saved games retain their boards, and
 their displayed difficulty is recalculated from the actual permutation.
 
-Board sizes increase alongside the difficulty bands: 5 × 5 for stages 1–3,
-6 × 6 for stages 4–6, 7 × 7 for stages 7–10, and 8 × 8 for stages 11–15.
-The size then increases every five stages, reaching 17 × 17 at stage 56
-and staying there. Sizes through eight use complete permutation catalogs;
-larger sizes use bounded, reproducible samples to keep puzzle generation fast.
-Existing saved puzzles retain their original size until the player advances
-or resets to stage 1. All moves, targets, hints, keyboard
-navigation, and saved histories use the actual permutation size.
+Board sizes increase alongside the difficulty bands: 4 × 4 for stages 1–3,
+5 × 5 for stages 4–6, 6 × 6 for stages 7–10, and 7 × 7 for stages 11–15.
+The displayed side then increases every five stages, reaching 16 × 16 at stage 56
+and staying there, with permutations in S_17. Permutation sizes through eight
+use complete catalogs; larger sizes use bounded, reproducible samples to keep
+puzzle generation fast. Existing saved puzzles retain their permutation and
+progress and display on the smaller grid. All moves, targets, hints, keyboard
+navigation, and saved histories still use the actual permutation size; the
+engine's n-wide board indices are preserved while rendering only n−1 rows and columns.
 
 The board is the largest square fitting beneath a compact toolbar, centered
 with side margins when needed. Cell counts and stage appear above it; all
