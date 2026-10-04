@@ -453,6 +453,10 @@
     seen = seen || [];
     if (!Number.isInteger(n) || n < 3 || n > 17) throw new RangeError("Progressive stages support sizes 3 through 17.");
     var catalog = stageCatalog(n);
+    var stageFourKey = "1,4,5,2,3";
+    var fixedStage = stage === 4 && n === 5 ? catalog.find(function (entry) { return entry.key === stageFourKey; }) : null;
+    // Reserve this puzzle for stage four, including when an earlier pool repeats.
+    if (stage < 4 && n === 5) catalog = catalog.filter(function (entry) { return entry.key !== stageFourKey; });
     var seenKeys = new Set(Array.from(seen, function (item) {
       if (Array.isArray(item)) return item.join(",");
       var key = String(item).trim();
@@ -484,7 +488,7 @@
     var lower = minimum + phase * width;
     var upper = phase === duration - 1 ? maximum + 1 : lower + width;
     var introductory = stage === 1 ? available.filter(function (entry) { return entry.additions === 1 && entry.setupMoves === 1; }) : [];
-    var candidates = introductory.length ? introductory : available.filter(function (entry) {
+    var candidates = fixedStage ? [fixedStage] : introductory.length ? introductory : available.filter(function (entry) {
       return entry.score >= lower && entry.score < upper;
     });
     if (!candidates.length) {

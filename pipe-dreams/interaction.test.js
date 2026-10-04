@@ -535,6 +535,7 @@ async function automaticAdvanceChecks() {
   assert.equal(app.pendingAdvances(), 1, 'additional clicks cannot queue duplicate advancement');
   await app.advance();
   assert.equal(app.state().stage, 4, 'reaching the maximum advances without another click');
+  assert.deepEqual(app.state().permutation, [1, 4, 5, 2, 3], 'stage three advances to the fixed permutation');
   assertBoardSize(app, 5);
   assert.equal(app.get('difficulty-label').textContent, 'Difficulty 1', 'Difficulty 1 lasts through stage four');
   assert.deepEqual(app.state().board, E.bottomDream(app.state().permutation));
@@ -599,6 +600,42 @@ async function automaticAdvanceChecks() {
   await beforeReset();
   await app.advance();
   assert.deepEqual(app.state(), reset, 'old completion cannot advance the reset game');
+}
+
+async function fixedStageFourChecks() {
+  const previous = simplePermutation(5);
+  const completed = savedGame(previous, E.maximalPath(previous), 3);
+  completed.seen = ['14523', '1,4,5,2,3'];
+  let app = start(completed);
+  await app.advance();
+  assert.equal(app.state().stage, 4);
+  assert.deepEqual(app.state().permutation, [1, 4, 5, 2, 3], 'older seen history cannot replace the fixed puzzle');
+  assertBoardSize(app, 5);
+  assert.equal(app.get('difficulty-label').textContent, 'Difficulty 1');
+  assert.equal(app.get('current-count').textContent, '4');
+  assert.equal(app.get('target-count').textContent, '6');
+  const fixed = app.state();
+  app = start(fixed);
+  assert.deepEqual(app.state(), fixed, 'the fixed stage survives reload');
+  for (const move of E.maximalPath(fixed.permutation)) {
+    await ladder(app, move.from, move.to);
+    if (move.type === 'k-ladder') await app.click(move.from);
+  }
+  assert.equal(E.countCells(app.state().board), 6);
+  assert.equal(app.pendingAdvances(), 1, 'the fixed stage can be completed with normal cell interactions');
+  await app.advance();
+  assert.equal(app.state().stage, 5);
+  assertBoardSize(app, 6);
+  assert.equal(app.get('difficulty-label').textContent, 'Difficulty 2');
+  assert.equal(app.state().history.length, 0);
+  assert.equal(app.pendingAdvances(), 0);
+
+  const oldStageFour = savedGame(previous, [{from: 5, to: 1, type: 'ladder'}], 4);
+  const restored = start(oldStageFour);
+  assert.deepEqual(restored.state().permutation, previous, 'an existing stage-four puzzle is not replaced mid-play');
+  assert.deepEqual(restored.state().board, oldStageFour.board);
+  assert.deepEqual(restored.state().history, oldStageFour.history);
+  assert(restored.cell(5).classList.contains('k-origin'), 'an existing stage-four move keeps its optional addition');
 }
 
 async function leaveGameChecks() {
@@ -832,6 +869,7 @@ async function main() {
   await firstVisitRulesChecks();
   await resetStageChecks();
   await automaticAdvanceChecks();
+  await fixedStageFourChecks();
   await leaveGameChecks();
   console.log('Interaction checks passed: legal moves, persistent cell addition, overlapping landings, bounded hints, undo/reload, S5–S17 displayed on 4×4–16×16 grids, outer playable cells and keyboard boundaries, growth boundaries, legacy saves, size-18 save rejection, pattern-based difficulty restoration, first-visit rules, confirmed stage resets, confirmed tab closure with blocked-close recovery, and automatic advancement with cancellation and dialog pauses.');
 }

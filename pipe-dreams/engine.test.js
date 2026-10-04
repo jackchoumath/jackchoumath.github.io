@@ -363,6 +363,51 @@ assert.throws(() => engine.patternDifficulty([1, 1, 3]), RangeError);
 assert.equal(engine.containsPattern([1, 3, 2], [1]), true);
 assert.equal(engine.containsPattern([1, 3, 2], [1, 4, 3, 2]), false);
 assert.deepEqual(engine.patternDifficulty([5, 4, 3, 2, 1]).patterns, []);
+
+// Stage four is a fixed teaching puzzle, even if an older save has seen it.
+const stageFourPermutation = [1, 4, 5, 2, 3];
+for (const size of [undefined, 5]) {
+  for (const sample of [0, 0.17, 0.5, 0.999999]) {
+    for (const seen of [[], ["14523"], ["1,4,5,2,3"], [" 1, 4, 5, 2, 3 "],
+      [stageFourPermutation.slice()], new Set(["1,4,5,2,3"])]) {
+      const stage = engine.progressiveStage(4, size, () => sample, seen);
+      assert.deepEqual(stage.permutation, stageFourPermutation, "stage four ignores random choice and seen history");
+      assert.equal(stage.n, 5);
+      assert.equal(stage.difficulty.tier, 1);
+      assert.equal(stage.bottomCount, 4);
+      assert.equal(stage.target, 6);
+      assert.deepEqual(stage.board, engine.bottomDream(stageFourPermutation));
+      assert.equal(engine.countCells(applyPath(stage.board, engine.maximalPath(stage.permutation), 5)), 6);
+    }
+  }
+}
+const fixedOriginal = engine.progressiveStage(4, undefined, () => 0);
+const fixedCopy = engine.progressiveStage(4, undefined, () => 0);
+fixedCopy.permutation[0] = 99;
+fixedCopy.board.fill(0);
+fixedCopy.rajcode.fill(0);
+fixedCopy.difficulty.patterns.push("changed");
+assert.deepEqual(engine.progressiveStage(4, undefined, () => 0), fixedOriginal,
+  "modifying a returned fixed puzzle cannot corrupt later stages");
+const easyS5Keys = [...permutations([1, 2, 3, 4, 5])]
+  .filter(permutation => !avoids132(permutation) && avoids1432(permutation))
+  .map(permutation => permutation.join(","));
+for (let number = 1; number <= 3; number += 1) {
+  const seen = [];
+  for (let draw = 0; draw < easyS5Keys.length + 1; draw += 1) {
+    const key = engine.progressiveStage(number, undefined, rng, seen).permutation.join(",");
+    assert.notEqual(key, "1,4,5,2,3", "earlier stages reserve the fixed puzzle, including exhausted pools");
+    seen.push(key);
+  }
+  const onlyReservedUnseen = easyS5Keys.filter(key => key !== "1,4,5,2,3");
+  assert.notEqual(engine.progressiveStage(number, 5, () => 0, onlyReservedUnseen).permutation.join(","), "1,4,5,2,3",
+    "seen fallback cannot use the reserved stage-four puzzle");
+}
+for (const size of [3, 6, 7]) {
+  assert.equal(engine.progressiveStage(4, size, rng).n, size, "explicit non-five size overrides still apply to stage four");
+}
+console.log("Fixed stage four: 14523 at Difficulty 1 with 4/6 cells, legal completion, saved-key formats, independent returned data, reservation from earlier stages, and explicit size overrides passed.");
+
 let progressionCount = 0;
 for (let run = 0; run < 10; run += 1) {
   const seen = [];

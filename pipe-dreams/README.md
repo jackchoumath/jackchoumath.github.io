@@ -91,6 +91,9 @@ and stages 13–17 contain four. The target pattern count then increases every
 five stages up to twelve at stage 53. The first stage has a known two-move
 solution requiring one additional cell. Saved games retain their boards, and
 their displayed difficulty is recalculated from the actual permutation.
+Stage 4 is fixed to permutation 14523 on a 4 × 4 grid, starting with four cells
+and a target of six. This permutation is reserved out of stages 1–3. Other
+stages keep their random selection; puzzles already saved in progress are preserved.
 
 Board sizes increase alongside the difficulty bands: 4 × 4 for stages 1–4,
 5 × 5 for stages 5–8, 6 × 6 for stages 9–12, and 7 × 7 for stages 13–17.
