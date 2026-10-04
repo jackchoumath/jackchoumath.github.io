@@ -191,7 +191,7 @@ async function dynamicSizeChecks() {
   assertBoardSize(oversized, 5);
   assert.equal(oversized.state().stage, 1, 'an unsupported size-18 save is replaced with a fresh game');
 
-  for (const [n, stage] of [[5, 1], [6, 4], [7, 7], [8, 11], [9, 16], [10, 21], [11, 26], [12, 31], [13, 36], [14, 41], [15, 46], [16, 51], [17, 56]]) {
+  for (const [n, stage] of [[5, 1], [6, 5], [7, 9], [8, 13], [9, 18], [10, 23], [11, 28], [12, 33], [13, 38], [14, 43], [15, 48], [16, 53], [17, 58]]) {
     const permutation = simplePermutation(n);
     let app = start(savedGame(permutation, [], stage));
     assertBoardSize(app, n);
@@ -220,7 +220,7 @@ async function dynamicSizeChecks() {
 
   // Completing a stage rebuilds the board at each growth boundary. Use real,
   // legally completed histories so restoration validates the entire route.
-  for (const [stage, n] of [[3, 5], [6, 6], [10, 7], [15, 8], [20, 9], [25, 10], [30, 11], [35, 12], [40, 13], [45, 14], [50, 15], [55, 16], [68, 17]]) {
+  for (const [stage, n] of [[4, 5], [8, 6], [12, 7], [17, 8], [22, 9], [27, 10], [32, 11], [37, 12], [42, 13], [47, 14], [52, 15], [57, 16], [68, 17]]) {
     const permutation = simplePermutation(n);
     const app = start(savedGame(permutation, E.maximalPath(permutation), stage));
     assertBoardSize(app, n);
@@ -535,7 +535,8 @@ async function automaticAdvanceChecks() {
   assert.equal(app.pendingAdvances(), 1, 'additional clicks cannot queue duplicate advancement');
   await app.advance();
   assert.equal(app.state().stage, 4, 'reaching the maximum advances without another click');
-  assertBoardSize(app, 6);
+  assertBoardSize(app, 5);
+  assert.equal(app.get('difficulty-label').textContent, 'Difficulty 1', 'Difficulty 1 lasts through stage four');
   assert.deepEqual(app.state().board, E.bottomDream(app.state().permutation));
   assert.equal(app.cell(0).focused, true);
   assert.equal(app.pendingAdvances(), 0);

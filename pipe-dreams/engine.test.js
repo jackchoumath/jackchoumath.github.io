@@ -383,8 +383,8 @@ for (let run = 0; run < 10; run += 1) {
     assert.equal(d.tier, engine.stageTier(number), "scheduled stages must hit the requested classification exactly");
     assert.ok(d.tier >= previousTier, "pattern difficulty never decreases as stages advance");
     previousTier = d.tier;
-    assert.equal(d.avoids1432, number <= 3);
-    assert.equal(d.label, number <= 3 ? "Difficulty 1" : "Difficulty " + d.patternCount);
+    assert.equal(d.avoids1432, number <= 4);
+    assert.equal(d.label, number <= 4 ? "Difficulty 1" : "Difficulty " + d.patternCount);
     assert.equal(d.score, 5 * d.additions + 3 * d.setupMoves);
     assert.equal(d.additions, stage.target - stage.bottomCount);
     assert.equal(d.solutionMoves, engine.maximalPath(stage.permutation).length);
@@ -425,16 +425,16 @@ console.log("Pattern difficulty: all 5,040 S7 classifications independently veri
 
 // The default progression grows at difficulty boundaries, while callers that
 // explicitly supply a size (including restored games) retain that size.
-const sizeBoundaries = [[1, 5], [3, 5], [4, 6], [6, 6], [7, 7], [10, 7], [11, 8], [15, 8],
-  [16, 9], [20, 9], [21, 10], [25, 10], [26, 11], [30, 11], [31, 12], [35, 12], [36, 13], [40, 13],
-  [41, 14], [45, 14], [46, 15], [50, 15], [51, 16], [55, 16], [56, 17], [60, 17], [100, 17]];
+const sizeBoundaries = [[1, 5], [4, 5], [5, 6], [8, 6], [9, 7], [12, 7], [13, 8], [17, 8],
+  [18, 9], [22, 9], [23, 10], [27, 10], [28, 11], [32, 11], [33, 12], [37, 12], [38, 13], [42, 13],
+  [43, 14], [47, 14], [48, 15], [52, 15], [53, 16], [57, 16], [58, 17], [62, 17], [100, 17]];
 for (const [number, size] of sizeBoundaries) {
   assert.equal(engine.stageSize(number), size);
   assert.equal(engine.progressiveStage(number, undefined, rng).n, size);
 }
-const tierBoundaries = [[1, 1], [3, 1], [4, 2], [6, 2], [7, 3], [10, 3], [11, 4], [15, 4],
-  [16, 5], [20, 5], [21, 6], [25, 6], [26, 7], [30, 7], [31, 8], [35, 8], [36, 9], [40, 9],
-  [41, 10], [45, 10], [46, 11], [50, 11], [51, 12], [100, 12]];
+const tierBoundaries = [[1, 1], [4, 1], [5, 2], [8, 2], [9, 3], [12, 3], [13, 4], [17, 4],
+  [18, 5], [22, 5], [23, 6], [27, 6], [28, 7], [32, 7], [33, 8], [37, 8], [38, 9], [42, 9],
+  [43, 10], [47, 10], [48, 11], [52, 11], [53, 12], [100, 12]];
 for (const [number, tier] of tierBoundaries) assert.equal(engine.stageTier(number), tier);
 for (const invalid of [0, -1, 1.5, "1", null, NaN, Infinity]) {
   assert.throws(() => engine.stageSize(invalid), RangeError);
@@ -466,7 +466,7 @@ for (let run = 0; run < 10; run += 1) {
     assert.ok(stage.target > stage.bottomCount);
     const d = stage.difficulty;
     assert.equal(d.avoids1432, avoids1432(stage.permutation), `growing S${size} pattern classification`);
-    assert.equal(d.avoids1432, number <= 3);
+    assert.equal(d.avoids1432, number <= 4);
     if (d.avoids1432) assert.equal(d.label, "Difficulty 1");
     assert.equal(d.band, engine.stageTier(number));
     assert.ok(d.band >= previousBand, "larger stages must increase pattern difficulty");
@@ -502,7 +502,7 @@ let catalogTime = 0;
 const catalogTimes = [];
 let largeStages = 0;
 for (let size = 9; size <= 17; size += 1) {
-  const stageNumber = 16 + (size - 9) * 5;
+  const stageNumber = 18 + (size - 9) * 5;
   const coldStarted = Date.now();
   const first = freshEngine.progressiveStage(stageNumber, size, () => 0.37);
   const coldTime = Date.now() - coldStarted;

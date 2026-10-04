@@ -438,12 +438,12 @@
   // Grow the board at difficulty boundaries, then every five stages up to 17.
   function stageSize(stage) {
     if (!Number.isInteger(stage) || stage < 1) throw new RangeError("The stage number must be a positive integer.");
-    return stage <= 3 ? 5 : stage <= 6 ? 6 : stage <= 10 ? 7 : Math.min(17, 8 + Math.floor((stage - 11) / 5));
+    return stage <= 4 ? 5 : stage <= 8 ? 6 : stage <= 12 ? 7 : Math.min(17, 8 + Math.floor((stage - 13) / 5));
   }
 
   function stageTier(stage) {
     stageSize(stage); // Reuse the stage-number validation.
-    return stage <= 3 ? 1 : stage <= 6 ? 2 : stage <= 10 ? 3 : Math.min(12, 4 + Math.floor((stage - 11) / 5));
+    return stage <= 4 ? 1 : stage <= 8 ? 2 : stage <= 12 ? 3 : Math.min(12, 4 + Math.floor((stage - 13) / 5));
   }
 
   function progressiveStage(stage, n, rng, seen) {
@@ -475,8 +475,8 @@
     var available = unseen.length ? unseen : pool;
     // Within that one classification, increase the move estimate gradually.
     // This estimate never outweighs the number of distinct listed patterns.
-    var start = requestedTier === 1 ? 1 : requestedTier === 2 ? 4 : requestedTier === 3 ? 7 : 11 + (requestedTier - 4) * 5;
-    var duration = requestedTier <= 2 ? 3 : requestedTier === 3 ? 4 : 5;
+    var start = requestedTier <= 3 ? 1 + (requestedTier - 1) * 4 : 13 + (requestedTier - 4) * 5;
+    var duration = requestedTier <= 3 ? 4 : 5;
     var phase = Math.min(duration - 1, stage - start);
     var minimum = pool[0].score;
     var maximum = pool[pool.length - 1].score;

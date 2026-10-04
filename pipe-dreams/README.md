@@ -85,16 +85,16 @@ conversion, illegal clicks, hints, undo, saved progress, and move expiry.
 It also checks board rebuilding and stage transitions across all supported sizes.
 
 Every 1432-avoiding permutation is classified Difficulty 1, regardless of the other
-listed patterns it contains. Stages 1–3 draw from these permutations.
-Stages 4–6 contain two distinct listed patterns, stages 7–10 contain three,
-and stages 11–15 contain four. The target pattern count then increases every
-five stages up to twelve at stage 51. The first stage has a known two-move
+listed patterns it contains. Stages 1–4 draw from these permutations.
+Stages 5–8 contain two distinct listed patterns, stages 9–12 contain three,
+and stages 13–17 contain four. The target pattern count then increases every
+five stages up to twelve at stage 53. The first stage has a known two-move
 solution requiring one additional cell. Saved games retain their boards, and
 their displayed difficulty is recalculated from the actual permutation.
 
-Board sizes increase alongside the difficulty bands: 4 × 4 for stages 1–3,
-5 × 5 for stages 4–6, 6 × 6 for stages 7–10, and 7 × 7 for stages 11–15.
-The displayed side then increases every five stages, reaching 16 × 16 at stage 56
+Board sizes increase alongside the difficulty bands: 4 × 4 for stages 1–4,
+5 × 5 for stages 5–8, 6 × 6 for stages 9–12, and 7 × 7 for stages 13–17.
+The displayed side then increases every five stages, reaching 16 × 16 at stage 58
 and staying there, with permutations in S_17. Permutation sizes through eight
 use complete catalogs; larger sizes use bounded, reproducible samples to keep
 puzzle generation fast. Existing saved puzzles retain their permutation and
