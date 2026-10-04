@@ -41,7 +41,10 @@ or closes the rules. Progress is saved in this browser when local storage is ava
 - For a permutation in S_n, the board displays a full (n−1) × (n−1) square grid. Cells outside the staircase
   `r + c < n - 1` in zero-based coordinates stay empty.
 - Stages sample non-dominant permutations from S_n within increasing difficulty
-  bands, avoiding recent repeats. Difficulty is the number of distinct contained
+  bands, with no repeated permutations before Difficulty 12. Trailing fixed points
+  do not distinguish stages: 12543 and 125436 count as the same permutation.
+  Difficulty 12 may repeat puzzles while preferring those not recently played.
+  Difficulty is the number of distinct contained
   patterns from `132, 1432, 13254, 14253, 14352, 15243, 15324, 15342, 15432,
   24153, 25143, 35142`, with every 1432-avoiding permutation classified Difficulty 1.
   Occurrence counts and the coefficients in the supplied formula are not used.
@@ -87,16 +90,17 @@ It also checks board rebuilding and stage transitions across all supported sizes
 Each difficulty group lasts five stages: Difficulty 1 at stages 1–5,
 Difficulty 2 at stages 6–10, Difficulty 3 at stages 11–15, and so on.
 Difficulty 12 starts at stage 56 and remains the cap for later stages.
-Every 1432-avoiding permutation is classified Difficulty 1. Stage 5 is an
-explicit exception to the pattern-based classification: its fixed permutation
-12543 contains 1432 but displays Difficulty 1 to finish the introductory group.
-The mathematical pattern classifier remains unchanged.
+Every 1432-avoiding permutation is classified Difficulty 1. Stage 5 is a random
+Difficulty 1 permutation in S_5, with no exception to the pattern-based classification.
 The first stage has a known two-move solution requiring one additional cell.
 Stage 4 is fixed to 14523, starting with four cells and a target of six.
-Stage 5 is fixed to 12543, starting with three cells and a target of seven.
-Both use a 4 × 4 grid and are reserved out of stages 1–3. Other stages keep their
-random selection. Saved puzzles retain their progress; difficulty is recalculated
-from the permutation with the stage-5 exception applied.
+Stage 7 is fixed to 125436 at Difficulty 2, starting with three cells and a
+target of seven. Stage 4 uses a 4 × 4 grid; stage 7 uses a 5 × 5 grid. Each fixed
+puzzle is reserved out of earlier stages, including its embeddings in larger
+symmetric groups. If an older saved run already played an equivalent fixed
+puzzle, its fixed stage draws a different unplayed puzzle instead. Other
+stages keep their random selection. Saved puzzles retain their progress, and
+difficulty is recalculated from the actual permutation.
 
 Board sizes increase every five stages: 4 × 4 for stages 1–5,
 5 × 5 for stages 6–10, 6 × 6 for stages 11–15, and 7 × 7 for stages 16–20.

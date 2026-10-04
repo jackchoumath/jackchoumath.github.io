@@ -364,35 +364,41 @@ assert.equal(engine.containsPattern([1, 3, 2], [1]), true);
 assert.equal(engine.containsPattern([1, 3, 2], [1, 4, 3, 2]), false);
 assert.deepEqual(engine.patternDifficulty([5, 4, 3, 2, 1]).patterns, []);
 
-// Fixed teaching puzzles take precedence even if an older save has seen them.
-const stageFourPermutation = [1, 4, 5, 2, 3];
-const stageFivePermutation = [1, 2, 5, 4, 3];
-assert.equal(engine.patternDifficulty(stageFivePermutation).tier, 2, "the stage-five exception does not alter pattern classification");
-assert.deepEqual(engine.stageDifficulty(5, stageFivePermutation), {
-  ...engine.patternDifficulty(stageFivePermutation), tier: 1, band: 1, label: "Difficulty 1"
-}, "the stage-five exception changes display difficulty while preserving its actual patterns");
-for (const number of [1, 4, 6, 100]) {
-  assert.deepEqual(engine.stageDifficulty(number, stageFivePermutation), engine.patternDifficulty(stageFivePermutation),
-    "12543 keeps its actual difficulty outside stage five");
+// Trailing fixed points represent the same puzzle in a larger symmetric group.
+function puzzleKey(permutation) {
+  const core = permutation.slice();
+  while (core.length && core.at(-1) === core.length) core.pop();
+  return core.join(",");
 }
-assert.deepEqual(engine.stageDifficulty(5, [1, 4, 3, 2, 5]), engine.patternDifficulty([1, 4, 3, 2, 5]),
-  "other permutations at stage five keep their actual difficulty");
-for (const [number, permutation, bottomCount, target] of [[4, stageFourPermutation, 4, 6], [5, stageFivePermutation, 3, 7]]) {
-  for (const size of [undefined, 5]) {
+
+// Fixed teaching puzzles appear at their assigned stages unless already played.
+const stageFourPermutation = [1, 4, 5, 2, 3];
+const stageSevenPermutation = [1, 2, 5, 4, 3, 6];
+for (const [number, permutation, bottomCount, target, tier] of [[4, stageFourPermutation, 4, 6, 1], [7, stageSevenPermutation, 3, 7, 2]]) {
+  const fixedSize = permutation.length;
+  assert.equal(referenceTier(referencePatterns(permutation)), tier, "fixed puzzles match the actual scheduled pattern difficulty");
+  for (const size of [undefined, fixedSize]) {
     for (const sample of [0, 0.17, 0.5, 0.999999]) {
-      for (const seen of [[], [permutation.join("")], [permutation.join(",")], [` ${permutation.join(", ")} `],
-        [permutation.slice()], new Set([permutation.join(",")])]) {
-        const stage = engine.progressiveStage(number, size, () => sample, seen);
-        assert.deepEqual(stage.permutation, permutation, `stage ${number} ignores random choice and seen history`);
-        assert.equal(stage.n, 5);
-        assert.equal(stage.difficulty.tier, 1);
-        assert.equal(stage.difficulty.band, 1);
-        assert.equal(stage.difficulty.label, "Difficulty 1");
-        assert.equal(stage.bottomCount, bottomCount);
-        assert.equal(stage.target, target);
-        assert.deepEqual(stage.board, engine.bottomDream(permutation));
-        assert.equal(engine.countCells(applyPath(stage.board, engine.maximalPath(stage.permutation), 5)), target);
-      }
+      const stage = engine.progressiveStage(number, size, () => sample);
+      assert.deepEqual(stage.permutation, permutation, `stage ${number} is fixed regardless of random choice`);
+      assert.equal(stage.n, fixedSize);
+      assert.equal(stage.difficulty.tier, tier);
+      assert.equal(stage.difficulty.band, tier);
+      assert.equal(stage.difficulty.label, `Difficulty ${tier}`);
+      assert.equal(stage.bottomCount, bottomCount);
+      assert.equal(stage.target, target);
+      assert.deepEqual(stage.board, engine.bottomDream(permutation));
+      assert.equal(engine.countCells(applyPath(stage.board, engine.maximalPath(stage.permutation), fixedSize)), target);
+    }
+  }
+  const core = puzzleKey(permutation).split(",").map(Number);
+  for (const oldPermutation of [core, permutation, permutation.concat(fixedSize + 1, fixedSize + 2)]) {
+    for (const seen of [[oldPermutation.join("")], [oldPermutation.join(",")], [` ${oldPermutation.join(", ")} `],
+      [oldPermutation.slice()], new Set([oldPermutation.join(",")])]) {
+      const replacement = engine.progressiveStage(number, undefined, () => 0, seen);
+      assert.notEqual(puzzleKey(replacement.permutation), puzzleKey(permutation), "already played fixed puzzles are not repeated across sizes or saved-key formats");
+      assert.equal(replacement.n, fixedSize);
+      assert.equal(replacement.difficulty.tier, tier, "a legacy fixed-stage replacement keeps its scheduled difficulty");
     }
   }
   const fixedOriginal = engine.progressiveStage(number, undefined, () => 0);
@@ -403,8 +409,8 @@ for (const [number, permutation, bottomCount, target] of [[4, stageFourPermutati
   fixedCopy.difficulty.patterns.push("changed");
   assert.deepEqual(engine.progressiveStage(number, undefined, () => 0), fixedOriginal,
     "modifying a returned fixed puzzle cannot corrupt later stages");
-  for (const size of [3, 6, 7]) {
-    assert.equal(engine.progressiveStage(number, size, rng).n, size, "explicit non-five size overrides still apply to fixed stages");
+  for (const size of [3, 5, 6, 7].filter(size => size !== fixedSize)) {
+    assert.equal(engine.progressiveStage(number, size, rng).n, size, "explicit other-size overrides still apply to fixed stages");
   }
 }
 const easyS5Keys = [...permutations([1, 2, 3, 4, 5])]
@@ -412,21 +418,69 @@ const easyS5Keys = [...permutations([1, 2, 3, 4, 5])]
   .map(permutation => permutation.join(","));
 for (let number = 1; number <= 3; number += 1) {
   const seen = [];
-  for (let draw = 0; draw < easyS5Keys.length + 1; draw += 1) {
+  for (let draw = 0; draw < easyS5Keys.length - 1; draw += 1) {
     const key = engine.progressiveStage(number, undefined, rng, seen).permutation.join(",");
-    assert.notEqual(key, "1,4,5,2,3", "earlier stages reserve the fixed puzzle, including exhausted pools");
-    assert.notEqual(key, "1,2,5,4,3", "earlier stages cannot draw the reserved stage-five puzzle");
+    assert.notEqual(key, "1,4,5,2,3", "earlier stages reserve the fixed puzzle");
+    assert.ok(!seen.includes(key), "earlier stages do not repeat played puzzles");
     seen.push(key);
   }
   const onlyReservedUnseen = easyS5Keys.filter(key => key !== "1,4,5,2,3");
-  assert.notEqual(engine.progressiveStage(number, 5, () => 0, onlyReservedUnseen).permutation.join(","), "1,4,5,2,3",
-    "seen fallback cannot use the reserved stage-four puzzle");
+  assert.throws(() => engine.progressiveStage(number, 5, () => 0, onlyReservedUnseen), RangeError,
+    "an exhausted pool cannot repeat a played puzzle or use the reserved stage-four puzzle");
 }
-console.log("Fixed stages: 14523 at stage four with 4/6 cells and 12543 at stage five with 3/7 cells; both display Difficulty 1, complete legally, preserve pattern classification, and honor saved-key formats and explicit size overrides.");
+const difficultyTwoS6Keys = [...permutations([1, 2, 3, 4, 5, 6])]
+  .filter(permutation => referenceTier(referencePatterns(permutation)) === 2)
+  .map(permutation => permutation.join(","));
+const stageSixSeen = [];
+for (let draw = 0; draw < difficultyTwoS6Keys.length - 1; draw += 1) {
+  const stage = engine.progressiveStage(6, undefined, rng, stageSixSeen);
+  const key = stage.permutation.join(",");
+  assert.notEqual(key, "1,2,5,4,3,6", "stage six reserves the stage-seven puzzle");
+  assert.ok(!stageSixSeen.includes(key), "stage six does not repeat played puzzles");
+  assert.equal(stage.n, 6);
+  assert.equal(referenceTier(referencePatterns(stage.permutation)), 2);
+  stageSixSeen.push(key);
+}
+assert.throws(() => engine.progressiveStage(6, 6, () => 0,
+  difficultyTwoS6Keys.filter(key => key !== "1,2,5,4,3,6")), RangeError,
+  "an exhausted pool cannot repeat a played puzzle or use the reserved stage-seven puzzle");
+const easyS6Keys = [...permutations([1, 2, 3, 4, 5, 6])]
+  .filter(permutation => !avoids132(permutation) && avoids1432(permutation))
+  .map(permutation => permutation.join(","));
+assert.throws(() => engine.progressiveStage(1, 6, () => 0,
+  easyS6Keys.filter(key => key !== "1,4,5,2,3,6")), RangeError,
+  "the stage-four puzzle is reserved even when an explicit size adds fixed points");
+const difficultyTwoS5Keys = [...permutations([1, 2, 3, 4, 5])]
+  .filter(permutation => referenceTier(referencePatterns(permutation)) === 2)
+  .map(permutation => permutation.join(","));
+assert.throws(() => engine.progressiveStage(6, 5, () => 0,
+  difficultyTwoS5Keys.filter(key => key !== "1,2,5,4,3")), RangeError,
+  "the stage-seven puzzle is reserved even in a smaller symmetric group");
+for (const historical of [[1, 4, 3, 2], [1, 4, 3, 2, 5], [1, 4, 3, 2, 5, 6, 7]]) {
+  for (const savedKey of [historical, historical.join(""), historical.join(","), ` ${historical.join(", ")} `]) {
+    assert.throws(() => engine.progressiveStage(8, 6, () => 0,
+      difficultyTwoS6Keys.filter(key => key !== "1,4,3,2,5,6").concat([savedKey])), RangeError,
+      "all saved-key formats recognize a previously played puzzle across sizes");
+  }
+}
+const stageFiveDraws = new Set();
+for (let draw = 0; draw < 50; draw += 1) {
+  const stage = engine.progressiveStage(5, undefined, rng, ["1,4,5,2,3"]);
+  stageFiveDraws.add(stage.permutation.join(","));
+  assert.equal(stage.n, 5);
+  assert.equal(avoids132(stage.permutation), false);
+  assert.equal(avoids1432(stage.permutation), true);
+  assert.equal(referenceTier(referencePatterns(stage.permutation)), 1);
+  assert.equal(stage.difficulty.label, "Difficulty 1");
+  assert.notDeepEqual(stage.permutation, stageFourPermutation, "stage five respects completed stage-four history");
+}
+assert.ok(stageFiveDraws.size > 1, "stage five draws random Difficulty 1 puzzles instead of a fixed permutation");
+console.log("Fixed stages: 14523 at stage four with 4/6 cells and 125436 at stage seven with 3/7 cells; both match scheduled pattern difficulty, complete legally, honor saved-key formats and explicit sizes, and remain reserved for their stages. Stage five is random Difficulty 1 in S5.");
 
 let progressionCount = 0;
 for (let run = 0; run < 10; run += 1) {
   const seen = [];
+  const seenPuzzles = new Set();
   let previousTier = 0;
   for (let number = 1; number <= 65; number += 1) {
     const stage = engine.progressiveStage(number, undefined, rng, seen);
@@ -435,16 +489,18 @@ for (let run = 0; run < 10; run += 1) {
     assert.deepEqual(stage.board, engine.bottomDream(stage.permutation));
     assert.equal(stage.target, engine.maximumCrossings(stage.permutation));
     assert.ok(!seen.includes(key));
+    assert.ok(!seenPuzzles.has(puzzleKey(stage.permutation)), "growing stages avoid the same puzzle across symmetric groups");
+    seenPuzzles.add(puzzleKey(stage.permutation));
     seen.push(key);
     const d = stage.difficulty;
     const independentlyPresent = referencePatterns(stage.permutation);
     assert.deepEqual(d.patterns, independentlyPresent);
     assert.equal(d.patternCount, independentlyPresent.length);
-    assert.equal(d.tier, number === 5 ? 1 : referenceTier(independentlyPresent));
+    assert.equal(d.tier, referenceTier(independentlyPresent));
     assert.equal(d.tier, engine.stageTier(number), "scheduled stages must hit the requested classification exactly");
     assert.ok(d.tier >= previousTier, "pattern difficulty never decreases as stages advance");
     previousTier = d.tier;
-    assert.equal(d.avoids1432, number <= 4);
+    assert.equal(d.avoids1432, number <= 5);
     assert.equal(d.label, number <= 5 ? "Difficulty 1" : "Difficulty " + d.patternCount);
     assert.equal(d.score, 5 * d.additions + 3 * d.setupMoves);
     assert.equal(d.additions, stage.target - stage.bottomCount);
@@ -457,17 +513,17 @@ for (let run = 0; run < 10; run += 1) {
   }
 }
 // All avoiding permutations retain Difficulty 1, including those that contain several
-// later listed types. A played pool repeats within its correct difficulty.
+// later listed types. Below Difficulty 12, an exhausted pool cannot repeat.
 const easySeen = [];
 for (let i = 0; i < easyPermutations.length; i += 1) {
-  const stage = engine.progressiveStage(1, 7, rng, easySeen);
+  const stage = engine.progressiveStage(5, 7, rng, easySeen);
   const key = stage.permutation.join("");
   assert.ok(!easySeen.includes(key));
   assert.equal(stage.difficulty.label, "Difficulty 1");
   assert.equal(stage.difficulty.tier, 1);
   easySeen.push(key);
 }
-assert.equal(engine.progressiveStage(1, 7, rng, easySeen).difficulty.label, "Difficulty 1");
+assert.throws(() => engine.progressiveStage(5, 7, rng, easySeen), RangeError);
 // An undersized explicit override chooses the closest possible pattern count
 // and reports that actual classification, never inventing unavailable types.
 assert.equal(engine.progressiveStage(100, 3, rng).difficulty.tier, 1);
@@ -480,9 +536,23 @@ for (let i = 0; i < 300; i += 1) {
   assert.equal(stage.difficulty.tier, 12);
   extendedSeen.push(key);
 }
+const capSeen = [];
+const capKeys = new Set();
+let repeatedAtCap = false;
+for (let draw = 0; draw <= 4096; draw += 1) {
+  const stage = engine.progressiveStage(100, 16, () => 0, capSeen);
+  assert.equal(stage.difficulty.tier, 12);
+  const key = puzzleKey(stage.permutation);
+  if (capKeys.has(key)) { repeatedAtCap = true; break; }
+  capKeys.add(key);
+  capSeen.push(stage.permutation.join(","));
+}
+assert.equal(repeatedAtCap, true, "Difficulty 12 may repeat after its finite sampled pool is exhausted");
+assert.throws(() => engine.progressiveStage(100, 3, rng, ["132"]), RangeError,
+  "an undersized explicit override cannot borrow the Difficulty 12 repeat exception for an actual Difficulty 1 puzzle");
 assert.throws(() => engine.progressiveStage(0), RangeError);
 assert.throws(() => engine.progressiveStage(1, 2), RangeError);
-console.log("Pattern difficulty: all 5,040 S7 classifications independently verified; all " + easyPermutations.length + " Difficulty 1 permutations retain their override; " + progressionCount + " stages follow scheduled tiers with the stage-five teaching exception; 300 Difficulty 12 draws avoided repeats.");
+console.log("Pattern difficulty: all 5,040 S7 classifications independently verified; all " + easyPermutations.length + " Difficulty 1 permutations retain their override; " + progressionCount + " stages follow scheduled tiers with accurate pattern classifications; 300 Difficulty 12 draws avoided repeats.");
 
 // The default progression grows at difficulty boundaries, while callers that
 // explicitly supply a size (including restored games) retain that size.
@@ -527,7 +597,7 @@ for (let run = 0; run < 10; run += 1) {
     assert.ok(stage.target > stage.bottomCount);
     const d = stage.difficulty;
     assert.equal(d.avoids1432, avoids1432(stage.permutation), `growing S${size} pattern classification`);
-    assert.equal(d.avoids1432, number <= 4);
+    assert.equal(d.avoids1432, number <= 5);
     if (d.avoids1432) assert.equal(d.label, "Difficulty 1");
     assert.equal(d.band, engine.stageTier(number));
     assert.ok(d.band >= previousBand, "larger stages must increase pattern difficulty");

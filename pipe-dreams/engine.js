@@ -377,6 +377,12 @@
     throw new Error("The random source did not generate a non-dominant permutation.");
   }
 
+  function permutationKey(permutation) {
+    var length = permutation.length;
+    while (length > 0 && permutation[length - 1] === length) length -= 1;
+    return permutation.slice(0, length).join(",");
+  }
+
   var stageCatalogs = new Map();
 
   function stageCatalog(n) {
@@ -398,6 +404,7 @@
       catalog.push({
         permutation: prefix,
         key: key,
+        canonicalKey: permutationKey(prefix),
         bottomCount: bottomCount,
         target: target,
         rajcode: rajchgotCode(prefix),
@@ -446,16 +453,6 @@
     return Math.min(12, 1 + Math.floor((stage - 1) / 5));
   }
 
-  function stageDifficulty(stage, permutation) {
-    var difficulty = patternDifficulty(permutation);
-    // The fixed fifth puzzle closes the introductory Difficulty 1 group.
-    if (stage === 5 && permutation.join(",") === "1,2,5,4,3") {
-      difficulty.tier = difficulty.band = 1;
-      difficulty.label = "Difficulty 1";
-    }
-    return difficulty;
-  }
-
   function progressiveStage(stage, n, rng, seen) {
     var scheduledSize = stageSize(stage);
     n = n === undefined ? scheduledSize : n;
@@ -463,20 +460,28 @@
     seen = seen || [];
     if (!Number.isInteger(n) || n < 3 || n > 17) throw new RangeError("Progressive stages support sizes 3 through 17.");
     var catalog = stageCatalog(n);
-    var fixedStageKeys = {4: "1,4,5,2,3", 5: "1,2,5,4,3"};
-    var fixedKey = n === 5 ? fixedStageKeys[stage] : null;
-    var fixedStage = fixedKey ? catalog.find(function (entry) { return entry.key === fixedKey; }) : null;
-    // Reserve the two fixed puzzles, including when an earlier pool repeats.
-    if (stage < 4 && n === 5) catalog = catalog.filter(function (entry) {
-      return entry.key !== fixedStageKeys[4] && entry.key !== fixedStageKeys[5];
+    var fixedPuzzles = [
+      {stage: 4, n: 5, key: "1,4,5,2,3"},
+      {stage: 7, n: 6, key: "1,2,5,4,3,6"}
+    ];
+    var fixedPuzzle = fixedPuzzles.find(function (puzzle) { return puzzle.stage === stage && puzzle.n === n; });
+    var fixedStage = fixedPuzzle ? catalog.find(function (entry) { return entry.key === fixedPuzzle.key; }) : null;
+    // Reserve future fixed puzzles, including when an earlier pool repeats.
+    var reservedKeys = new Set(fixedPuzzles.filter(function (puzzle) {
+      return stage < puzzle.stage;
+    }).map(function (puzzle) { return permutationKey(puzzle.key.split(",").map(Number)); }));
+    catalog = catalog.filter(function (entry) {
+      return !reservedKeys.has(entry.canonicalKey);
     });
     var seenKeys = new Set(Array.from(seen, function (item) {
-      if (Array.isArray(item)) return item.join(",");
+      if (Array.isArray(item)) return permutationKey(item.map(Number));
       var key = String(item).trim();
       // Old saves used one digit per value, before board sizes reached ten.
-      if (/^[1-9]{1,9}$/.test(key)) return key.split("").join(",");
-      return key.split(",").map(function (value) { return value.trim(); }).join(",");
+      if (/^[1-9]{1,9}$/.test(key)) return permutationKey(key.split("").map(Number));
+      return permutationKey(key.split(",").map(Number));
     }));
+    // A legacy run may already have played a fixed puzzle in a smaller group.
+    if (fixedStage && seenKeys.has(fixedStage.canonicalKey)) fixedStage = null;
     var requestedTier = stageTier(stage);
     var closestTier = catalog.reduce(function (best, entry) {
       var tier = entry.classification.tier;
@@ -484,12 +489,11 @@
       var bestDistance = Math.abs(best - requestedTier);
       return distance < bestDistance || (distance === bestDistance && tier < best) ? tier : best;
     }, catalog[0].classification.tier);
-    // Distinct pattern count is primary. Keep the requested difficulty even
-    // after its pool has been played; do not switch to a different difficulty
-    // merely to avoid a repeat. Smaller explicit size overrides may lack it.
+    // Smaller explicit size overrides may lack the requested difficulty.
     var pool = catalog.filter(function (entry) { return entry.classification.tier === closestTier; });
-    var unseen = pool.filter(function (entry) { return !seenKeys.has(entry.key); });
-    var available = unseen.length ? unseen : pool;
+    var unseen = pool.filter(function (entry) { return !seenKeys.has(entry.canonicalKey); });
+    var available = unseen.length ? unseen : closestTier === 12 ? pool : [];
+    if (!available.length) throw new RangeError("No unplayed permutations remain at this difficulty and size.");
     // Within that one classification, increase the move estimate gradually.
     // This estimate never outweighs the number of distinct listed patterns.
     var start = 1 + (requestedTier - 1) * 5;
@@ -515,7 +519,7 @@
     var sample = rng();
     if (!(sample >= 0 && sample < 1)) throw new RangeError("Random values must be between 0 (included) and 1 (excluded).");
     var selected = candidates[Math.floor(sample * candidates.length)];
-    var classification = stageDifficulty(stage, selected.permutation);
+    var classification = selected.classification;
     return {
       n: n,
       permutation: selected.permutation.slice(),
@@ -558,7 +562,6 @@
     randomStage: randomStage,
     stageSize: stageSize,
     stageTier: stageTier,
-    stageDifficulty: stageDifficulty,
     progressiveStage: progressiveStage
   });
 });

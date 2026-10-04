@@ -42,11 +42,14 @@
       // Validate the complete saved path, not just the number of cells.
       for (const move of saved.history) board = E.applyMove(board, move, saved.permutation.length);
       if (!Array.isArray(saved.board) || board.join('') !== saved.board.join('')) return null;
+      const seen = Array.isArray(saved.seen) ? saved.seen.filter(s => typeof s === 'string').slice(-100) : [];
+      const currentKey = saved.permutation.join(',');
+      if (!seen.includes(currentKey)) seen.push(currentKey);
       return {
         version: 1, stage: saved.stage, permutation: saved.permutation, board,
         history: saved.history,
         difficulty: saved.difficulty && typeof saved.difficulty.label === 'string' ? saved.difficulty : null,
-        seen: Array.isArray(saved.seen) ? saved.seen.filter(s => typeof s === 'string').slice(-100) : []
+        seen: seen.slice(-100)
       };
     } catch { return null; }
   }
@@ -96,7 +99,7 @@
     const choice = chosenMove(moves);
     const conversion = pendingConversion();
     $('stage-number').textContent = String(game.stage).padStart(2, '0');
-    $('difficulty-label').textContent = E.stageDifficulty(game.stage, game.permutation).label;
+    $('difficulty-label').textContent = E.patternDifficulty(game.permutation).label;
     $('current-count').textContent = count;
     $('target-count').textContent = maximum;
     $('board-score').setAttribute('aria-label', `${count} of ${maximum} cells${won ? ', maximum reached' : ''}`);

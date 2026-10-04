@@ -605,51 +605,54 @@ async function automaticAdvanceChecks() {
 async function fixedTeachingStageChecks() {
   const previous = simplePermutation(5);
   const completed = savedGame(previous, E.maximalPath(previous), 3);
-  completed.seen = ['14523', '1,4,5,2,3', '12543', '1,2,5,4,3'];
+  completed.seen = [previous.join(',')];
   let app = start(completed);
   await app.advance();
   assert.equal(app.state().stage, 4);
-  assert.deepEqual(app.state().permutation, [1, 4, 5, 2, 3], 'older seen history cannot replace the fixed puzzle');
+  assert.deepEqual(app.state().permutation, [1, 4, 5, 2, 3], 'stage three advances to fixed stage four');
   assertBoardSize(app, 5);
   assert.equal(app.get('difficulty-label').textContent, 'Difficulty 1');
   assert.equal(app.get('current-count').textContent, '4');
   assert.equal(app.get('target-count').textContent, '6');
-  const fixed = app.state();
-  app = start(fixed);
-  assert.deepEqual(app.state(), fixed, 'the fixed stage survives reload');
-  for (const move of E.maximalPath(fixed.permutation)) {
-    await ladder(app, move.from, move.to);
-    if (move.type === 'k-ladder') await app.click(move.from);
+  for (let stage = 4; stage <= 7; stage += 1) {
+    assert.equal(app.state().stage, stage);
+    assertBoardSize(app, stage <= 5 ? 5 : 6);
+    const tier = stage <= 5 ? 1 : 2;
+    const label = `Difficulty ${tier}`;
+    assert.equal(app.get('difficulty-label').textContent, label);
+    assert.equal(E.patternDifficulty(app.state().permutation).tier, tier, 'displayed difficulty matches the actual patterns');
+    assert.equal(app.state().history.length, 0);
+    assert.equal(app.pendingAdvances(), 0);
+    if (stage === 5) {
+      assert.equal(E.is1432Avoiding(app.state().permutation), true, 'stage five draws an actual Difficulty 1 puzzle');
+      assert.equal(E.isDominant(app.state().permutation), false);
+      assert.notDeepEqual(app.state().permutation, [1, 4, 5, 2, 3], 'stage five does not repeat the completed fixed stage four');
+    }
+    if (stage === 6) assert.notDeepEqual(app.state().permutation, [1, 2, 5, 4, 3, 6], 'stage six leaves the stage-seven puzzle reserved');
+    if (stage === 7) {
+      assert.deepEqual(app.state().permutation, [1, 2, 5, 4, 3, 6], 'stage six advances to fixed stage seven');
+      assert.equal(app.get('current-count').textContent, '3');
+      assert.equal(app.get('target-count').textContent, '7');
+    }
+    const fresh = app.state();
+    app = start({...fresh, difficulty: {label: 'Stale difficulty'}});
+    assert.deepEqual(app.state().permutation, fresh.permutation, `stage ${stage} retains its puzzle on reload`);
+    assert.deepEqual(app.state().board, fresh.board);
+    assert.equal(app.get('difficulty-label').textContent, label, 'reloading derives the current pattern classification');
+    for (const move of E.maximalPath(fresh.permutation)) {
+      await ladder(app, move.from, move.to);
+      assert.equal(app.get('difficulty-label').textContent, label, 'moving cells keeps the actual classification');
+      if (move.type === 'k-ladder') await app.click(move.from);
+      assert.equal(app.get('difficulty-label').textContent, label, 'adding cells keeps the actual classification');
+    }
+    assert.equal(E.countCells(app.state().board), E.maximumCrossings(fresh.permutation));
+    assert.equal(app.pendingAdvances(), 1, `stage ${stage} completes with normal cell interactions`);
+    await app.advance();
   }
-  assert.equal(E.countCells(app.state().board), 6);
-  assert.equal(app.pendingAdvances(), 1, 'the fixed stage can be completed with normal cell interactions');
-  await app.advance();
-  assert.equal(app.state().stage, 5);
-  assert.deepEqual(app.state().permutation, [1, 2, 5, 4, 3], 'stage four advances to the fixed stage-five puzzle despite older seen history');
-  assertBoardSize(app, 5);
-  assert.equal(app.get('difficulty-label').textContent, 'Difficulty 1', 'the requested teaching exception keeps stage five at Difficulty 1');
-  assert.equal(app.get('current-count').textContent, '3');
-  assert.equal(app.get('target-count').textContent, '7');
-  assert.equal(E.patternDifficulty(app.state().permutation).tier, 2, 'the mathematical classification remains accurate');
-  assert.equal(app.state().history.length, 0);
-  assert.equal(app.pendingAdvances(), 0);
-  const stageFive = app.state();
-  app = start({...stageFive, difficulty: {label: 'Difficulty 2'}});
-  assert.deepEqual(app.state().permutation, stageFive.permutation);
-  assert.deepEqual(app.state().board, stageFive.board);
-  assert.equal(app.get('difficulty-label').textContent, 'Difficulty 1', 'reloading stage five applies the display exception to an older label');
-  for (const move of E.maximalPath(stageFive.permutation)) {
-    await ladder(app, move.from, move.to);
-    assert.equal(app.get('difficulty-label').textContent, 'Difficulty 1', 'moving cells retains the stage-five display exception');
-    if (move.type === 'k-ladder') await app.click(move.from);
-    assert.equal(app.get('difficulty-label').textContent, 'Difficulty 1', 'adding cells retains the stage-five display exception');
-  }
-  assert.equal(E.countCells(app.state().board), 7);
-  assert.equal(app.pendingAdvances(), 1, 'stage five can be completed with normal cell interactions');
-  await app.advance();
-  assert.equal(app.state().stage, 6);
+  assert.equal(app.state().stage, 8);
   assertBoardSize(app, 6);
   assert.equal(app.get('difficulty-label').textContent, 'Difficulty 2');
+  assert.notDeepEqual(app.state().permutation, [1, 2, 5, 4, 3, 6], 'stage eight does not repeat completed stage seven');
   assert.equal(app.state().history.length, 0);
   assert.equal(app.pendingAdvances(), 0);
 
@@ -660,16 +663,45 @@ async function fixedTeachingStageChecks() {
   assert.deepEqual(restored.state().history, oldStageFour.history);
   assert(restored.cell(5).classList.contains('k-origin'), 'an existing stage-four move keeps its optional addition');
 
-  const differentStageFive = savedGame([1, 4, 3, 2, 5], [{from: 6, to: 2, type: 'ladder'}], 5);
-  const oldFive = start(differentStageFive);
-  assert.deepEqual(oldFive.state().permutation, differentStageFive.permutation, 'an existing stage-five puzzle is not replaced mid-play');
-  assert.deepEqual(oldFive.state().board, differentStageFive.board);
-  assert.deepEqual(oldFive.state().history, differentStageFive.history);
-  assert(oldFive.cell(6).classList.contains('k-origin'), 'an existing stage-five move keeps its optional addition');
-  assert.equal(oldFive.get('difficulty-label').textContent, 'Difficulty 2', 'the stage-five exception does not relabel another permutation');
-  for (const stage of [4, 6]) {
-    const otherStage = start(savedGame(stageFive.permutation, [], stage));
-    assert.equal(otherStage.get('difficulty-label').textContent, 'Difficulty 2', '12543 retains its actual difficulty outside stage five');
+  const oldStageFive = savedGame([1, 2, 5, 4, 3], [{from: 11, to: 7, type: 'ladder'}], 5);
+  const oldFive = start({...oldStageFive, difficulty: {label: 'Difficulty 1'}});
+  assert.deepEqual(oldFive.state().permutation, oldStageFive.permutation, 'the former fixed stage-five puzzle is not replaced mid-play');
+  assert.deepEqual(oldFive.state().board, oldStageFive.board);
+  assert.deepEqual(oldFive.state().history, oldStageFive.history);
+  assert(oldFive.cell(11).classList.contains('k-origin'), 'an existing stage-five move keeps its optional addition');
+  assert.equal(oldFive.get('difficulty-label').textContent, 'Difficulty 2', 'the former stage-five exception now shows its true pattern difficulty');
+  await oldFive.click(11);
+  assert.equal(oldFive.state().history[0].type, 'k-ladder', 'old stage-five progress remains playable');
+  assert.equal(oldFive.get('difficulty-label').textContent, 'Difficulty 2');
+  assert(oldFive.state().seen.includes('1,2,5,4,3'), 'restoring an old save with an empty seen list remembers its current puzzle');
+  for (const permutation of [simplePermutation(6), [1, 2, 5, 4, 3, 6]]) {
+    const first = {...E.maximalPath(permutation)[0], type: 'ladder'};
+    const pending = savedGame(permutation, [first], 7);
+    const restoredSeven = start(pending);
+    assert.deepEqual(restoredSeven.state().permutation, permutation, 'an existing stage-seven puzzle is not replaced mid-play');
+    assert.deepEqual(restoredSeven.state().board, pending.board);
+    assert.deepEqual(restoredSeven.state().history, pending.history);
+    assert(restoredSeven.cell(first.from).classList.contains('k-origin'), 'stage-seven progress retains its pending addition');
+    assert.equal(restoredSeven.get('difficulty-label').textContent, E.patternDifficulty(permutation).label);
+    await restoredSeven.click(first.from);
+    assert.equal(restoredSeven.state().history[0].type, 'k-ladder', 'restored stage-seven progress remains playable');
+  }
+
+  for (const [number, size, earlierFixed, excluded, tier] of [
+    [3, 5, [1, 4, 5, 2, 3, 6], [1, 4, 5, 2, 3], 1],
+    [6, 6, [1, 2, 5, 4, 3], [1, 2, 5, 4, 3, 6], 2]
+  ]) {
+    const permutation = simplePermutation(size);
+    const legacy = savedGame(permutation, E.maximalPath(permutation), number);
+    legacy.seen = [earlierFixed.join(',')];
+    const restored = start(legacy);
+    await restored.advance();
+    assert.equal(restored.state().stage, number + 1);
+    assertBoardSize(restored, size);
+    assert.notDeepEqual(restored.state().permutation, excluded,
+      'a fixed stage does not replay a puzzle already encountered in another symmetric group');
+    assert.equal(restored.get('difficulty-label').textContent, `Difficulty ${tier}`);
+    assert.equal(E.patternDifficulty(restored.state().permutation).tier, tier);
   }
 }
 
