@@ -84,20 +84,23 @@ Run `node pipe-dreams/interaction.test.js` to check ladder-first play, source
 conversion, illegal clicks, hints, undo, saved progress, and move expiry.
 It also checks board rebuilding and stage transitions across all supported sizes.
 
-Every 1432-avoiding permutation is classified Difficulty 1, regardless of the other
-listed patterns it contains. Stages 1–4 draw from these permutations.
-Stages 5–8 contain two distinct listed patterns, stages 9–12 contain three,
-and stages 13–17 contain four. The target pattern count then increases every
-five stages up to twelve at stage 53. The first stage has a known two-move
-solution requiring one additional cell. Saved games retain their boards, and
-their displayed difficulty is recalculated from the actual permutation.
-Stage 4 is fixed to permutation 14523 on a 4 × 4 grid, starting with four cells
-and a target of six. This permutation is reserved out of stages 1–3. Other
-stages keep their random selection; puzzles already saved in progress are preserved.
+Each difficulty group lasts five stages: Difficulty 1 at stages 1–5,
+Difficulty 2 at stages 6–10, Difficulty 3 at stages 11–15, and so on.
+Difficulty 12 starts at stage 56 and remains the cap for later stages.
+Every 1432-avoiding permutation is classified Difficulty 1. Stage 5 is an
+explicit exception to the pattern-based classification: its fixed permutation
+12543 contains 1432 but displays Difficulty 1 to finish the introductory group.
+The mathematical pattern classifier remains unchanged.
+The first stage has a known two-move solution requiring one additional cell.
+Stage 4 is fixed to 14523, starting with four cells and a target of six.
+Stage 5 is fixed to 12543, starting with three cells and a target of seven.
+Both use a 4 × 4 grid and are reserved out of stages 1–3. Other stages keep their
+random selection. Saved puzzles retain their progress; difficulty is recalculated
+from the permutation with the stage-5 exception applied.
 
-Board sizes increase alongside the difficulty bands: 4 × 4 for stages 1–4,
-5 × 5 for stages 5–8, 6 × 6 for stages 9–12, and 7 × 7 for stages 13–17.
-The displayed side then increases every five stages, reaching 16 × 16 at stage 58
+Board sizes increase every five stages: 4 × 4 for stages 1–5,
+5 × 5 for stages 6–10, 6 × 6 for stages 11–15, and 7 × 7 for stages 16–20.
+The displayed side keeps increasing every five stages, reaching 16 × 16 at stage 61
 and staying there, with permutations in S_17. Permutation sizes through eight
 use complete catalogs; larger sizes use bounded, reproducible samples to keep
 puzzle generation fast. Existing saved puzzles retain their permutation and

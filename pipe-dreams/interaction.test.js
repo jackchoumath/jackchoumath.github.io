@@ -191,7 +191,7 @@ async function dynamicSizeChecks() {
   assertBoardSize(oversized, 5);
   assert.equal(oversized.state().stage, 1, 'an unsupported size-18 save is replaced with a fresh game');
 
-  for (const [n, stage] of [[5, 1], [6, 5], [7, 9], [8, 13], [9, 18], [10, 23], [11, 28], [12, 33], [13, 38], [14, 43], [15, 48], [16, 53], [17, 58]]) {
+  for (const [n, stage] of [[5, 1], [6, 6], [7, 11], [8, 16], [9, 21], [10, 26], [11, 31], [12, 36], [13, 41], [14, 46], [15, 51], [16, 56], [17, 61]]) {
     const permutation = simplePermutation(n);
     let app = start(savedGame(permutation, [], stage));
     assertBoardSize(app, n);
@@ -220,7 +220,7 @@ async function dynamicSizeChecks() {
 
   // Completing a stage rebuilds the board at each growth boundary. Use real,
   // legally completed histories so restoration validates the entire route.
-  for (const [stage, n] of [[4, 5], [8, 6], [12, 7], [17, 8], [22, 9], [27, 10], [32, 11], [37, 12], [42, 13], [47, 14], [52, 15], [57, 16], [68, 17]]) {
+  for (const [stage, n] of [[5, 5], [10, 6], [15, 7], [20, 8], [25, 9], [30, 10], [35, 11], [40, 12], [45, 13], [50, 14], [55, 15], [60, 16], [68, 17]]) {
     const permutation = simplePermutation(n);
     const app = start(savedGame(permutation, E.maximalPath(permutation), stage));
     assertBoardSize(app, n);
@@ -537,7 +537,7 @@ async function automaticAdvanceChecks() {
   assert.equal(app.state().stage, 4, 'reaching the maximum advances without another click');
   assert.deepEqual(app.state().permutation, [1, 4, 5, 2, 3], 'stage three advances to the fixed permutation');
   assertBoardSize(app, 5);
-  assert.equal(app.get('difficulty-label').textContent, 'Difficulty 1', 'Difficulty 1 lasts through stage four');
+  assert.equal(app.get('difficulty-label').textContent, 'Difficulty 1', 'stage four remains Difficulty 1');
   assert.deepEqual(app.state().board, E.bottomDream(app.state().permutation));
   assert.equal(app.cell(0).focused, true);
   assert.equal(app.pendingAdvances(), 0);
@@ -602,10 +602,10 @@ async function automaticAdvanceChecks() {
   assert.deepEqual(app.state(), reset, 'old completion cannot advance the reset game');
 }
 
-async function fixedStageFourChecks() {
+async function fixedTeachingStageChecks() {
   const previous = simplePermutation(5);
   const completed = savedGame(previous, E.maximalPath(previous), 3);
-  completed.seen = ['14523', '1,4,5,2,3'];
+  completed.seen = ['14523', '1,4,5,2,3', '12543', '1,2,5,4,3'];
   let app = start(completed);
   await app.advance();
   assert.equal(app.state().stage, 4);
@@ -625,6 +625,29 @@ async function fixedStageFourChecks() {
   assert.equal(app.pendingAdvances(), 1, 'the fixed stage can be completed with normal cell interactions');
   await app.advance();
   assert.equal(app.state().stage, 5);
+  assert.deepEqual(app.state().permutation, [1, 2, 5, 4, 3], 'stage four advances to the fixed stage-five puzzle despite older seen history');
+  assertBoardSize(app, 5);
+  assert.equal(app.get('difficulty-label').textContent, 'Difficulty 1', 'the requested teaching exception keeps stage five at Difficulty 1');
+  assert.equal(app.get('current-count').textContent, '3');
+  assert.equal(app.get('target-count').textContent, '7');
+  assert.equal(E.patternDifficulty(app.state().permutation).tier, 2, 'the mathematical classification remains accurate');
+  assert.equal(app.state().history.length, 0);
+  assert.equal(app.pendingAdvances(), 0);
+  const stageFive = app.state();
+  app = start({...stageFive, difficulty: {label: 'Difficulty 2'}});
+  assert.deepEqual(app.state().permutation, stageFive.permutation);
+  assert.deepEqual(app.state().board, stageFive.board);
+  assert.equal(app.get('difficulty-label').textContent, 'Difficulty 1', 'reloading stage five applies the display exception to an older label');
+  for (const move of E.maximalPath(stageFive.permutation)) {
+    await ladder(app, move.from, move.to);
+    assert.equal(app.get('difficulty-label').textContent, 'Difficulty 1', 'moving cells retains the stage-five display exception');
+    if (move.type === 'k-ladder') await app.click(move.from);
+    assert.equal(app.get('difficulty-label').textContent, 'Difficulty 1', 'adding cells retains the stage-five display exception');
+  }
+  assert.equal(E.countCells(app.state().board), 7);
+  assert.equal(app.pendingAdvances(), 1, 'stage five can be completed with normal cell interactions');
+  await app.advance();
+  assert.equal(app.state().stage, 6);
   assertBoardSize(app, 6);
   assert.equal(app.get('difficulty-label').textContent, 'Difficulty 2');
   assert.equal(app.state().history.length, 0);
@@ -636,6 +659,18 @@ async function fixedStageFourChecks() {
   assert.deepEqual(restored.state().board, oldStageFour.board);
   assert.deepEqual(restored.state().history, oldStageFour.history);
   assert(restored.cell(5).classList.contains('k-origin'), 'an existing stage-four move keeps its optional addition');
+
+  const differentStageFive = savedGame([1, 4, 3, 2, 5], [{from: 6, to: 2, type: 'ladder'}], 5);
+  const oldFive = start(differentStageFive);
+  assert.deepEqual(oldFive.state().permutation, differentStageFive.permutation, 'an existing stage-five puzzle is not replaced mid-play');
+  assert.deepEqual(oldFive.state().board, differentStageFive.board);
+  assert.deepEqual(oldFive.state().history, differentStageFive.history);
+  assert(oldFive.cell(6).classList.contains('k-origin'), 'an existing stage-five move keeps its optional addition');
+  assert.equal(oldFive.get('difficulty-label').textContent, 'Difficulty 2', 'the stage-five exception does not relabel another permutation');
+  for (const stage of [4, 6]) {
+    const otherStage = start(savedGame(stageFive.permutation, [], stage));
+    assert.equal(otherStage.get('difficulty-label').textContent, 'Difficulty 2', '12543 retains its actual difficulty outside stage five');
+  }
 }
 
 async function leaveGameChecks() {
@@ -869,7 +904,7 @@ async function main() {
   await firstVisitRulesChecks();
   await resetStageChecks();
   await automaticAdvanceChecks();
-  await fixedStageFourChecks();
+  await fixedTeachingStageChecks();
   await leaveGameChecks();
   console.log('Interaction checks passed: legal moves, persistent cell addition, overlapping landings, bounded hints, undo/reload, S5–S17 displayed on 4×4–16×16 grids, outer playable cells and keyboard boundaries, growth boundaries, legacy saves, size-18 save rejection, pattern-based difficulty restoration, first-visit rules, confirmed stage resets, confirmed tab closure with blocked-close recovery, and automatic advancement with cancellation and dialog pauses.');
 }

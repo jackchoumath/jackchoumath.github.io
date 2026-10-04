@@ -364,31 +364,49 @@ assert.equal(engine.containsPattern([1, 3, 2], [1]), true);
 assert.equal(engine.containsPattern([1, 3, 2], [1, 4, 3, 2]), false);
 assert.deepEqual(engine.patternDifficulty([5, 4, 3, 2, 1]).patterns, []);
 
-// Stage four is a fixed teaching puzzle, even if an older save has seen it.
+// Fixed teaching puzzles take precedence even if an older save has seen them.
 const stageFourPermutation = [1, 4, 5, 2, 3];
-for (const size of [undefined, 5]) {
-  for (const sample of [0, 0.17, 0.5, 0.999999]) {
-    for (const seen of [[], ["14523"], ["1,4,5,2,3"], [" 1, 4, 5, 2, 3 "],
-      [stageFourPermutation.slice()], new Set(["1,4,5,2,3"])]) {
-      const stage = engine.progressiveStage(4, size, () => sample, seen);
-      assert.deepEqual(stage.permutation, stageFourPermutation, "stage four ignores random choice and seen history");
-      assert.equal(stage.n, 5);
-      assert.equal(stage.difficulty.tier, 1);
-      assert.equal(stage.bottomCount, 4);
-      assert.equal(stage.target, 6);
-      assert.deepEqual(stage.board, engine.bottomDream(stageFourPermutation));
-      assert.equal(engine.countCells(applyPath(stage.board, engine.maximalPath(stage.permutation), 5)), 6);
+const stageFivePermutation = [1, 2, 5, 4, 3];
+assert.equal(engine.patternDifficulty(stageFivePermutation).tier, 2, "the stage-five exception does not alter pattern classification");
+assert.deepEqual(engine.stageDifficulty(5, stageFivePermutation), {
+  ...engine.patternDifficulty(stageFivePermutation), tier: 1, band: 1, label: "Difficulty 1"
+}, "the stage-five exception changes display difficulty while preserving its actual patterns");
+for (const number of [1, 4, 6, 100]) {
+  assert.deepEqual(engine.stageDifficulty(number, stageFivePermutation), engine.patternDifficulty(stageFivePermutation),
+    "12543 keeps its actual difficulty outside stage five");
+}
+assert.deepEqual(engine.stageDifficulty(5, [1, 4, 3, 2, 5]), engine.patternDifficulty([1, 4, 3, 2, 5]),
+  "other permutations at stage five keep their actual difficulty");
+for (const [number, permutation, bottomCount, target] of [[4, stageFourPermutation, 4, 6], [5, stageFivePermutation, 3, 7]]) {
+  for (const size of [undefined, 5]) {
+    for (const sample of [0, 0.17, 0.5, 0.999999]) {
+      for (const seen of [[], [permutation.join("")], [permutation.join(",")], [` ${permutation.join(", ")} `],
+        [permutation.slice()], new Set([permutation.join(",")])]) {
+        const stage = engine.progressiveStage(number, size, () => sample, seen);
+        assert.deepEqual(stage.permutation, permutation, `stage ${number} ignores random choice and seen history`);
+        assert.equal(stage.n, 5);
+        assert.equal(stage.difficulty.tier, 1);
+        assert.equal(stage.difficulty.band, 1);
+        assert.equal(stage.difficulty.label, "Difficulty 1");
+        assert.equal(stage.bottomCount, bottomCount);
+        assert.equal(stage.target, target);
+        assert.deepEqual(stage.board, engine.bottomDream(permutation));
+        assert.equal(engine.countCells(applyPath(stage.board, engine.maximalPath(stage.permutation), 5)), target);
+      }
     }
   }
+  const fixedOriginal = engine.progressiveStage(number, undefined, () => 0);
+  const fixedCopy = engine.progressiveStage(number, undefined, () => 0);
+  fixedCopy.permutation[0] = 99;
+  fixedCopy.board.fill(0);
+  fixedCopy.rajcode.fill(0);
+  fixedCopy.difficulty.patterns.push("changed");
+  assert.deepEqual(engine.progressiveStage(number, undefined, () => 0), fixedOriginal,
+    "modifying a returned fixed puzzle cannot corrupt later stages");
+  for (const size of [3, 6, 7]) {
+    assert.equal(engine.progressiveStage(number, size, rng).n, size, "explicit non-five size overrides still apply to fixed stages");
+  }
 }
-const fixedOriginal = engine.progressiveStage(4, undefined, () => 0);
-const fixedCopy = engine.progressiveStage(4, undefined, () => 0);
-fixedCopy.permutation[0] = 99;
-fixedCopy.board.fill(0);
-fixedCopy.rajcode.fill(0);
-fixedCopy.difficulty.patterns.push("changed");
-assert.deepEqual(engine.progressiveStage(4, undefined, () => 0), fixedOriginal,
-  "modifying a returned fixed puzzle cannot corrupt later stages");
 const easyS5Keys = [...permutations([1, 2, 3, 4, 5])]
   .filter(permutation => !avoids132(permutation) && avoids1432(permutation))
   .map(permutation => permutation.join(","));
@@ -397,22 +415,20 @@ for (let number = 1; number <= 3; number += 1) {
   for (let draw = 0; draw < easyS5Keys.length + 1; draw += 1) {
     const key = engine.progressiveStage(number, undefined, rng, seen).permutation.join(",");
     assert.notEqual(key, "1,4,5,2,3", "earlier stages reserve the fixed puzzle, including exhausted pools");
+    assert.notEqual(key, "1,2,5,4,3", "earlier stages cannot draw the reserved stage-five puzzle");
     seen.push(key);
   }
   const onlyReservedUnseen = easyS5Keys.filter(key => key !== "1,4,5,2,3");
   assert.notEqual(engine.progressiveStage(number, 5, () => 0, onlyReservedUnseen).permutation.join(","), "1,4,5,2,3",
     "seen fallback cannot use the reserved stage-four puzzle");
 }
-for (const size of [3, 6, 7]) {
-  assert.equal(engine.progressiveStage(4, size, rng).n, size, "explicit non-five size overrides still apply to stage four");
-}
-console.log("Fixed stage four: 14523 at Difficulty 1 with 4/6 cells, legal completion, saved-key formats, independent returned data, reservation from earlier stages, and explicit size overrides passed.");
+console.log("Fixed stages: 14523 at stage four with 4/6 cells and 12543 at stage five with 3/7 cells; both display Difficulty 1, complete legally, preserve pattern classification, and honor saved-key formats and explicit size overrides.");
 
 let progressionCount = 0;
 for (let run = 0; run < 10; run += 1) {
   const seen = [];
   let previousTier = 0;
-  for (let number = 1; number <= 60; number += 1) {
+  for (let number = 1; number <= 65; number += 1) {
     const stage = engine.progressiveStage(number, undefined, rng, seen);
     const key = stage.permutation.join(",");
     assert.equal(engine.isDominant(stage.permutation), false);
@@ -424,12 +440,12 @@ for (let run = 0; run < 10; run += 1) {
     const independentlyPresent = referencePatterns(stage.permutation);
     assert.deepEqual(d.patterns, independentlyPresent);
     assert.equal(d.patternCount, independentlyPresent.length);
-    assert.equal(d.tier, referenceTier(independentlyPresent));
+    assert.equal(d.tier, number === 5 ? 1 : referenceTier(independentlyPresent));
     assert.equal(d.tier, engine.stageTier(number), "scheduled stages must hit the requested classification exactly");
     assert.ok(d.tier >= previousTier, "pattern difficulty never decreases as stages advance");
     previousTier = d.tier;
     assert.equal(d.avoids1432, number <= 4);
-    assert.equal(d.label, number <= 4 ? "Difficulty 1" : "Difficulty " + d.patternCount);
+    assert.equal(d.label, number <= 5 ? "Difficulty 1" : "Difficulty " + d.patternCount);
     assert.equal(d.score, 5 * d.additions + 3 * d.setupMoves);
     assert.equal(d.additions, stage.target - stage.bottomCount);
     assert.equal(d.solutionMoves, engine.maximalPath(stage.permutation).length);
@@ -466,20 +482,20 @@ for (let i = 0; i < 300; i += 1) {
 }
 assert.throws(() => engine.progressiveStage(0), RangeError);
 assert.throws(() => engine.progressiveStage(1, 2), RangeError);
-console.log("Pattern difficulty: all 5,040 S7 classifications independently verified; all " + easyPermutations.length + " Difficulty 1 permutations retain their override; " + progressionCount + " stages follow exact distinct-pattern tiers; 300 Difficulty 12 draws avoided repeats.");
+console.log("Pattern difficulty: all 5,040 S7 classifications independently verified; all " + easyPermutations.length + " Difficulty 1 permutations retain their override; " + progressionCount + " stages follow scheduled tiers with the stage-five teaching exception; 300 Difficulty 12 draws avoided repeats.");
 
 // The default progression grows at difficulty boundaries, while callers that
 // explicitly supply a size (including restored games) retain that size.
-const sizeBoundaries = [[1, 5], [4, 5], [5, 6], [8, 6], [9, 7], [12, 7], [13, 8], [17, 8],
-  [18, 9], [22, 9], [23, 10], [27, 10], [28, 11], [32, 11], [33, 12], [37, 12], [38, 13], [42, 13],
-  [43, 14], [47, 14], [48, 15], [52, 15], [53, 16], [57, 16], [58, 17], [62, 17], [100, 17]];
+const sizeBoundaries = [[1, 5], [5, 5], [6, 6], [10, 6], [11, 7], [15, 7], [16, 8], [20, 8],
+  [21, 9], [25, 9], [26, 10], [30, 10], [31, 11], [35, 11], [36, 12], [40, 12], [41, 13], [45, 13],
+  [46, 14], [50, 14], [51, 15], [55, 15], [56, 16], [60, 16], [61, 17], [65, 17], [100, 17]];
 for (const [number, size] of sizeBoundaries) {
   assert.equal(engine.stageSize(number), size);
   assert.equal(engine.progressiveStage(number, undefined, rng).n, size);
 }
-const tierBoundaries = [[1, 1], [4, 1], [5, 2], [8, 2], [9, 3], [12, 3], [13, 4], [17, 4],
-  [18, 5], [22, 5], [23, 6], [27, 6], [28, 7], [32, 7], [33, 8], [37, 8], [38, 9], [42, 9],
-  [43, 10], [47, 10], [48, 11], [52, 11], [53, 12], [100, 12]];
+const tierBoundaries = [[1, 1], [5, 1], [6, 2], [10, 2], [11, 3], [15, 3], [16, 4], [20, 4],
+  [21, 5], [25, 5], [26, 6], [30, 6], [31, 7], [35, 7], [36, 8], [40, 8], [41, 9], [45, 9],
+  [46, 10], [50, 10], [51, 11], [55, 11], [56, 12], [60, 12], [61, 12], [100, 12]];
 for (const [number, tier] of tierBoundaries) assert.equal(engine.stageTier(number), tier);
 for (const invalid of [0, -1, 1.5, "1", null, NaN, Infinity]) {
   assert.throws(() => engine.stageSize(invalid), RangeError);
@@ -496,7 +512,7 @@ let growingStages = 0;
 for (let run = 0; run < 10; run += 1) {
   const seen = [];
   let previousBand = 0;
-  for (let number = 1; number <= 60; number += 1) {
+  for (let number = 1; number <= 65; number += 1) {
     const stage = engine.progressiveStage(number, undefined, rng, seen);
     const size = engine.stageSize(number);
     const key = stage.permutation.join(",");
@@ -547,7 +563,7 @@ let catalogTime = 0;
 const catalogTimes = [];
 let largeStages = 0;
 for (let size = 9; size <= 17; size += 1) {
-  const stageNumber = 18 + (size - 9) * 5;
+  const stageNumber = 21 + (size - 9) * 5;
   const coldStarted = Date.now();
   const first = freshEngine.progressiveStage(stageNumber, size, () => 0.37);
   const coldTime = Date.now() - coldStarted;

@@ -438,12 +438,22 @@
   // Grow the board at difficulty boundaries, then every five stages up to 17.
   function stageSize(stage) {
     if (!Number.isInteger(stage) || stage < 1) throw new RangeError("The stage number must be a positive integer.");
-    return stage <= 4 ? 5 : stage <= 8 ? 6 : stage <= 12 ? 7 : Math.min(17, 8 + Math.floor((stage - 13) / 5));
+    return Math.min(17, 5 + Math.floor((stage - 1) / 5));
   }
 
   function stageTier(stage) {
     stageSize(stage); // Reuse the stage-number validation.
-    return stage <= 4 ? 1 : stage <= 8 ? 2 : stage <= 12 ? 3 : Math.min(12, 4 + Math.floor((stage - 13) / 5));
+    return Math.min(12, 1 + Math.floor((stage - 1) / 5));
+  }
+
+  function stageDifficulty(stage, permutation) {
+    var difficulty = patternDifficulty(permutation);
+    // The fixed fifth puzzle closes the introductory Difficulty 1 group.
+    if (stage === 5 && permutation.join(",") === "1,2,5,4,3") {
+      difficulty.tier = difficulty.band = 1;
+      difficulty.label = "Difficulty 1";
+    }
+    return difficulty;
   }
 
   function progressiveStage(stage, n, rng, seen) {
@@ -453,10 +463,13 @@
     seen = seen || [];
     if (!Number.isInteger(n) || n < 3 || n > 17) throw new RangeError("Progressive stages support sizes 3 through 17.");
     var catalog = stageCatalog(n);
-    var stageFourKey = "1,4,5,2,3";
-    var fixedStage = stage === 4 && n === 5 ? catalog.find(function (entry) { return entry.key === stageFourKey; }) : null;
-    // Reserve this puzzle for stage four, including when an earlier pool repeats.
-    if (stage < 4 && n === 5) catalog = catalog.filter(function (entry) { return entry.key !== stageFourKey; });
+    var fixedStageKeys = {4: "1,4,5,2,3", 5: "1,2,5,4,3"};
+    var fixedKey = n === 5 ? fixedStageKeys[stage] : null;
+    var fixedStage = fixedKey ? catalog.find(function (entry) { return entry.key === fixedKey; }) : null;
+    // Reserve the two fixed puzzles, including when an earlier pool repeats.
+    if (stage < 4 && n === 5) catalog = catalog.filter(function (entry) {
+      return entry.key !== fixedStageKeys[4] && entry.key !== fixedStageKeys[5];
+    });
     var seenKeys = new Set(Array.from(seen, function (item) {
       if (Array.isArray(item)) return item.join(",");
       var key = String(item).trim();
@@ -479,8 +492,8 @@
     var available = unseen.length ? unseen : pool;
     // Within that one classification, increase the move estimate gradually.
     // This estimate never outweighs the number of distinct listed patterns.
-    var start = requestedTier <= 3 ? 1 + (requestedTier - 1) * 4 : 13 + (requestedTier - 4) * 5;
-    var duration = requestedTier <= 3 ? 4 : 5;
+    var start = 1 + (requestedTier - 1) * 5;
+    var duration = 5;
     var phase = Math.min(duration - 1, stage - start);
     var minimum = pool[0].score;
     var maximum = pool[pool.length - 1].score;
@@ -502,6 +515,7 @@
     var sample = rng();
     if (!(sample >= 0 && sample < 1)) throw new RangeError("Random values must be between 0 (included) and 1 (excluded).");
     var selected = candidates[Math.floor(sample * candidates.length)];
+    var classification = stageDifficulty(stage, selected.permutation);
     return {
       n: n,
       permutation: selected.permutation.slice(),
@@ -510,12 +524,12 @@
       bottomCount: selected.bottomCount,
       rajcode: selected.rajcode.slice(),
       difficulty: {
-        label: selected.classification.label,
-        tier: selected.classification.tier,
-        band: selected.classification.tier,
-        avoids1432: selected.classification.avoids1432,
-        patternCount: selected.classification.patternCount,
-        patterns: selected.classification.patterns.slice(),
+        label: classification.label,
+        tier: classification.tier,
+        band: classification.tier,
+        avoids1432: classification.avoids1432,
+        patternCount: classification.patternCount,
+        patterns: classification.patterns.slice(),
         score: selected.score,
         additions: selected.additions,
         solutionMoves: selected.solutionMoves,
@@ -544,6 +558,7 @@
     randomStage: randomStage,
     stageSize: stageSize,
     stageTier: stageTier,
+    stageDifficulty: stageDifficulty,
     progressiveStage: progressiveStage
   });
 });

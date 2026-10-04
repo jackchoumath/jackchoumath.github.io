@@ -96,7 +96,7 @@
     const choice = chosenMove(moves);
     const conversion = pendingConversion();
     $('stage-number').textContent = String(game.stage).padStart(2, '0');
-    $('difficulty-label').textContent = E.patternDifficulty(game.permutation).label;
+    $('difficulty-label').textContent = E.stageDifficulty(game.stage, game.permutation).label;
     $('current-count').textContent = count;
     $('target-count').textContent = maximum;
     $('board-score').setAttribute('aria-label', `${count} of ${maximum} cells${won ? ', maximum reached' : ''}`);
