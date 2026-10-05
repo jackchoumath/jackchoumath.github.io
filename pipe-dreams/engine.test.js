@@ -482,14 +482,16 @@ for (let run = 0; run < 10; run += 1) {
   const seen = [];
   const seenPuzzles = new Set();
   let previousTier = 0;
-  for (let number = 1; number <= 65; number += 1) {
+  for (let number = 1; number <= 110; number += 1) {
     const stage = engine.progressiveStage(number, undefined, rng, seen);
     const key = stage.permutation.join(",");
     assert.equal(engine.isDominant(stage.permutation), false);
     assert.deepEqual(stage.board, engine.bottomDream(stage.permutation));
     assert.equal(stage.target, engine.maximumCrossings(stage.permutation));
-    assert.ok(!seen.includes(key));
-    assert.ok(!seenPuzzles.has(puzzleKey(stage.permutation)), "growing stages avoid the same puzzle across symmetric groups");
+    if (engine.stageTier(number) < 12) {
+      assert.ok(!seen.includes(key));
+      assert.ok(!seenPuzzles.has(puzzleKey(stage.permutation)), "growing stages avoid the same puzzle across symmetric groups below Difficulty 12");
+    }
     seenPuzzles.add(puzzleKey(stage.permutation));
     seen.push(key);
     const d = stage.difficulty;
@@ -554,18 +556,20 @@ assert.throws(() => engine.progressiveStage(0), RangeError);
 assert.throws(() => engine.progressiveStage(1, 2), RangeError);
 console.log("Pattern difficulty: all 5,040 S7 classifications independently verified; all " + easyPermutations.length + " Difficulty 1 permutations retain their override; " + progressionCount + " stages follow scheduled tiers with accurate pattern classifications; 300 Difficulty 12 draws avoided repeats.");
 
-// The default progression grows at difficulty boundaries, while callers that
-// explicitly supply a size (including restored games) retain that size.
+// The first three sizes last five stages each; starting at S8, a size lasts
+// ten stages while difficulty continues increasing every five. Explicit
+// size overrides (including restored games) retain their requested size.
 const sizeBoundaries = [[1, 5], [5, 5], [6, 6], [10, 6], [11, 7], [15, 7], [16, 8], [20, 8],
-  [21, 9], [25, 9], [26, 10], [30, 10], [31, 11], [35, 11], [36, 12], [40, 12], [41, 13], [45, 13],
-  [46, 14], [50, 14], [51, 15], [55, 15], [56, 16], [60, 16], [61, 17], [65, 17], [100, 17]];
+  [21, 8], [25, 8], [26, 9], [30, 9], [31, 9], [35, 9], [36, 10], [40, 10], [41, 10], [45, 10],
+  [46, 11], [50, 11], [51, 11], [55, 11], [56, 12], [65, 12], [66, 13], [75, 13],
+  [76, 14], [85, 14], [86, 15], [95, 15], [96, 16], [105, 16], [106, 17], [110, 17], [1000, 17]];
 for (const [number, size] of sizeBoundaries) {
   assert.equal(engine.stageSize(number), size);
   assert.equal(engine.progressiveStage(number, undefined, rng).n, size);
 }
 const tierBoundaries = [[1, 1], [5, 1], [6, 2], [10, 2], [11, 3], [15, 3], [16, 4], [20, 4],
   [21, 5], [25, 5], [26, 6], [30, 6], [31, 7], [35, 7], [36, 8], [40, 8], [41, 9], [45, 9],
-  [46, 10], [50, 10], [51, 11], [55, 11], [56, 12], [60, 12], [61, 12], [100, 12]];
+  [46, 10], [50, 10], [51, 11], [55, 11], [56, 12], [60, 12], [61, 12], [100, 12], [106, 12], [110, 12]];
 for (const [number, tier] of tierBoundaries) assert.equal(engine.stageTier(number), tier);
 for (const invalid of [0, -1, 1.5, "1", null, NaN, Infinity]) {
   assert.throws(() => engine.stageSize(invalid), RangeError);
@@ -582,7 +586,7 @@ let growingStages = 0;
 for (let run = 0; run < 10; run += 1) {
   const seen = [];
   let previousBand = 0;
-  for (let number = 1; number <= 65; number += 1) {
+  for (let number = 1; number <= 110; number += 1) {
     const stage = engine.progressiveStage(number, undefined, rng, seen);
     const size = engine.stageSize(number);
     const key = stage.permutation.join(",");
@@ -590,7 +594,7 @@ for (let run = 0; run < 10; run += 1) {
     assert.equal(stage.permutation.length, size);
     assert.equal(stage.board.length, size * size);
     assert.equal(engine.isDominant(stage.permutation), false);
-    assert.ok(!seen.includes(key), "growing stages must not repeat permutations");
+    if (engine.stageTier(number) < 12) assert.ok(!seen.includes(key), "growing stages below Difficulty 12 must not repeat permutations");
     seen.push(key);
     assert.deepEqual(stage.rajcode, snowRajcode(stage.permutation), `growing S${size} Rajchgot target`);
     assert.equal(stage.target, stage.rajcode.reduce((sum, value) => sum + value, 0));
@@ -633,7 +637,7 @@ let catalogTime = 0;
 const catalogTimes = [];
 let largeStages = 0;
 for (let size = 9; size <= 17; size += 1) {
-  const stageNumber = 21 + (size - 9) * 5;
+  const stageNumber = 26 + (size - 9) * 10;
   const coldStarted = Date.now();
   const first = freshEngine.progressiveStage(stageNumber, size, () => 0.37);
   const coldTime = Date.now() - coldStarted;

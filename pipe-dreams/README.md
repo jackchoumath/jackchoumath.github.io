@@ -102,13 +102,16 @@ puzzle, its fixed stage draws a different unplayed puzzle instead. Other
 stages keep their random selection. Saved puzzles retain their progress, and
 difficulty is recalculated from the actual permutation.
 
-Board sizes increase every five stages: 4 × 4 for stages 1–5,
-5 × 5 for stages 6–10, 6 × 6 for stages 11–15, and 7 × 7 for stages 16–20.
-The displayed side keeps increasing every five stages, reaching 16 × 16 at stage 61
-and staying there, with permutations in S_17. Permutation sizes through eight
+The first three board sizes last five stages each: 4 × 4 for stages 1–5,
+5 × 5 for stages 6–10, and 6 × 6 for stages 11–15. Starting at n=8, each size
+lasts ten stages: 7 × 7 for stages 16–25, 8 × 8 for stages 26–35, and so on.
+Difficulty still increases every five stages, reaching Difficulty 12 at stage 56
+on an 11 × 11 grid (n=12). The displayed side reaches its 16 × 16 cap at stage 106,
+with permutations in S_17. Permutation sizes through eight
 use complete catalogs; larger sizes use bounded, reproducible samples to keep
 puzzle generation fast. Existing saved puzzles retain their permutation and
-progress and display on the smaller grid. All moves, targets, hints, keyboard
+progress until completion, then adopt the current stage's scheduled size.
+All moves, targets, hints, keyboard
 navigation, and saved histories still use the actual permutation size; the
 engine's n-wide board indices are preserved while rendering only n−1 rows and columns.
 

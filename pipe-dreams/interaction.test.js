@@ -191,7 +191,7 @@ async function dynamicSizeChecks() {
   assertBoardSize(oversized, 5);
   assert.equal(oversized.state().stage, 1, 'an unsupported size-18 save is replaced with a fresh game');
 
-  for (const [n, stage] of [[5, 1], [6, 6], [7, 11], [8, 16], [9, 21], [10, 26], [11, 31], [12, 36], [13, 41], [14, 46], [15, 51], [16, 56], [17, 61]]) {
+  for (const [n, stage] of [[5, 1], [6, 6], [7, 11], [8, 16], [9, 26], [10, 36], [11, 46], [12, 56], [13, 66], [14, 76], [15, 86], [16, 96], [17, 106]]) {
     const permutation = simplePermutation(n);
     let app = start(savedGame(permutation, [], stage));
     assertBoardSize(app, n);
@@ -218,17 +218,26 @@ async function dynamicSizeChecks() {
     assert.equal(app.pendingAdvances(), 0);
   }
 
-  // Completing a stage rebuilds the board at each growth boundary. Use real,
+  // Completing a stage rebuilds the board at every growth boundary. It also
+  // raises difficulty halfway through each ten-stage size group. Use real,
   // legally completed histories so restoration validates the entire route.
-  for (const [stage, n] of [[5, 5], [10, 6], [15, 7], [20, 8], [25, 9], [30, 10], [35, 11], [40, 12], [45, 13], [50, 14], [55, 15], [60, 16], [68, 17]]) {
+  for (const [stage, n, nextSize, nextTier] of [
+    [5, 5, 6, 2], [10, 6, 7, 3], [15, 7, 8, 4],
+    [20, 8, 8, 5], [25, 8, 9, 6], [30, 9, 9, 7], [35, 9, 10, 8],
+    [40, 10, 10, 9], [45, 10, 11, 10], [50, 11, 11, 11], [55, 11, 12, 12],
+    [65, 12, 13, 12], [75, 13, 14, 12], [85, 14, 15, 12], [95, 15, 16, 12],
+    [105, 16, 17, 12], [110, 17, 17, 12]
+  ]) {
     const permutation = simplePermutation(n);
     const app = start(savedGame(permutation, E.maximalPath(permutation), stage));
     assertBoardSize(app, n);
     assert.equal(app.pendingAdvances(), 1);
     await app.advance();
     assert.equal(app.state().stage, stage + 1);
-    const nextSize = Math.min(n + 1, 17);
     assertBoardSize(app, nextSize);
+    assert.equal(app.get('difficulty-label').textContent, `Difficulty ${nextTier}`);
+    assert.equal(E.patternDifficulty(app.state().permutation).tier, nextTier,
+      'the new stage has its scheduled pattern difficulty even when the board size stays the same');
     assert.equal(E.isDominant(app.state().permutation), false);
     assert.equal(app.state().seen.at(-1), app.state().permutation.join(','), 'saved keys separate two-digit permutation values');
     assert.equal(app.cell(0).focused, true, 'advancing focuses the rebuilt board');
@@ -236,7 +245,7 @@ async function dynamicSizeChecks() {
     assert.equal(app.state().history.length, 0);
     assert.equal(app.pendingAdvances(), 0);
     const move = E.legalMoves(app.state().board, nextSize).find(candidate => candidate.type === 'ladder');
-    assert(move, 'the enlarged board has a playable move');
+    assert(move, 'the next board has a playable move');
     await ladder(app, move.from, move.to);
     assert.equal(app.state().history.length, 1, 'newly built cells have working event handlers');
     await app.button('undo-button');
@@ -255,9 +264,9 @@ async function dynamicSizeChecks() {
   assertBoardSize(app, 5);
   assert.equal(app.state().stage, 2, 'finishing an old saved puzzle adopts the current size progression');
 
-  // Older versions capped all later stages at eight or thirteen. Preserve
-  // an active puzzle until the player finishes it, then use the new size.
-  for (const oldSize of [8, 13]) {
+  // Preserve active puzzles from older eight/thirteen-cell caps or faster
+  // growth to S17. Completion adopts the current size even if it decreases.
+  for (const oldSize of [8, 13, 17]) {
     const cappedPermutation = simplePermutation(oldSize);
     const cappedSave = savedGame(cappedPermutation, [{from: oldSize, to: 1, type: 'ladder'}], 68);
     const cappedApp = start(cappedSave);
@@ -267,7 +276,7 @@ async function dynamicSizeChecks() {
     assert(cappedApp.cell(oldSize).classList.contains('k-origin'));
     await cappedApp.click(oldSize);
     await cappedApp.advance();
-    assertBoardSize(cappedApp, 17);
+    assertBoardSize(cappedApp, 13);
     assert.equal(cappedApp.state().stage, 69);
   }
 }

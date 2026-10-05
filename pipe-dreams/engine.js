@@ -442,10 +442,10 @@
     return catalog;
   }
 
-  // Grow the board at difficulty boundaries, then every five stages up to 17.
+  // Keep the first three sizes for five stages each, then ten stages per size.
   function stageSize(stage) {
     if (!Number.isInteger(stage) || stage < 1) throw new RangeError("The stage number must be a positive integer.");
-    return Math.min(17, 5 + Math.floor((stage - 1) / 5));
+    return stage <= 15 ? 5 + Math.floor((stage - 1) / 5) : Math.min(17, 8 + Math.floor((stage - 16) / 10));
   }
 
   function stageTier(stage) {
