@@ -1,0 +1,16 @@
+@font-face { font-family: "Big Shoulders Display"; src: url(fonts/BigShoulders.woff2) format("woff2"); font-weight: 100 900; }
+@font-face { font-family: "Anton"; src: url(fonts/Anton.woff2) format("woff2"); font-weight: 400; }
+@font-face { font-family: "Archivo"; src: url(fonts/Archivo.woff2) format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; }
+@font-face { font-family: "Instrument Serif"; src: url(../schubert-reel/fonts/InstrumentSerif.woff2) format("woff2"); font-style: normal; }
+@font-face { font-family: "Instrument Serif"; src: url(../schubert-reel/fonts/InstrumentSerif-italic.woff2) format("woff2"); font-style: italic; }
+@font-face { font-family: "Inter"; src: url(../schubert-reel/fonts/Inter-var.woff2) format("woff2"); font-weight: 100 900; }
+@font-face { font-family: "JetBrains Mono"; src: url(../schubert-reel/fonts/JetBrainsMono-var.woff2) format("woff2"); font-weight: 100 800; }
+@font-face { font-family: "KaTeX_Main"; src: url(../schubert-reel/vendor/katex/fonts/KaTeX_Main-Regular.woff2) format("woff2"); }
+@font-face { font-family: "KaTeX_Main"; src: url(../schubert-reel/vendor/katex/fonts/KaTeX_Main-Bold.woff2) format("woff2"); font-weight: 700; }
+@font-face { font-family: "KaTeX_Math"; src: url(../schubert-reel/vendor/katex/fonts/KaTeX_Math-Italic.woff2) format("woff2"); font-style: italic; }
+@font-face { font-family: "KaTeX_Fraktur"; src: url(../schubert-reel/vendor/katex/fonts/KaTeX_Fraktur-Regular.woff2) format("woff2"); }
+@font-face { font-family: "KaTeX_AMS"; src: url(../schubert-reel/vendor/katex/fonts/KaTeX_AMS-Regular.woff2) format("woff2"); }
+* { box-sizing: border-box; margin: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+#stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+#stage > canvas { position: absolute; inset: 0; }

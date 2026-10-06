@@ -8,13 +8,13 @@ html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; backgro
 #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
 #stage > canvas, #overlay { position: absolute; inset: 0; }
 #overlay { pointer-events: none; }
-#overlay > * { position: absolute; left: 0; top: 0; white-space: nowrap; will-change: transform, opacity; visibility: hidden; }
-.ch { display: inline-block; will-change: transform, opacity; }
+#overlay > * { position: absolute; left: 0; top: 0; white-space: nowrap; visibility: hidden; }
+.ch { display: inline-block; }
 * { transition: none !important; animation: none !important; }
 
 /* Type system */
 .wm { display: inline-block; overflow: hidden; vertical-align: top; padding: 0.04em 0.02em 0.16em; margin: -0.04em -0.02em -0.16em; }
-.wi { display: inline-block; will-change: transform; }
+.wi { display: inline-block; }
 .mono { font-family: "JetBrains Mono", monospace; font-weight: 500; font-size: 14px; letter-spacing: 0.16em; color: #8ea3bd; text-transform: uppercase; }
 .display { font-family: "Instrument Serif", serif; font-weight: 400; color: #f3efe6; }
 .caption { font-size: 56px; line-height: 62px; letter-spacing: -0.005em; }

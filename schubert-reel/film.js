@@ -176,6 +176,7 @@
       if (al <= 0.003) continue;
       ctx.strokeStyle = rgba(rgb, clamp(al));
       ctx.lineWidth = w * (strong ? 0.6 + 0.7 * k : 0.8 + 0.35 * k);
+      ctx.lineCap = 'butt';  // round caps on translucent segments overlap and bead at joints
       ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke();
     }
     return pts;
@@ -287,7 +288,7 @@
   function showCaption(c, t, a, b, x, y, opts = {}) {
     if (t < a - 0.01 || t > b + 0.01) return;
     const stagger = opts.stagger ?? 0.045, dur = opts.dur ?? 0.6;
-    const out = seg(t, b - 0.35, b, ease.in);
+    const out = seg(t, b - 0.35, b, ease.soft);
     setStyle(c.e, { opacity: 1 - out, x, y: y - out * 10, blur: out * 3 });
     c.w.forEach((w, i) => {
       const p = seg(t, a + i * stagger, a + i * stagger + dur, ease.out);
