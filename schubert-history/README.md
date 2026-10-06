@@ -73,7 +73,7 @@ To re-time the film to the real recording:
 
 ```
 python3 resync.py path/to/wordless.mp3 --start 95 --dur 32
-node render.mjs --html film.html --workers 3 --blur 4 --preset slow --crf 17 --grain 5 \
+node render.mjs --html film.html --to 32 --workers 3 --blur 4 --preset slow --crf 17 --grain 5 \
   --audio out/music.wav --out schubert-history.mp4
 ```
 

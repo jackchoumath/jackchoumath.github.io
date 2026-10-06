@@ -12,7 +12,7 @@
    entry starts on a real beat and the 1982 drop / final title land on the
    song's own drop and last hit.
 
-Then render with:  node render.mjs --blur 4 --audio out/music.wav --out out/schubert-history.mp4
+Then render with:  node render.mjs --html film.html --to 32 --blur 4 --audio out/music.wav --out schubert-history.mp4
 """
 import argparse
 import json

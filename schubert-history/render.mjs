@@ -30,7 +30,7 @@ const args = Object.fromEntries(process.argv.slice(2).reduce((acc, a, i, all) =>
 const W = 1920, H = 1080;
 const fps = Number(args.fps ?? 60);
 const from = Number(args.from ?? 0);
-const to = Number(args.to ?? 15);
+const to = Number(args.to ?? (args.html === 'film.html' ? 32 : 15));
 const workers = Number(args.workers ?? 3);
 const blur = Number(args.blur ?? 1);
 const grain = Number(args.grain ?? 5);
