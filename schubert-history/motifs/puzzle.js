@@ -217,8 +217,10 @@
       }
 
       // ------------------------------------------------------------ opening: the light-triangle splits in two
+      // (starts a hair after p = 0: the film's motif clock runs ~0.037 ahead on the cut frame, and the
+      //  single triangle should still be seen whole as the drop's flash clears)
       {
-        const q = clamp(p / 0.08);
+        const q = clamp((p - 0.037) / 0.08);
         if (q < 1) {
           [FA, FB].forEach(fr => {
             const e = ease.out(q);

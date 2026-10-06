@@ -255,7 +255,7 @@
 
   // The year: small now, bottom left, still rolling like a counter.
   function drawYear(t, v, e, acc, rolling) {
-    const slam = e ? seg(t - e.t0, 0, 0.12, easeQ) : 1;
+    const slam = e && e.t0 > 0 ? seg(t - e.t0, 0, 0.12, easeQ) : 1;
     const sc = lerp(1.16, 1, slam);
     ui.save();
     ui.translate(LT.yearX, LT.base); ui.scale(sc, sc); ui.translate(-LT.yearX, -LT.base);
@@ -304,7 +304,7 @@
   function tunnel(ctx, t, t0, q, shape, r16, seed) {
     const r = rng(seed);
     // Keep the rush on the stage, clear of the lower third.
-    for (const g of [ctx, hot]) { g.save(); g.beginPath(); g.rect(0, 0, W, BAND[1] + 10); g.clip(); }
+    for (const g of [ctx, hot]) { g.save(); g.beginPath(); g.rect(0, BAND[0], W, BAND[1] + 10 - BAND[0]); g.clip(); }
     for (let i = 0; i < 140; i++) {
       const z0 = r(), ang = r() * Math.PI * 2, rad = 0.2 + r() * 1.1, amber = r() < 0.4, spin = (r() - 0.5) * 2;
       const z = ((z0 - (t - t0) * (0.6 + 5 * q * q)) % 1 + 1) % 1;
@@ -413,10 +413,10 @@
     if (kz > 0.6 && qd != null) {
       const qa = seg(t, qd, qd + 0.15);
       // A dark halo keeps it readable where the lines cross it.
-      // Two lines in the empty top-right of the stage, right-aligned with the answer below.
+      // Two lines in the empty right side of the stage, right-aligned with the answer below.
       ctx.save(); ctx.font = `600 28px ${F.mono}`; ctx.textAlign = 'right'; ctx.lineJoin = 'round';
       ctx.strokeStyle = `rgba(5,7,12,${0.9 * qa})`; ctx.lineWidth = 9; ctx.fillStyle = rgba(C.ink, 0.88 * qa);
-      ['HOW MANY LINES MEET', 'FOUR GENERAL LINES?'].forEach((ln, k) => { ctx.strokeText(ln, ax, box.y + 56 + k * 38); ctx.fillText(ln, ax, box.y + 56 + k * 38); });
+      ['HOW MANY LINES MEET', 'FOUR GENERAL LINES?'].forEach((ln, k) => { ctx.strokeText(ln, ax, box.y + 206 + k * 38); ctx.fillText(ln, ax, box.y + 206 + k * 38); });
       ctx.restore();
     }
     // '= 2' slams on tom 7; tom 8 kicks it once more.
@@ -522,6 +522,13 @@
     try { drawMotif(mot, motHot, t, e, mp, kick, mLocal, dur, box); }
     catch (err) { U.text(mot, `[${e.motif}]`, box.x + box.w / 2, box.y + box.h / 2, `30px ${F.mono}`, rgba(C.red, 1), 'center'); }
     mot.restore(); motHot.restore();
+    // Soft top edge: lines running off-stage fade out instead of ending on a matte line.
+    for (const g of [mot, motHot]) {
+      g.save(); g.globalCompositeOperation = 'destination-in';
+      const fg = g.createLinearGradient(0, BAND[0], 0, BAND[0] + 60);
+      fg.addColorStop(0, 'rgba(0,0,0,0)'); fg.addColorStop(1, '#000');
+      g.fillStyle = fg; g.fillRect(0, 0, W, H); g.restore();
+    }
     // Entrance, by section: slides in the verse, whips in the drops, soft zooms in the break.
     // Already well under way on the beat frame, so the cut lands on the hit.
     const inQ = seg(local, -0.06, flash ? 0.06 : 0.12, easeQ);
@@ -632,7 +639,8 @@
       const fe = I.from, fd = fe.t1 - fe.t0;
       mot.clearRect(0, 0, W, H); motHot.clearRect(0, 0, W, H);
       try { drawMotif(mot, motHot, t, fe, 1, 0, fd, fd, fe.kind === 'hero' ? HERO : STAGE); } catch (err) { /* keep going */ }
-      scene.save(); scene.globalAlpha = (1 - zq) ** 1.5;
+      scene.save(); scene.beginPath(); scene.rect(0, BAND[0], W, BAND[1] - BAND[0]); scene.clip();
+      scene.globalAlpha = (1 - zq) ** 1.5;
       const z = lerp(1.044, 3, zq); scene.translate(CX, CY); scene.scale(z, z); scene.translate(-CX, -CY);
       scene.drawImage(motC, 0, 0); scene.restore();
     }
@@ -651,11 +659,13 @@
     const lhs = 'c^{\\nu}_{\\lambda\\mu}\\,=\\,\\#';
     const wl = U.math(scene, lhs, 0, 0, size, 'rgba(0,0,0,0)', 'left', 0);
     const QT = snap(I.t1 - BEAT), qmark = t >= QT;
-    const sub = Math.floor(Math.max(0, t - I.t0) / (BEAT / 4));
+    const tf = Math.floor(t * 60 + 1e-6) / 60;                       // one word per frame, never two
+    const sub = Math.floor(Math.max(0, tf - I.t0) / (BEAT / 4));
     const ticks = sub < 4 ? Math.floor(sub / 2) : sub - 2;          // eighths, then sixteenths
     const word = qmark ? '?' : COUNT_WORDS[ticks % COUNT_WORDS.length];
     scene.font = `900 112px ${F.wide}`; scene.fontStretch = 'semi-condensed';
-    const ww = qmark ? 90 : Math.max(...COUNT_WORDS.map(w => scene.measureText(w).width));
+    const wMax = Math.max(...COUNT_WORDS.map(w => scene.measureText(w).width));
+    const ww = lerp(wMax, 90, seg(t, QT, QT + 0.12, easeQ));
     const GAPW = 44, x0 = CX - (wl + GAPW + ww) / 2, y = CY + 50;
     scene.save(); scene.translate(CX, y); scene.scale(lerp(0.92, 1, fq), lerp(0.92, 1, fq)); scene.translate(-CX, -y);
     U.math(scene, lhs, x0, y, size, rgba(C.ink, 1), 'left', fq);
@@ -686,7 +696,7 @@
     } else {
       // Same centre and size as the puzzle hero's opening outline, so the light hands straight over to it.
       const R0 = 255, pts = [0, 1, 2].map(k => [CX + R0 * Math.cos(-Math.PI / 2 + k * 2 * Math.PI / 3), CY + R0 * Math.sin(-Math.PI / 2 + k * 2 * Math.PI / 3)]);
-      const total = easeIn(q) * 3;
+      const total = easeIn(clamp(q / 0.85)) * 3;
       for (const [g2, col, lw] of [[hot, rgba(C.cyan, 0.9), 4], [scene, rgba(C.ink, 1), 2]]) {
         g2.strokeStyle = col; g2.lineWidth = lw; g2.beginPath(); g2.moveTo(...pts[0]);
         for (let k = 0; k < 3; k++) {
@@ -727,6 +737,7 @@
       if (q <= 0) continue;
       const bw = gw * 0.84, bh = gh * 0.8;
       const box = { x: cx - bw / 2, y: cy - bh / 2, w: bw, h: bh };
+      const ly = r === rows - 1 ? box.y + box.h - 6 : box.y + 22;
       wall.save(); wallHot.save();
       for (const g of [wall, wallHot]) {
         g.translate(cx, cy); g.scale(q, q); g.translate(-cx, -cy);
@@ -736,7 +747,7 @@
         const e = ENTRIES[i];
         const fake = Object.assign({}, e, { t0: t - 20, t1: t - 12.5 });
         try { drawMotif(wall, wallHot, t, fake, 1, 0, e.t1 - e.t0, e.t1 - e.t0, box); } catch (err) { /* a broken motif must not break the finale */ }
-        U.text(wall, String(e.year), box.x + 6, box.y + 22, `800 22px ${F.display}`, rgba(C.ink, 0.9));
+        U.text(wall, String(e.year), box.x + 6, ly, `800 22px ${F.display}`, rgba(C.ink, 0.9));
       } else {
         // The last tile is the open problem.
         const z = 1 + 0.12 * boom;
@@ -745,7 +756,7 @@
           U.text(g, '?', 0, 0, `900 ${Math.round(bh * 0.62)}px ${F.display}`, rgba(C.red, g === wallHot ? 0.35 : 1), 'center');
           g.restore();
         }
-        U.text(wall, 'NEXT', box.x + 6, box.y + 22, `800 22px ${F.display}`, rgba(C.red, 0.9));
+        U.text(wall, 'NEXT', box.x + 6, ly, `800 22px ${F.display}`, rgba(C.red, 0.9));
       }
       wall.restore(); wallHot.restore();
     }
