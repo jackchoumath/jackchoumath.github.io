@@ -352,6 +352,11 @@
       const a = cam.project(v3.lerp(m, g[0], q)), b = cam.project(v3.lerp(m, g[1], q));
       ctx.strokeStyle = rgba(i === 3 ? C.cyan : C.ink, 0.95); ctx.lineWidth = 3 * lw;
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      // Each line is named as it lands.
+      if (kz > 0.6) {
+        const lp = cam.project(v3.lerp(m, g[1], 0.62 * q));
+        U.math(ctx, `\\ell_${i + 1}`, lp.x + 18, lp.y - 14, 34, rgba(i === 3 ? C.cyan : C.ink, 0.85 * clamp(q * 1.5)), 'left');
+      }
       const fl = Math.exp(-(t - th) / 0.12);
       if (fl > 0.02) { hot.strokeStyle = rgba(C.ink, 0.8 * fl); hot.lineWidth = 6 * lw; hot.beginPath(); hot.moveTo(a.x, a.y); hot.lineTo(b.x, b.y); hot.stroke(); }
     });
@@ -371,6 +376,21 @@
         U.dot(hot, pp.x, pp.y, (j === 0 ? 7 : 5) * lw * (1 + 1.2 * fillPop), rgba(C.amberHot, q));
       });
     });
+    // Cold open: the question fills the stage until the first line slams through it.
+    if (kz > 0.6 && t < hitT[0] + 0.2) {
+      const inq = seg(t, e.t0 + 0.05, e.t0 + 0.45, easeQ), outq = seg(t, hitT[0] - 0.02, hitT[0] + 0.16, easeIn);
+      const z = lerp(1.0, 1.25, outq), a = inq * (1 - outq);
+      if (a > 0.003) {
+        const ccx = box.x + box.w / 2, ccy = box.y + box.h / 2;
+        ctx.save(); ctx.translate(ccx, ccy); ctx.scale(z, z);
+        ['HOW MANY LINES MEET', 'FOUR GIVEN LINES?'].forEach((ln, k) => {
+          const HQ = fitHeadline(ctx, 'HOW MANY LINES MEET', 76, box.w * 0.8);
+          kinetic(ctx, ln, -(() => { ctx.font = `900 ${HQ.size}px ${F.wide}`; ctx.fontStretch = HQ.stretch; return ctx.measureText(ln).width; })() / 2,
+            (k - 0.5) * HQ.size * 1.15 + HQ.size * 0.35, HQ.size, rgba(k ? C.amber : C.ink, a), clamp(inq * 1.2 - k * 0.15), { font: `900 ${HQ.size}px ${F.wide}`, stretch: HQ.stretch, stagger: 0.45 });
+        });
+        ctx.restore();
+      }
+    }
     // The question lands on the downbeat after the fourth line and reads into the answer.
     const fs2 = Math.min(120, box.h * 0.16);
     const ax = box.x + box.w - fs2 * 0.58, ay = box.y + box.h - fs2 * 0.33;
