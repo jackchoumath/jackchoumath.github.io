@@ -926,9 +926,15 @@
         tick();
         selected = drag.index;
         hintSource = null;
+        justAdded = null;
         setPreview(null);
         render();
-        cells.get(drag.index).classList.toggle('dragging', true);
+        const cell = cells.get(drag.index);
+        cell.classList.toggle('dragging', true);
+        // A slide, snap-back, or pop animation still running on this piece
+        // would override the drag offset, leaving the piece in place.
+        const piece = cell.firstElementChild;
+        if (piece.getAnimations) piece.getAnimations().forEach(animation => animation.cancel());
         sound('select');
       }
       const piece = cells.get(drag.index).firstElementChild;
