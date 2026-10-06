@@ -1,0 +1,41 @@
+@font-face { font-family: "Instrument Serif"; src: url(fonts/InstrumentSerif.woff2) format("woff2"); font-style: normal; font-weight: 400; }
+@font-face { font-family: "Instrument Serif"; src: url(fonts/InstrumentSerif-italic.woff2) format("woff2"); font-style: italic; font-weight: 400; }
+@font-face { font-family: "Inter"; src: url(fonts/Inter-var.woff2) format("woff2"); font-weight: 100 900; }
+@font-face { font-family: "JetBrains Mono"; src: url(fonts/JetBrainsMono-var.woff2) format("woff2"); font-weight: 100 800; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+#stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+#stage > canvas, #overlay { position: absolute; inset: 0; }
+#overlay { pointer-events: none; }
+#overlay > * { position: absolute; left: 0; top: 0; white-space: nowrap; will-change: transform, opacity; visibility: hidden; }
+.ch { display: inline-block; will-change: transform, opacity; }
+* { transition: none !important; animation: none !important; }
+
+/* Type system */
+.wm { display: inline-block; overflow: hidden; vertical-align: top; padding: 0.04em 0.02em 0.16em; margin: -0.04em -0.02em -0.16em; }
+.wi { display: inline-block; will-change: transform; }
+.mono { font-family: "JetBrains Mono", monospace; font-weight: 500; font-size: 14px; letter-spacing: 0.16em; color: #8ea3bd; text-transform: uppercase; }
+.display { font-family: "Instrument Serif", serif; font-weight: 400; color: #f3efe6; }
+.caption { font-size: 56px; line-height: 62px; letter-spacing: -0.005em; }
+.caption i { font-style: italic; }
+.hud { font-size: 16px; }
+.foot { font-size: 16px; }
+.math { color: #f3efe6; }
+.linelabel { font-size: 30px; }
+.bigtwo { transform-origin: 0 0; font-size: 236px; line-height: 0.82; color: #f2c94c; text-shadow: 0 0 30px rgba(242,201,76,0.35), 0 0 90px rgba(194,92,36,0.3); }
+.formula .coef .mord { font-family: "Instrument Serif", serif; font-size: 1.3em; color: #f2c94c; text-shadow: 0 0 9px rgba(242,201,76,0.35), 0 0 26px rgba(194,92,36,0.3); }
+.formula .coef { display: inline-block; transform-origin: 50% 60%; }
+.formula { font-size: 80px; }
+.formula .katex-display { margin: 0; }
+.note { font-size: 18px; letter-spacing: 0.12em; }
+.pieri { font-size: 30px; color: #c9d4e2; }
+.tabn { font-family: "JetBrains Mono", monospace; font-size: 22px; font-weight: 500; color: #f2c94c; letter-spacing: 0; }
+.title { font-size: 176px; line-height: 1.12; color: #f3efe6; }
+.subtitle { font-family: "Inter", sans-serif; font-size: 26px; font-weight: 420; letter-spacing: 0.01em; color: #c9d4e2; }
+.catn { font-size: 24px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+.cateq { font-size: 32px; color: #c9d4e2; }
+.credit { font-size: 12px; color: #6f86a3; }
+.inl .katex { font-size: 1.45em; letter-spacing: 0; text-transform: none; color: #c9d4e2; }
+.tabn { font-family: "Instrument Serif", serif; font-size: 30px; color: #f2c94c; line-height: 1; }
+.pierihead { color: #8ea3bd; }

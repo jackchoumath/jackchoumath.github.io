@@ -1,0 +1,10 @@
+node_modules/
+__pycache__/
+frames/
+out/stills/
+out/contact.png
+out/preview.mp4
+out/*.wav
+out/test*
+out/rc*.mp4
+out/picture.mp4
