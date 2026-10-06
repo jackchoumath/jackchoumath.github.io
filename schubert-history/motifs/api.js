@@ -91,7 +91,9 @@
       // Measure then draw.
       const parts = toks.map(tk => {
         const lvl = tk.lvl, sz = lvl ? size * 0.68 : size;
-        const segs = (tk.s.startsWith('\\') ? [tk.s] : [...tk.s]).map(c => ({ g: glyph(c), font: fontFor(c, sz) }));
+        // Split a group into commands (\\lambda, \\,) and single characters.
+        const pieces = tk.s.match(/\\[a-zA-Z]+|\\[,;!#]|[\s\S]/gu) || [];
+        const segs = pieces.map(c => ({ g: glyph(c), font: fontFor(c, sz) }));
         let w = 0; segs.forEach(sg => { ctx.font = sg.font; sg.w = ctx.measureText(sg.g).width; w += sg.w; });
         return { segs, w, lvl, sz };
       });

@@ -203,7 +203,7 @@
           // triangular shock front
           const sc = lerp(0.18, 1.08, ease.out(q));
           const tri = [L(0, 0), L(N, 0), L(0, N)].map(v => [tc[0] + (X(v[0]) - tc[0]) * sc, tc[1] + (Y(v[1]) - tc[1]) * sc]);
-          hot.strokeStyle = rgba(C.amberHot, 0.95 * (1 - q) ** 1.5); hot.lineWidth = lw * 1.4;
+          hot.strokeStyle = rgba(C.amberHot, 0.95 * (1 - q) ** 1.5); hot.lineWidth = Math.min(3, lw * 1.4);
           hot.lineJoin = 'miter'; polyPath(hot, tri); hot.stroke();
           // spark rays out of the centre
           const rr = R.rng(77);
@@ -250,7 +250,7 @@
         }
         // arrival flash on the emissive layer
         const fl = 1 - clamp((p - t0) / 0.09);
-        if (fl > 0 && q > 0) { hot.lineCap = 'butt'; U.drawOn(hot, pa[0], pa[1], pb[0], pb[1], ease.out(q), rgba(e.l ? C.amberHot : ink, 0.8 * fl), lw * 1.6); }
+        if (fl > 0 && q > 0) { hot.lineCap = 'butt'; U.drawOn(hot, pa[0], pa[1], pb[0], pb[1], ease.out(q), rgba(e.l ? C.amberHot : ink, 0.8 * fl), Math.min(3, lw * 1.6)); }
       });
       // side names
       const nameA = clamp((p - 0.06) / 0.08);
@@ -328,7 +328,7 @@
           const f = Math.max(0, (pc.inr * s - inset) / (pc.inr * s)), c0 = P(pc.c);
           polyPath(hot, pc.pts.map(q => [c0[0] + (q[0] - pc.c[0]) * s * f, c0[1] - (q[1] - pc.c[1]) * s * f]));
           hot.fillStyle = fillG; hot.fill();
-          hot.strokeStyle = lineG; hot.lineWidth = lw * 1.1; hot.stroke();
+          hot.strokeStyle = lineG; hot.lineWidth = Math.min(3, lw * 1.1); hot.stroke();
         });
       }
       const dn = Math.hypot(1, 0.55);
@@ -338,15 +338,20 @@
       ctx.restore(); hot.restore();
 
       // ------------------------------------------------------------ the count
-      const fs = s * 0.62;
+      // One line, hugging the top of the box: in the film's hero layout the giant
+      // year intrudes into the box's left side from ~0.18 h down, so the formula
+      // must stay above it. In tiny boxes (the finale wall) it is illegible and
+      // collides with the wall's year stamp, so it is left out there.
+      const fs = s * 0.5;
       const la = ease.out(clamp((p - 0.47) / 0.1));
-      if (la > 0) {
-        const lx = box.x + box.w * 0.035 - (1 - la) * s * 0.6, ly = box.y + box.h * 0.04 + fs;
-        U.math(ctx, 'c_{λμ}^{ν}', lx, ly, fs, rgba(ink, 1), 'left', la);
-        U.text(ctx, '= #PUZZLES', lx + fs * 0.04, ly + fs * 0.92, `800 ${Math.round(fs * 0.62)}px ${F.display}`, rgba(ink, 0.82), 'left', 'alphabetic', la);
+      if (la > 0 && s >= 45) {
+        const lx = box.x + box.w * 0.035 - (1 - la) * box.w * 0.03, ly = box.y + box.h * 0.035 + fs * 0.95;
+        const wm = U.math(ctx, 'c_{λμ}^{ν}', lx, ly, fs, rgba(ink, 1), 'left', la);
+        U.text(ctx, '= #PUZZLES', lx + wm + fs * 0.22, ly, `800 ${Math.round(fs * 0.78)}px ${F.display}`, rgba(ink, 0.85), 'left', 'alphabetic', la);
       }
-      // tally: one lit triangle per puzzle found
-      const rx = box.x + box.w * 0.965, ty = box.y + box.h * 0.04 + fs * 1.62, ts = s * 0.3;
+      // tally: one lit triangle per puzzle found (under the "= 2")
+      const big = s * 1.05, by = box.y + box.h * 0.035 + big * 0.72;
+      const rx = box.x + box.w * 0.965, ts = s * 0.3, ty = by + ts * 1.25;
       [0.455, M1 + MLAG + MIN * 0.6].forEach((t, m) => {
         const q = clamp((p - t) / 0.06);
         if (q <= 0) return;
@@ -359,16 +364,20 @@
       // "= 2" slams in when the second puzzle is complete
       const t2 = M1 + MLAG + MIN * 0.6, q2 = clamp((p - t2) / 0.07);
       if (q2 > 0) {
-        const big = s * 1.05, sc = lerp(1.9, 1, ease.out(q2)) * (1 + 0.04 * k), bx = rx, by = ty - ts * 1.25;
-        ctx.save(); ctx.translate(bx, by); ctx.scale(sc, sc);
+        // Slam about the right edge / vertical middle of the glyphs, with the
+        // overshoot capped so the "2" never leaves the top of the box.
+        const gh = big * 0.33, cyG = by - gh;
+        const scMax = Math.max(1, Math.min(1.6, (cyG - box.y - 4) / gh));
+        const sc = lerp(scMax, 1, ease.out(q2)) * (1 + 0.04 * k);
+        ctx.save(); ctx.translate(rx, cyG); ctx.scale(sc, sc);
         ctx.font = `${Math.round(big)}px ${F.main}`;
         const w2 = ctx.measureText('2').width;
-        U.text(ctx, '2', 0, 0, `${Math.round(big)}px ${F.main}`, rgba(amb, 1), 'right', 'alphabetic', clamp(q2 * 3));
-        U.text(ctx, '=', -w2 - big * 0.12, 0, `${Math.round(big * 0.7)}px ${F.main}`, rgba(ink, 1), 'right', 'alphabetic', clamp(q2 * 3));
+        U.text(ctx, '2', 0, gh, `${Math.round(big)}px ${F.main}`, rgba(amb, 1), 'right', 'alphabetic', clamp(q2 * 3));
+        U.text(ctx, '=', -w2 - big * 0.12, gh, `${Math.round(big * 0.7)}px ${F.main}`, rgba(ink, 1), 'right', 'alphabetic', clamp(q2 * 3));
         ctx.restore();
-        hot.save(); hot.translate(bx, by); hot.scale(sc, sc);
+        hot.save(); hot.translate(rx, cyG); hot.scale(sc, sc);
         const glow = 0.35 + 0.65 * (1 - clamp((p - t2) / 0.15)) + 0.2 * k;
-        U.text(hot, '2', 0, 0, `${Math.round(big)}px ${F.main}`, rgba(amb, 1), 'right', 'alphabetic', clamp(glow));
+        U.text(hot, '2', 0, gh, `${Math.round(big)}px ${F.main}`, rgba(amb, 1), 'right', 'alphabetic', clamp(glow));
         hot.restore();
       }
     },

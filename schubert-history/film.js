@@ -335,7 +335,9 @@
   function drawEntry(t, e, kick, acc) {
     const local = t - e.t0, dur = e.t1 - e.t0, p = clamp(local / dur);
     const hero = e.kind === 'hero', flash = e.kind === 'flash';
-    const box = hero ? { x: 820, y: 110, w: 1000, h: 760 } : { x: 950, y: 130, w: 860, h: 650 };
+    // Hero visuals clear the big year digits (they end near x = 965); the 1879 lines may cross them.
+    const box = e.motif === 'lines4' ? { x: 820, y: 110, w: 1000, h: 760 }
+      : hero ? { x: 980, y: 100, w: 860, h: 780 } : { x: 950, y: 130, w: 860, h: 650 };
     // Motif layer, with a whip-in entrance from the right.
     mot.clearRect(0, 0, W, H);
     const inQ = seg(local, 0, flash ? 0.09 : 0.14, easeQ);
