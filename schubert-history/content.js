@@ -86,12 +86,12 @@ window.ENTRIES = [
   { b: 144, len: 2, era: 'modern', year: 2021, name: "Bumpless pipe dreams", motif: 'bpd',
     cites: [["T. Lam, S. J. Lee, M. Shimozono", "Back stable Schubert calculus", "Compositio Math. 157 · 2021"],
       ["A. Weigandt", "Bumpless pipe dreams and alternating sign matrices", "J. Combin. Theory Ser. A 182 · 2021"]] },
-  { b: 146, len: 1, era: 'modern', year: 2022, name: "Log-concavity", motif: 'logconcave',
+  { b: 146, len: 2, era: 'modern', year: 2022, name: "Schur log-concavity", motif: 'logconcave',
     cites: [["J. Huh, J. P. Matherne, K. Mészáros, A. St. Dizier", "Logarithmic concavity of Schur and related polynomials", "Trans. Amer. Math. Soc. 375 · 2022"]] },
-  { b: 147, len: 2, era: 'modern', year: 2023, name: "Separated descents", motif: 'separated',
+  { b: 148, len: 2, era: 'modern', year: 2023, name: "Separated descents", motif: 'separated',
     cites: [["D. Huang", "Schubert products for permutations with separated descents", "Int. Math. Res. Not. IMRN · 2023"],
       ["A. Knutson, P. Zinn-Justin", "Schubert puzzles and integrability III: separated descents", "arXiv:2306.13855 · 2023"]] },
-  { b: 149, len: 2, era: 'modern', year: 2024, name: "Regularity", motif: 'regularity',
+  { b: 150, len: 1, era: 'modern', year: 2024, name: "Regularity", motif: 'regularity',
     cites: [["O. Pechenik, D. E. Speyer, A. Weigandt", "Castelnuovo–Mumford regularity of matrix Schubert varieties", "Selecta Math. 30 · 2024"]] },
 ];
 window.FINALE = {

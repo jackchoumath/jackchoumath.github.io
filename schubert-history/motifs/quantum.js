@@ -163,6 +163,8 @@ MOTIF('quantum', (() => {
         const wR = U.math(ctx, RHS, 0, 0, fz, '#000', 'left', 0);
         const fx = cx - (wL + wQ + wR) / 2;
         U.math(ctx, LHS, fx, fy, fz, rgba(C.ink, 0.92), 'left', la);
+        // The identity holds in this space only (e.g. in QH*(Gr(2,5)) the product has no q term).
+        U.text(ctx, 'in QH*(Gr(2,4))', cx, fy + fz * 0.95, `${Math.round(fz * 0.5)}px ${env.F.main}`, rgba(C.dim, 0.9), 'center', 'alphabetic', la);
         const ra = seg(p, 0.47, 0.53);
         if (ra > 0) {
           U.math(ctx, Q, fx + wL, fy, fz, rgba(C.amber, 1), 'left', ra);

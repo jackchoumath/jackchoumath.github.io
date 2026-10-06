@@ -114,7 +114,7 @@ MOTIF('lesieur', (() => {
       }
       // The two symbols; the subscript is the diagram itself, in miniature (a lambda
       // when the box is too small for a legible miniature).
-      const m = fz * 0.2, MW = 3 * m, base = ay + fz * 0.28;
+      const m = fz * 0.28, MW = 3 * m, base = ay + fz * 0.28;
       const fb = `italic ${fz}px ${F.math}`;
       const sym = (glyph, x, align) => {
         ctx.font = fb; const wb = ctx.measureText(glyph).width;

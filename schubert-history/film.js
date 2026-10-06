@@ -75,7 +75,7 @@
   const HERO = { x: 250, y: 110, w: 1420, h: 700 };        // heroes
   const BAND = [96, 812];                                   // motifs draw only between these y
   const CX = 960, CY = 460;                                 // optical centre of the stage
-  const LT = { yearX: 118, base: 972, size: 140, barX: 446, x0: 478, headY: 884, citeY: 930, w: 1322 };
+  const LT = { yearX: 118, base: 954, size: 96, barX: 338, x0: 368, headY: 870, citeY: 914, w: 1434, barTop: 832, barBot: 1014 };
 
   // ================================================================ layers
   const out = document.getElementById('out').getContext('2d');
@@ -84,6 +84,7 @@
   const motC = makeCanvas(), mot = motC.getContext('2d');           // motif layer (gets entrance transforms)
   const motHotC = makeCanvas(), motHot = motHotC.getContext('2d');  // the motif's glow, same transforms
   const tmpC = makeCanvas(), tmp = tmpC.getContext('2d');
+  const uiC = makeCanvas(), ui = uiC.getContext('2d');             // lower third + top bar: steady chrome
 
   // ================================================================ text helpers
   function fitFont(ctx, str, weight, family, size, maxW, stretch = 'normal') {
@@ -122,6 +123,11 @@
       while (ctx.measureText(last).width > maxW && ws.length > 1) { ws.pop(); last = ws.join(' ').replace(/[\s,:;–-]+$/, '') + '…'; }
       keep[maxLines - 1] = last;
       return keep;
+    }
+    if (lines.length === 2) {
+      const a = lines[0].split(' '), b = lines[1].split(' ');
+      while (a.length > 1 && ctx.measureText([a[a.length - 1], ...b].join(' ')).width <= ctx.measureText(a.slice(0, -1).join(' ')).width) b.unshift(a.pop());
+      return [a.join(' '), b.join(' ')];
     }
     return lines;
   }
@@ -186,11 +192,16 @@
   const LEAD = 0.083;
   function yearValue(t) {
     // Interstitials creep towards the next year, freezing a hair short of it in the silent beat.
-    for (const I of INTER) if (t >= I.t0 && t + LEAD < I.to.t0) return lerp(I.from.year, I.to.year - 0.035, easeIn(seg(t, I.t0, I.t1)));
+    for (const I of INTER) if (t >= I.t0 && t + LEAD < I.to.t0) {
+      const n = I.to.year - I.from.year;
+      let v = I.from.year;
+      for (let j = 1; j < n; j++) { const tb = snap(I.t1 - (n - j) * BEAT); v += seg(t, tb - LEAD, tb, easeQ); }
+      return v;
+    }
     const e = lastEntryBefore(t + LEAD);
     if (!e) return ENTRIES[0].year;
     const I = INTER.find(x => x.to === e);
-    const from = I ? e.year - 0.035 : e.i > 0 ? ENTRIES[e.i - 1].year : e.year;
+    const from = I ? e.year - 1 : e.i > 0 ? ENTRIES[e.i - 1].year : e.year;
     return lerp(from, e.year, seg(t, e.t0 - LEAD, e.t0, easeQ));   // fully landed on the beat frame
   }
 
@@ -217,7 +228,7 @@
   }
 
   // Top bar: title, index, and a rail 1879 -> today with the playhead at the odometer value.
-  const RX0 = 700, RX1 = 1260, RY = 58;
+  const RX0 = 680, RX1 = 1240, RY = 58;
   const railX = y => RX0 + (clamp(y, 1879, 2026) - 1879) / (2026 - 1879) * (RX1 - RX0);
   function drawTopBar(ctx, t, v, acc, kick, hook, idx) {
     ctx.save();
@@ -235,9 +246,10 @@
       if (e.t0 > t) return;
       const x = railX(e.year), fresh = Math.exp(-(t - e.t0) / 0.35);
       U.dot(ctx, x, RY, 2.4 + 2.5 * fresh, rgba(C.ink, 0.85));
-      if (fresh > 0.02) U.dot(hot, x, RY, 3 + 8 * fresh, rgba(acc, 0.7 * fresh));
+      if (fresh > 0.02) { U.dot(ctx, x, RY, 3 + 10 * fresh, rgba(acc, 0.25 * fresh)); U.dot(ctx, x, RY, 2 + 4 * fresh, rgba(acc, 0.8 * fresh)); }
     });
-    U.dot(hot, px, RY, 4 + 2 * kick + 3 * hook, rgba(acc, 1));
+    U.dot(ctx, px, RY, 9 + 3 * kick + 4 * hook, rgba(acc, 0.22));
+    U.dot(ctx, px, RY, 4 + 2 * kick + 2 * hook, rgba(acc, 1));
     ctx.restore();
   }
 
@@ -245,21 +257,21 @@
   function drawYear(t, v, e, acc, rolling) {
     const slam = e ? seg(t - e.t0, 0, 0.12, easeQ) : 1;
     const sc = lerp(1.16, 1, slam);
-    scene.save();
-    scene.translate(LT.yearX, LT.base); scene.scale(sc, sc); scene.translate(-LT.yearX, -LT.base);
+    ui.save();
+    ui.translate(LT.yearX, LT.base); ui.scale(sc, sc); ui.translate(-LT.yearX, -LT.base);
     if (slam < 1) {
-      scene.save(); scene.globalAlpha = 0.4 * (1 - slam);
-      odometer(scene, v, LT.yearX + 12 * (1 - slam), LT.base - 5 * (1 - slam), LT.size, rgba(acc, 1));
-      scene.restore();
+      ui.save(); ui.globalAlpha = 0.4 * (1 - slam);
+      odometer(ui, v, LT.yearX + 10 * (1 - slam), LT.base - 4 * (1 - slam), LT.size, rgba(acc, 1));
+      ui.restore();
     }
-    odometer(scene, v, LT.yearX, LT.base, LT.size, rgba(C.ink, 0.96), { speed: rolling ? 1 : 0 });
-    scene.restore();
+    odometer(ui, v, LT.yearX, LT.base, LT.size, rgba(C.ink, 0.96), { speed: rolling ? 1 : 0 });
+    ui.restore();
   }
 
   // ================================================================ particles
   function burst(ctx, t, t0, seed, cx, cy, n, colors, power = 1) {
     const age = t - t0;
-    if (age < 0 || age > 1.3) return;
+    if (age < 0 || age > 1.3 || t < 1 / 120) return;
     const r = rng(seed);
     for (let i = 0; i < n; i++) {
       // Fast and short-lived: the debris clears the frame within half a second.
@@ -291,6 +303,8 @@
   // A field of outlines rushing at the camera: squares for the turn, triangles before the puzzles.
   function tunnel(ctx, t, t0, q, shape, r16, seed) {
     const r = rng(seed);
+    // Keep the rush on the stage, clear of the lower third.
+    for (const g of [ctx, hot]) { g.save(); g.beginPath(); g.rect(0, 0, W, BAND[1] + 10); g.clip(); }
     for (let i = 0; i < 140; i++) {
       const z0 = r(), ang = r() * Math.PI * 2, rad = 0.2 + r() * 1.1, amber = r() < 0.4, spin = (r() - 0.5) * 2;
       const z = ((z0 - (t - t0) * (0.6 + 5 * q * q)) % 1 + 1) % 1;
@@ -311,6 +325,7 @@
       ctx.strokeStyle = col; ctx.lineWidth = lw; path(ctx); ctx.stroke();
       if (z < 0.2) { hot.strokeStyle = rgba(amber ? C.amber : C.ink, 0.5 * a); hot.lineWidth = 3; path(hot); hot.stroke(); }
     }
+    ctx.restore(); hot.restore();
   }
 
   // ================================================================ built-in hero motifs
@@ -378,12 +393,12 @@
     });
     // Cold open: the question fills the stage until the first line slams through it.
     if (kz > 0.6 && t < hitT[0] + 0.2) {
-      const inq = seg(t, e.t0 + 0.05, e.t0 + 0.45, easeQ), outq = seg(t, hitT[0] - 0.02, hitT[0] + 0.16, easeIn);
+      const inq = seg(t, e.t0 - 0.45, e.t0, easeQ), outq = seg(t, hitT[0] - 0.02, hitT[0] + 0.16, easeIn);
       const z = lerp(1.0, 1.25, outq), a = inq * (1 - outq);
       if (a > 0.003) {
         const ccx = box.x + box.w / 2, ccy = box.y + box.h / 2;
         ctx.save(); ctx.translate(ccx, ccy); ctx.scale(z, z);
-        ['HOW MANY LINES MEET', 'FOUR GIVEN LINES?'].forEach((ln, k) => {
+        ['HOW MANY LINES MEET', 'FOUR GENERAL LINES?'].forEach((ln, k) => {
           const HQ = fitHeadline(ctx, 'HOW MANY LINES MEET', 76, box.w * 0.8);
           kinetic(ctx, ln, -(() => { ctx.font = `900 ${HQ.size}px ${F.wide}`; ctx.fontStretch = HQ.stretch; return ctx.measureText(ln).width; })() / 2,
             (k - 0.5) * HQ.size * 1.15 + HQ.size * 0.35, HQ.size, rgba(k ? C.amber : C.ink, a), clamp(inq * 1.2 - k * 0.15), { font: `900 ${HQ.size}px ${F.wide}`, stretch: HQ.stretch, stagger: 0.45 });
@@ -398,9 +413,10 @@
     if (kz > 0.6 && qd != null) {
       const qa = seg(t, qd, qd + 0.15);
       // A dark halo keeps it readable where the lines cross it.
-      ctx.save(); ctx.font = `600 26px ${F.mono}`; ctx.textAlign = 'right'; ctx.lineJoin = 'round';
-      ctx.strokeStyle = `rgba(5,7,12,${0.9 * qa})`; ctx.lineWidth = 9; ctx.strokeText('HOW MANY LINES MEET FOUR GIVEN LINES?', ax - 240, ay - 8);
-      ctx.fillStyle = rgba(C.ink, 0.85 * qa); ctx.fillText('HOW MANY LINES MEET FOUR GIVEN LINES?', ax - 240, ay - 8);
+      // Two lines in the empty top-right of the stage, right-aligned with the answer below.
+      ctx.save(); ctx.font = `600 28px ${F.mono}`; ctx.textAlign = 'right'; ctx.lineJoin = 'round';
+      ctx.strokeStyle = `rgba(5,7,12,${0.9 * qa})`; ctx.lineWidth = 9; ctx.fillStyle = rgba(C.ink, 0.88 * qa);
+      ['HOW MANY LINES MEET', 'FOUR GENERAL LINES?'].forEach((ln, k) => { ctx.strokeText(ln, ax, box.y + 56 + k * 38); ctx.fillText(ln, ax, box.y + 56 + k * 38); });
       ctx.restore();
     }
     // '= 2' slams on tom 7; tom 8 kicks it once more.
@@ -418,17 +434,17 @@
 
   // 1982: the Schubert polynomials of S3, generated from the top by divided differences.
   const S3 = [
-    { w: '321', p: 'x_1^2x_2', x: 0.55, y: 0.1 },
-    { w: '231', p: 'x_1x_2', x: 0.3, y: 0.4 }, { w: '312', p: 'x_1^2', x: 0.8, y: 0.4 },
-    { w: '213', p: 'x_1', x: 0.3, y: 0.7 }, { w: '132', p: 'x_1+x_2', x: 0.8, y: 0.7 },
-    { w: '123', p: '1', x: 0.55, y: 0.97 },
+    { w: '321', p: 'x_1^2x_2', x: 0.5, y: 0.1 },
+    { w: '231', p: 'x_1x_2', x: 0.22, y: 0.4 }, { w: '312', p: 'x_1^2', x: 0.78, y: 0.4 },
+    { w: '213', p: 'x_1', x: 0.22, y: 0.7 }, { w: '132', p: 'x_1+x_2', x: 0.78, y: 0.7 },
+    { w: '123', p: '1', x: 0.5, y: 0.97 },
   ];
   const S3E = [[0, 1, '\\partial_1'], [0, 2, '\\partial_2'], [1, 3, '\\partial_2'], [2, 4, '\\partial_1'], [3, 5, '\\partial_1'], [4, 5, '\\partial_2']];
   // Laid out for an 860x780 box; on the wide hero stage it spreads out at full size,
   // other boxes get a uniformly scaled, centred copy.
   function schubpolyHero(ctx, hot, t, e, box) {
     if (box.w >= 1000 && box.h >= 600) {
-      const iw = Math.min(box.w, 1.55 * box.h);
+      const iw = Math.min(box.w, 1.75 * box.h);
       return schubpolyHeroCore(ctx, hot, t, e, { x: box.x + (box.w - iw) / 2, y: box.y, w: iw, h: box.h });
     }
     const k = Math.min(box.w / 860, box.h / 780);
@@ -480,7 +496,7 @@
       if (hit > 0.02) { hot.save(); hot.translate(x, y); hot.scale(q, q); U.math(hot, n.p, 0, 52, 54, rgba(C.amber, 0.45 * hit), 'center'); hot.restore(); }
       ctx.save(); ctx.translate(x, y); ctx.scale(q, q);
       U.math(ctx, `\\S_{${n.w}}`, 0, -6, 34, rgba(C.dim, 1), 'center');
-      const big = i === 0 ? 62 : 54;
+      const big = box.w >= 1000 ? (i === 0 ? 72 : 62) : (i === 0 ? 62 : 54);
       U.math(ctx, n.p, 0, 52, big, rgba(i === 0 ? C.amber : C.ink, 1), 'center');
       ctx.restore();
       if (i === 0) { hot.save(); hot.translate(x, y); hot.scale(q, q); U.math(hot, n.p, 0, 52, big, rgba(C.amber, 0.3), 'center'); hot.restore(); }
@@ -494,13 +510,16 @@
     else if (MOTIFS[e.motif]) MOTIFS[e.motif].draw(g, gh, p, kick, MOTIF_ENV(local, dur, BEAT), box);
     else U.text(g, `[${e.motif}]`, box.x + box.w / 2, box.y + box.h / 2, `30px ${F.mono}`, rgba(C.dim, 1), 'center');
   }
-  function drawEntry(t, e, kick, acc, hook, sec) {
+  function drawEntry(t, e, kick, acc, hook, sec, stageZ = 0) {
     const local = t - e.t0, dur = e.t1 - e.t0, p = clamp(local / dur);
     const hero = e.kind === 'hero', flash = e.kind === 'flash';
     const box = hero ? HERO : STAGE;
     mot.clearRect(0, 0, W, H); motHot.clearRect(0, 0, W, H);
     for (const g of [mot, motHot]) { g.save(); g.beginPath(); g.rect(0, BAND[0], W, BAND[1] - BAND[0]); g.clip(); }
-    try { drawMotif(mot, motHot, t, e, p, kick, local, dur, box); }
+    // The motif clock runs ahead on the cut and catches up with real time by the next beat,
+    // so the object is already on stage when the hit lands (beat-locked events do not move).
+    const PRE = 0.14, mLocal = local + PRE * (1 - clamp(local / BEAT)), mp = clamp(mLocal / dur);
+    try { drawMotif(mot, motHot, t, e, mp, kick, mLocal, dur, box); }
     catch (err) { U.text(mot, `[${e.motif}]`, box.x + box.w / 2, box.y + box.h / 2, `30px ${F.mono}`, rgba(C.red, 1), 'center'); }
     mot.restore(); motHot.restore();
     // Entrance, by section: slides in the verse, whips in the drops, soft zooms in the break.
@@ -508,29 +527,33 @@
     const inQ = seg(local, -0.06, flash ? 0.06 : 0.12, easeQ);
     const dir = e.i % 2 ? 1 : -1;
     const style = sec === 'drop' || sec === 'drop2' || sec === 'run' ? 'whip' : sec === 'brk' ? 'zoom' : 'slide';
-    const ox = style === 'whip' ? (1 - inQ) * 240 * dir : style === 'slide' ? (1 - inQ) * 110 * dir : 0;
-    const sc = style === 'whip' ? lerp(1.09, 1, inQ) : style === 'zoom' ? lerp(0.9, 1, inQ) : lerp(1.03, 1, inQ);
+    // Every fourth card rises vertically; cards that land on a crash punch through the lens.
+    const vert = e.i % 4 === 1 && style !== 'zoom';
+    const onCrash = !hero && (BM.crashes || []).some(c => Math.abs(snap(c) - e.t0) < 0.01);
+    const amp = (style === 'whip' ? 240 : style === 'slide' ? 110 : 0) * (1 - inQ) * dir;
+    const ox = vert ? 0 : amp, oy = vert ? amp * 0.65 : 0;
+    const sc = (onCrash ? lerp(1.45, 1, inQ) : style === 'whip' ? lerp(1.09, 1, inQ) : style === 'zoom' ? lerp(0.9, 1, inQ) : lerp(1.03, 1, inQ)) * (1 + stageZ);
     const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
     for (const [g, src] of [[scene, motC], [hot, motHotC]]) {
       g.save(); g.globalAlpha = clamp(inQ * 2);
-      g.translate(cx + ox, cy); g.scale(sc, sc); g.translate(-cx, -cy);
+      g.translate(cx + ox, cy + oy); g.scale(sc, sc); g.translate(-cx, -cy);
       g.drawImage(src, 0, 0);
       // Ignite: the new visual blooms on the hit.
       if (g === hot && local < 0.15) { g.globalAlpha = 0.32 * Math.exp(-local / 0.04); g.drawImage(motC, 0, 0); }
       g.restore();
     }
-    drawLowerThird(e, local, acc, hook, hero, flash);
+    drawLowerThird(e, e.motif === 'lines4' ? t - ((BM.toms || [])[0] ?? e.t0) : local, acc, hook, hero, flash);
     return { box, p };
   }
 
   function drawLowerThird(e, local, acc, hook, hero, flash) {
     const nameQ = seg(local, -0.06, flash ? 0.10 : 0.2);
     const name = e.name.toUpperCase();
-    const HL = fitHeadline(scene, name, hero ? 56 : 50, LT.w);
-    kinetic(scene, name, LT.x0, LT.headY, HL.size, rgba(C.ink, 1), nameQ, { font: `900 ${HL.size}px ${F.wide}`, stretch: HL.stretch, stagger: 0.5 });
+    const HL = fitHeadline(ui, name, hero ? 56 : 50, LT.w);
+    kinetic(ui, name, LT.x0, LT.headY, HL.size, rgba(C.ink, 1), nameQ, { font: `900 ${HL.size}px ${F.wide}`, stretch: HL.stretch, stagger: 0.5 });
     // Accent bar between the year and the text grows up from the baseline; it kicks on the melody.
-    const ul = seg(local, -0.05, 0.2, easeQ);
-    scene.fillStyle = rgba(acc, 0.95); scene.fillRect(LT.barX, LT.base + 10 - 156 * ul, 4 + 2 * hook, 156 * ul);
+    const ul = seg(local, -0.05, 0.2, easeQ), bh = LT.barBot - LT.barTop;
+    ui.fillStyle = rgba(acc, 0.95); ui.fillRect(LT.barX, LT.barBot - bh * ul, 4 + 2 * hook, bh * ul);
     // Citations: one wide column, or two side by side.
     const n = e.cites.length, gapC = 44, colW = n > 1 ? (LT.w - gapC) / 2 : LT.w;
     e.cites.forEach((c, j) => {
@@ -538,32 +561,32 @@
       const c0 = flash ? 0.02 + j * 0.04 : 0.08 + j * 0.07;
       const cq = seg(local, c0, c0 + (flash ? 0.10 : 0.22), easeQ);
       if (cq <= 0) return;
-      scene.save();
-      scene.beginPath(); scene.rect(x - 4, y - 26, (colW + 12) * cq, 140); scene.clip();
+      ui.save();
+      ui.beginPath(); ui.rect(x - 4, y - 28, (colW + 12) * cq, 150); ui.clip();
       // Authors (mono caps, accent), shrunk only if they would overflow the column.
-      let as = 19;
-      scene.letterSpacing = '1.5px';
-      for (; as > 13; as -= 1) { scene.font = `600 ${as}px ${F.mono}`; if (scene.measureText(c[0].toUpperCase()).width <= colW) break; }
-      scene.fillStyle = rgba(acc, 0.95);
-      scene.fillText(c[0].toUpperCase(), x, y);
-      scene.letterSpacing = '0px';
-      // Title (serif italic, up to two lines).
-      scene.font = `italic 28px ${F.serif}`;
-      const lines = wrap(scene, c[1], colW, 2);
-      scene.fillStyle = rgba(C.ink, 0.95);
-      lines.forEach((ln, k) => scene.fillText(ln, x, y + 32 + k * 30));
+      let as = 21;
+      ui.letterSpacing = '1.5px';
+      for (; as > 15; as -= 1) { ui.font = `600 ${as}px ${F.mono}`; if (ui.measureText(c[0].toUpperCase()).width <= colW) break; }
+      ui.fillStyle = rgba(acc, 0.95);
+      ui.fillText(c[0].toUpperCase(), x, y);
+      ui.letterSpacing = '0px';
+      // Title (serif italic, up to two balanced lines).
+      ui.font = `italic 31px ${F.serif}`;
+      const lines = wrap(ui, c[1], colW, 2);
+      ui.fillStyle = rgba(C.ink, 0.95);
+      lines.forEach((ln, k) => ui.fillText(ln, x, y + 34 + k * 33));
       // Venue, then the year in bold accent.
-      const vy = y + 32 + (lines.length - 1) * 30 + 28;
+      const vy = y + 34 + (lines.length - 1) * 33 + 31;
       const cut = c[2].lastIndexOf(' · ');
       const venue = cut >= 0 ? c[2].slice(0, cut + 3) : c[2] + ' ', yr = cut >= 0 ? c[2].slice(cut + 3) : '';
-      scene.font = `500 18px ${F.mono}`;
-      scene.fillStyle = rgba(C.ink, 0.66);
-      scene.fillText(venue, x, vy);
-      const vw = scene.measureText(venue).width;
-      scene.font = `700 18px ${F.mono}`;
-      scene.fillStyle = rgba(acc, 1);
-      scene.fillText(yr, x + vw, vy);
-      scene.restore();
+      ui.font = `500 21px ${F.mono}`;
+      ui.fillStyle = rgba(C.ink, 0.82);
+      ui.fillText(venue, x, vy);
+      const vw = ui.measureText(venue).width;
+      ui.font = `700 21px ${F.mono}`;
+      ui.fillStyle = rgba(acc, 1);
+      ui.fillText(yr, x + vw, vy);
+      ui.restore();
     });
   }
 
@@ -597,13 +620,22 @@
     });
   }
   function caption(t, I, text) {
-    U.text(scene, text, LT.x0, LT.headY - 6, `italic 36px ${F.serif}`, rgba(C.ink, 0.9 * seg(t, I.t0 + 0.15, I.t0 + 0.45)));
-    const ul = seg(t, I.t0, I.t0 + 0.25, easeQ);
-    scene.fillStyle = rgba(C.dim, 0.7); scene.fillRect(LT.barX, LT.base + 10 - 156 * ul, 3, 156 * ul);
+    U.text(ui, text, LT.x0, LT.headY + 8, `italic 40px ${F.serif}`, rgba(C.ink, 0.9 * seg(t, I.t0 + 0.15, I.t0 + 0.45)));
+    const ul = seg(t, I.t0, I.t0 + 0.25, easeQ), bh = LT.barBot - LT.barTop;
+    ui.fillStyle = rgba(C.dim, 0.7); ui.fillRect(LT.barX, LT.barBot - bh * ul, 3, bh * ul);
   }
   // Before 1982: the counter accelerates, a tunnel of boxes rushes past, the words slam in.
   function turnScene(t, I) {
     const q = seg(t, I.t0, I.t1);
+    const zq = seg(t, I.t0, I.t0 + 4 * BEAT, easeIn);
+    if (zq < 1) {
+      const fe = I.from, fd = fe.t1 - fe.t0;
+      mot.clearRect(0, 0, W, H); motHot.clearRect(0, 0, W, H);
+      try { drawMotif(mot, motHot, t, fe, 1, 0, fd, fd, fe.kind === 'hero' ? HERO : STAGE); } catch (err) { /* keep going */ }
+      scene.save(); scene.globalAlpha = (1 - zq) ** 1.5;
+      const z = lerp(1.044, 3, zq); scene.translate(CX, CY); scene.scale(z, z); scene.translate(-CX, -CY);
+      scene.drawImage(motC, 0, 0); scene.restore();
+    }
     tunnel(scene, t, I.t0, q, 'box', rollPulse(t), 77);
     slamWords(t, ['THE', 'COMBINATORIAL', 'TURN'], [I.t1 - 3 * BEAT, I.t1 - 2 * BEAT, I.t1 - BEAT].map(snap), CY + 40, 128, [C.ink, C.ink, C.amber]);
     caption(t, I, 'Algebra becomes combinatorics: tableaux, words, diagrams.');
@@ -618,17 +650,18 @@
     // c^nu_{lambda mu} = #[slot]   (the slot cycles faster and faster, then freezes on a red '?')
     const lhs = 'c^{\\nu}_{\\lambda\\mu}\\,=\\,\\#';
     const wl = U.math(scene, lhs, 0, 0, size, 'rgba(0,0,0,0)', 'left', 0);
-    const qmark = t >= I.t1 - BEAT * 0.75;
-    const ticks = Math.pow(Math.max(0, t - I.t0) / BEAT, 1.6) * 2;
-    const word = qmark ? '?' : COUNT_WORDS[Math.floor(ticks) % COUNT_WORDS.length];
+    const QT = snap(I.t1 - BEAT), qmark = t >= QT;
+    const sub = Math.floor(Math.max(0, t - I.t0) / (BEAT / 4));
+    const ticks = sub < 4 ? Math.floor(sub / 2) : sub - 2;          // eighths, then sixteenths
+    const word = qmark ? '?' : COUNT_WORDS[ticks % COUNT_WORDS.length];
     scene.font = `900 112px ${F.wide}`; scene.fontStretch = 'semi-condensed';
     const ww = qmark ? 90 : Math.max(...COUNT_WORDS.map(w => scene.measureText(w).width));
     const GAPW = 44, x0 = CX - (wl + GAPW + ww) / 2, y = CY + 50;
     scene.save(); scene.translate(CX, y); scene.scale(lerp(0.92, 1, fq), lerp(0.92, 1, fq)); scene.translate(-CX, -y);
     U.math(scene, lhs, x0, y, size, rgba(C.ink, 1), 'left', fq);
-    const flick = Math.exp(-(ticks % 1) * 3);
+    const flick = Math.exp(-(((t - I.t0) % (BEAT / 4)) + BEAT / 4) % (BEAT / 4) / 0.04);
     if (qmark) {
-      const z = lerp(1.4, 1, seg(t, I.t1 - BEAT * 0.75, I.t1 - BEAT * 0.75 + 0.1, easeQ));
+      const z = lerp(1.4, 1, seg(t, QT, QT + 0.1, easeQ));
       for (const g of [scene, hot]) {
         g.save(); g.translate(x0 + wl + GAPW + 45, y); g.scale(z, z);
         U.text(g, '?', 0, 0, `900 ${size}px ${F.display}`, rgba(C.red, g === hot ? 0.3 : 1), 'center');
@@ -640,7 +673,7 @@
       scene.textAlign = 'left'; scene.fillText(word, x0 + wl + GAPW, y);
     }
     scene.restore();
-    caption(t, I, 'Positive by geometry. But counted by what?');
+    caption(t, I, 'Positive by geometry. Counted by tableaux, by honeycombs, and next by…');
   }
   // The silent beat before each drop: a line of light; before the puzzles, it draws a triangle.
   function lightScene(t, g, idx) {
@@ -675,7 +708,7 @@
       U.text(g, '?', 0, 120, `900 380px ${F.display}`, rgba(C.red, g === hot ? 0.3 : 1), 'center');
       g.restore();
     }
-    U.text(scene, 'AND NOW?', W / 2, 870, `600 24px ${F.mono}`, rgba(C.ink, 0.85 * seg(q, 0.25, 0.6)), 'center');
+    U.text(scene, 'AND NOW?', W / 2, 872, `600 40px ${F.mono}`, rgba(C.ink, 0.9 * seg(q, 0.08, 0.25)), 'center');
   }
 
   // ================================================================ finale
@@ -744,19 +777,19 @@
     const bar = seg(local, 0.1, 0.4, easeQ);
     hot.fillStyle = rgba(C.amber, 1); hot.fillRect(W / 2 - 260 * bar, 470, 520 * bar, 4);
     scene.fillStyle = rgba(C.amberHot, 1); scene.fillRect(W / 2 - 260 * bar, 471, 520 * bar, 2);
-    U.text(scene, `${FIN.span.toUpperCase()}  ·  ${ENTRIES.length} RESULTS`, W / 2, 528, `600 26px ${F.mono}`, rgba(C.ink, 0.9 * seg(local, 0.15, 0.4)), 'center');
+    U.text(scene, `${FIN.span.toUpperCase()}  ·  ${ENTRIES.length} MILESTONES`, W / 2, 528, `600 26px ${F.mono}`, rgba(C.ink, 0.9 * seg(local, 0.15, 0.4)), 'center');
     scene.restore(); hot.restore();
 
     // The frontier lands on the next beat: the question and the product it is about.
     const qb = snap(FINAL + BEAT);
     const fq = seg(t, qb - 0.04, qb + 0.12, easeQ);
     if (fq > 0) {
-      const y = 640 + (1 - fq) * 20;
-      U.text(scene, FIN.question, W / 2, y, `italic 50px ${F.serif}`, rgba(C.ink, 0.95 * fq), 'center');
+      const y = 626 + (1 - fq) * 20;
+      U.text(scene, FIN.question, W / 2, y, `italic 42px ${F.serif}`, rgba(C.ink, 0.95 * fq), 'center');
       const [fa, fc, fb] = FIN.formula;
-      const fs = 52, w1 = U.math(scene, fa, 0, 0, fs, 'rgba(0,0,0,0)', 'left', 0), w2 = U.math(scene, fc, 0, 0, fs, 'rgba(0,0,0,0)', 'left', 0),
+      const fs = 76, w1 = U.math(scene, fa, 0, 0, fs, 'rgba(0,0,0,0)', 'left', 0), w2 = U.math(scene, fc, 0, 0, fs, 'rgba(0,0,0,0)', 'left', 0),
         w3 = U.math(scene, fb, 0, 0, fs, 'rgba(0,0,0,0)', 'left', 0);
-      const x = W / 2 - (w1 + w2 + w3) / 2, fy = y + 80;
+      const x = W / 2 - (w1 + w2 + w3) / 2, fy = y + 104;
       const cz = 1 + 0.12 * boom, ccx = x + w1 + w2 / 2, ccy = fy - fs * 0.3;
       U.math(scene, fa, x, fy, fs, rgba(C.ink, 0.9), 'left', fq);
       for (const g of [scene, hot]) {
@@ -770,7 +803,7 @@
     const sb = (BM.booms && BM.booms[0]) || snap(FINAL + 2 * BEAT), sq = seg(t, sb, sb + 0.14, ease.back);
     if (t >= sb) {
       for (const g of [scene, hot]) {
-        g.save(); g.translate(W / 2, 836); const z = lerp(1.5, 1, sq) * (1 + 0.06 * boom); g.scale(z, z);
+        g.save(); g.translate(W / 2, 862); const z = lerp(1.5, 1, sq) * (1 + 0.06 * boom); g.scale(z, z);
         g.font = `900 64px ${F.wide}`; g.fontStretch = 'expanded'; g.letterSpacing = '4px';
         g.textAlign = 'center'; g.textBaseline = 'alphabetic';
         g.fillStyle = g === hot ? rgba(C.red, 0.6 * (1 - 0.6 * sq)) : rgba(C.red, clamp(sq * 3));
@@ -782,13 +815,17 @@
 
   // ================================================================ frame
   const RUN0 = ENTRIES.findIndex(x => x.t0 >= RUN - 0.01);
+  // Heroes that do not already land on an impact get a hit of their own (the 1993 RC-graphs).
+  const HERO_HITS = ENTRIES.filter(x => x.kind === 'hero' && !(BM.impacts || []).some(i => Math.abs(snap(i) - x.t0) < 0.01)).map(x => x.t0);
   function seek(t) {
     const sec = section(t);
     const drop = inDrop(t);
     const kick = pulse(BM.kicks, t, drop ? 0.1 : 0.12);
     const clap = pulse(BM.claps, t, 0.08);
-    const impact = pulse(BM.impacts, t, 0.16);
+    // The opening boom hits on frame 1: frame 0 is the poster frame (the cold-open question).
+    const impact = pulse((BM.impacts || []).map(x => x || 1 / 60), t, 0.16);
     const crash = pulse(BM.crashes, t, 0.2);
+    const heroHit = pulse(HERO_HITS, t, 0.1);
     const tom = pulse(BM.toms, t, 0.09);
     const boom = pulse(BM.booms, t, 0.14);
     const hook = drop ? pulse(BM.hook, t, 0.07) : 0;
@@ -802,8 +839,12 @@
     const eraMix = { glow: mixc(prevEra.glow, era.glow, blendQ), acc: mixc(prevEra.acc, era.acc, blendQ) };
     const acc = eraMix.acc;
 
-    hot.clearRect(0, 0, W, H);
+    hot.clearRect(0, 0, W, H); ui.clearRect(0, 0, W, H);
     drawBackground(scene, t, eraMix, kick, sec);
+    // Stage camera: a slow push-in through every entry and a jump-zoom at its half; the cut resets it.
+    const mid = e && e.len >= 4 ? snap(bt(e.b + e.len / 2)) : Infinity;
+    const jump = t >= mid ? 0.022 + 0.014 * Math.exp(-(t - mid) / 0.06) : 0;
+    const push = e ? 0.022 * ease.soft(seg(t, e.t0, e.t1)) : 0;
     const run = e && RUN0 >= 0 && e.i >= RUN0 ? e.i - RUN0 + 1 : 0;
     speedLines(scene, t, (I ? seg(t, I.t0, I.t1) * 0.9 : 0) + (drop ? 0.3 * kick : 0) + 0.12 * run, 5, run && e.i % 2 ? 1 : -1);
 
@@ -811,15 +852,13 @@
     if (light) lightScene(t, light, LIGHTS.indexOf(light));
     else if (sec === 'stop') stopScene(t);
     else if (sec === 'final') finalScene(t, boom);
-    else if (e) drawEntry(t, e, kick, acc, hook, sec);
+    else if (e) drawEntry(t, e, kick, acc, hook, sec, push + jump);
     else if (I) (I.kind === 'count' ? countScene : turnScene)(t, I);
 
     if (!light && sec !== 'stop' && sec !== 'final') {
-      const en = lastEntryBefore(t + LEAD);
-      const rolling = (en && t > en.t0 - LEAD && t < en.t0) || !!I;
-      drawYear(t, v, e, acc, rolling);
+      drawYear(t, v, e, acc, true);                   // digits blur only while they roll
       const idx = e ? e.i + 1 : lastEntryBefore(t) ? lastEntryBefore(t).i + 1 : 0;
-      drawTopBar(scene, t, v, acc, kick, hook, idx);
+      drawTopBar(ui, t, v, acc, kick, hook, idx);
     }
 
     // Downbeat shockwaves in the drops: a thin ring from the stage centre on every bar.
@@ -827,11 +866,15 @@
       const age = t - d;
       if (age < 0 || age > 0.6 || !inDrop(d)) return;
       const q = age / 0.6;
-      U.ring(hot, CX, CY, 70 + 760 * easeQ(q), rgba(acc, 0.32 * (1 - q)), 2);
+      U.ring(hot, CX, CY, 70 + 760 * easeQ(q), rgba(acc, (sec === 'drop' ? 0.32 : 0.45) * (1 - q)), 2);
     });
-    // Explosions on impacts and crashes.
-    (BM.impacts || []).forEach((ti, j) => burst(hot, t, ti, 900 + j, CX, ti >= FINAL ? 470 : CY, ti === 0 ? 50 : 110, [C.amber, C.ink, C.amberHot], ti >= FINAL ? 1.3 : 1));
+    // Explosions on impacts and crashes (kept off the lower third until the finale).
+    hot.save();
+    if (t < FINAL) { hot.beginPath(); hot.rect(0, 0, W, BAND[1] + 20); hot.clip(); }
+    (BM.impacts || []).forEach((ti, j) => burst(hot, t, ti || 1 / 60, 900 + j, CX, ti >= FINAL ? 470 : CY, ti === 0 ? 50 : 110, [C.amber, C.ink, C.amberHot], ti >= FINAL ? 1.3 : 1));
     (BM.crashes || []).forEach((ti, j) => { if (!(BM.impacts || []).some(x => Math.abs(x - ti) < 0.01)) burst(hot, t, ti, 700 + j, CX, CY, 80, ti >= DROP2 ? [C.cyan, C.ink] : [C.amber, C.ink], 0.9); });
+    HERO_HITS.forEach((ti, j) => burst(hot, t, ti, 500 + j, CX, CY, 70, [C.amber, C.ink], 0.8));
+    hot.restore();
 
     // ---------------------------------------------------------------- composite
     scene.drawImage(hotC, 0, 0);
@@ -840,19 +883,15 @@
     bloom(scene, hotC, 64, 0.3);
 
     // Camera: punches on kicks, shakes on hits, chromatic split on the big ones.
-    const kp = drop ? 0.02 : sec === 'brk' ? 0.006 : sec === 'intro' ? 0.008 : 0.011;
-    let punch = kp * kick + 0.05 * impact + 0.04 * crash + 0.01 * tom;
+    // Drop B and the run hit harder than drop A.
+    const kp = sec === 'drop2' || sec === 'run' ? 0.026 : drop ? 0.02 : sec === 'brk' ? 0.006 : sec === 'intro' ? 0.008 : 0.011;
+    let punch = kp * kick + 0.05 * impact + 0.04 * crash + 0.01 * tom + 0.03 * heroHit;
     // Snare rolls into the drops: a sixteenth-note buzz that grows towards the silent beat.
     const longRoll = (BM.rolls || []).find(([a, b]) => b - a > BEAT * 1.5 && t >= a && t < b);
     if (longRoll) punch += 0.006 * seg(t, longRoll[0], longRoll[1]) * rollPulse(t);
     // One-beat fills suck the frame in; the next crash snaps it back out.
     const fill = (BM.rolls || []).find(([a, b]) => b - a <= BEAT + 0.01 && t >= a && t < b);
     const suck = fill ? seg(t, fill[0], fill[1], easeIn) : 0;
-    // Cards and heroes jump-zoom at their half.
-    const mid = e && e.len >= 4 ? snap(bt(e.b + e.len / 2)) : Infinity;
-    const jump = t >= mid ? 0.022 + 0.014 * Math.exp(-(t - mid) / 0.06) : 0;
-    // Slow push-in through every entry; the cut resets it, which reads as a punch-in cut.
-    const push = e ? 0.022 * ease.soft(seg(t, e.t0, e.t1)) : 0;
     // The final run steps the frame in, one notch per cut, then inhales into the stop.
     let runZ = 0.008 * run;
     const last = ENTRIES[ENTRIES.length - 1];
@@ -860,14 +899,14 @@
     const sr = rng(Math.round(t * 60) * 13 + 5);   // all blur sub-samples of a frame share one shake
     const shakeA = 2.5 * clap * (drop ? 1 : 0.4) + 20 * impact + 10 * crash + 6 * tom + (rollOn ? 2 : 0) + 3 * boom;
     const sx = (sr() - 0.5) * 2 * shakeA, sy = (sr() - 0.5) * 2 * shakeA;
-    const split = 14 * impact + 9 * crash + (drop ? 2.5 * kick : 0) + 0.8 * run * kick;
+    const split = 14 * impact + 9 * crash + 7 * heroHit + (drop ? 2.5 * kick : 0) + 0.8 * run * kick;
     // Camera rock: each bar of the drops tilts the frame the other way and springs back.
     let rock = 0;
     if (drop) (BM.downbeats || []).forEach((d, j) => {
       const age = t - d;
       if (inDrop(d) && age >= 0 && age < 0.9) rock = (j % 2 ? 1 : -1) * 0.007 * Math.exp(-age / 0.22) * Math.cos(age * 14);
     });
-    const zoom = 1 + punch + push + jump + runZ - 0.05 * suck;
+    const zoom = 1 + punch + runZ - 0.05 * suck;
     out.save();
     out.fillStyle = '#000'; out.fillRect(0, 0, W, H);
     out.translate(W / 2 + sx, H / 2 + sy); out.rotate(rock); out.scale(zoom, zoom); out.translate(-W / 2, -H / 2);
@@ -895,8 +934,11 @@
         out.drawImage(out.canvas, 0, y, W, h, dx, y, W, h);
       }
     }
+    // The chrome (year, lower third, top bar) sits above the camera: it only breathes with the zoom.
+    const uz = 1 + 0.3 * (zoom - 1);
+    out.save(); out.translate(W / 2, H / 2); out.scale(uz, uz); out.translate(-W / 2, -H / 2); out.drawImage(uiC, 0, 0); out.restore();
     // Flashes (none on the very first frame: it is the poster frame).
-    const flash = 0.85 * pulse((BM.impacts || []).filter(x => x > 0), t, 0.055) + 0.28 * pulse(BM.crashes, t, 0.05) + (drop ? 0.06 * clap : 0.025 * clap);
+    const flash = 0.85 * pulse((BM.impacts || []).filter(x => x > 0), t, 0.055) + 0.28 * pulse(BM.crashes, t, 0.05) + 0.2 * pulse(HERO_HITS, t, 0.05) + (drop ? 0.06 * clap : 0.025 * clap);
     if (flash > 0.003) { out.fillStyle = `rgba(255,248,235,${clamp(flash)})`; out.fillRect(0, 0, W, H); }
     // Vignette, fade out, grain.
     const vg = out.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 1.05);
