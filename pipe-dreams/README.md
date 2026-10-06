@@ -11,7 +11,8 @@ The game uses plain HTML, CSS, and JavaScript with no build step or third-party
 browser dependencies. It can also be opened directly using `index.html`.
 
 Select an occupied cell marked with a small dot, then select its highlighted
-destination to move it; or drag the cell onto its destination. A dashed arrow
+destination to move it; or drag the cell onto its destination (a drop counts
+as soon as the dragged square touches the destination square anywhere). A dashed arrow
 shows where the selected cell will land, and hovering a movable cell with a
 mouse previews its destination. The original position then shows a green +:
 click it to add a cell there. Selecting other cells or clicking invalid

@@ -882,6 +882,16 @@
     const element = document.elementFromPoint ? document.elementFromPoint(event.clientX, event.clientY) : null;
     return element ? indexFrom(element) : null;
   }
+  // A drop succeeds once the dragged square touches the destination square
+  // anywhere, or the pointer itself is over it.
+  function dropLands(event, pieceRect, destination) {
+    if (dragTarget(event) === destination) return true;
+    const cell = cells.get(destination);
+    if (!cell || !pieceRect) return false;
+    const target = cell.getBoundingClientRect();
+    return pieceRect.left < target.right && target.left < pieceRect.right &&
+      pieceRect.top < target.bottom && target.top < pieceRect.bottom;
+  }
   function endDrag(event, cancelled) {
     if (!drag || event.pointerId !== drag.pointerId) return;
     const current = drag;
@@ -896,7 +906,7 @@
     cell.classList.toggle('dragging', false);
     if (cells.get(current.move.to)) cells.get(current.move.to).classList.toggle('drop-ready', false);
     const move = chosenMove(legalMoves());
-    if (!cancelled && move && move.from === current.index && dragTarget(event) === move.to) {
+    if (!cancelled && move && move.from === current.index && dropLands(event, dropRect, move.to)) {
       performMove(move, dropRect);
       return;
     }
@@ -921,9 +931,10 @@
         cells.get(drag.index).classList.toggle('dragging', true);
         sound('select');
       }
-      cells.get(drag.index).firstElementChild.style.transform = `translate(${dx}px, ${dy}px)`;
+      const piece = cells.get(drag.index).firstElementChild;
+      piece.style.transform = `translate(${dx}px, ${dy}px)`;
       const destination = cells.get(drag.move.to);
-      if (destination) destination.classList.toggle('drop-ready', dragTarget(event) === drag.move.to);
+      if (destination) destination.classList.toggle('drop-ready', dropLands(event, piece.getBoundingClientRect(), drag.move.to));
     });
     window.addEventListener('pointerup', event => {
       const tap = touchTap;
