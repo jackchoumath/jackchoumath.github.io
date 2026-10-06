@@ -22,6 +22,8 @@
   // Cuts snap to 60 fps frame boundaries (at most 8 ms off the beat), so with the renderer's
   // shutter opening at the frame time every frame belongs to exactly one shot.
   const snap = x => Math.round(x * 60) / 60;
+  // Beat hits snap to frames too, or a hit inside a frame's shutter double-exposes its punch and shake.
+  for (const k of ['kicks', 'claps', 'hook', 'toms', 'booms', 'stabs']) if (BM[k]) BM[k] = BM[k].map(snap);
   const S = BM.sections;
   const DROP = snap(S.drop), BRK = snap(S.brk), DROP2 = snap(S.drop2), RUN = snap(S.run), FINAL = snap(S.final), END = S.end;
   const GAPS = (BM.gaps || []).map(g => g.map(snap));
@@ -469,7 +471,14 @@
       const x1 = lerp(A.x, Bp.x, 0.16), y1 = lerp(A.y, Bp.y, 0.16) + 26, x2 = lerp(A.x, Bp.x, 0.84), y2 = lerp(A.y, Bp.y, 0.84) - 30;
       ctx.strokeStyle = rgba(C.dim, 0.8); ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(lerp(x1, x2, q), lerp(y1, y2, q)); ctx.stroke();
-      if (q > 0.6) U.math(ctx, lab, (x1 + x2) / 2 + (Bp.x < A.x ? -34 : 34), (y1 + y2) / 2 + 8, 30, rgba(C.dim, 1), 'center', (q - 0.6) / 0.4);
+      if (q > 0.6) {
+        // Off to the outside of the edge, perpendicular to it, so no line strikes through the label.
+        const L = Math.hypot(x2 - x1, y2 - y1), nx = (y2 - y1) / L, ny = -(x2 - x1) / L, sg = Bp.x < A.x ? -1 : 1;
+        const vert = Math.abs(x2 - x1) < 1;
+        const lx = vert ? (x1 + x2) / 2 + (A.x < box.x + box.w / 2 ? -34 : 34) : (x1 + x2) / 2 - sg * 30 * nx;
+        const ly = vert ? (y1 + y2) / 2 + 8 : (y1 + y2) / 2 + 10 - sg * 30 * ny;
+        U.math(ctx, lab, lx, ly, 30, rgba(C.dim, 1), 'center', (q - 0.6) / 0.4);
+      }
     });
     // After the cascade, a wave of sparks runs down the arrows on every beat:
     // the divided differences keep firing, and each node flashes as the wave lands.
@@ -495,7 +504,7 @@
       const hit = nodeHit(i);
       if (hit > 0.02) { hot.save(); hot.translate(x, y); hot.scale(q, q); U.math(hot, n.p, 0, 52, 54, rgba(C.amber, 0.45 * hit), 'center'); hot.restore(); }
       ctx.save(); ctx.translate(x, y); ctx.scale(q, q);
-      U.math(ctx, `\\S_{${n.w}}`, 0, -6, 34, rgba(C.dim, 1), 'center');
+      U.math(ctx, `\\S_{${n.w}}`, 0, n.p.includes('^') ? -24 : -6, 34, rgba(C.dim, 1), 'center');
       const big = box.w >= 1000 ? (i === 0 ? 72 : 62) : (i === 0 ? 62 : 54);
       U.math(ctx, n.p, 0, 52, big, rgba(i === 0 ? C.amber : C.ink, 1), 'center');
       ctx.restore();
