@@ -1,18 +1,20 @@
 """Re-sync the film to a real recording (e.g. "Wordless" by HOYO-MiX, 1:35-2:07).
 
-    python3 resync.py path/to/song.(mp3|m4a|wav) [--start 95] [--dur 32] [--out beats.js]
+    python3 resync.py path/to/song.(mp3|m4a|wav) [--start 95] [--dur 32] [--out beats32.js]
+
+(For the 32-second cut, film32.html. The 75-second cut runs on its own score, score75.py.)
 
 1. Trims [start, start + dur] from the song, fades the edges and loudness-normalises
    it to out/music.wav (the film's soundtrack).
 2. Fits an exact constant-tempo beat grid (period and phase) to the onset envelope,
    picks the downbeat phase from the kick band, the drop (largest energy step) and
    the final hit, and detects kicks, snares, crashes and impacts by band.
-3. Writes beats.js / beats.json: the film's design beats (128-BPM grid, drop on
+3. Writes beats32.js / beats32.json: the film's design beats (128-BPM grid, drop on
    design beat 32, final on 64) are remapped onto the song's beats, so every
    entry starts on a real beat and the 1982 drop / final title land on the
    song's own drop and last hit.
 
-Then render with:  node render.mjs --html film.html --to 32 --blur 4 --audio out/music.wav --out schubert-history.mp4
+Then render with:  node render.mjs --html film32.html --to 32 --blur 4 --audio out/music.wav --out schubert-history-32s.mp4
 """
 import argparse
 import json
@@ -177,7 +179,7 @@ def main():
     ap.add_argument('song')
     ap.add_argument('--start', type=float, default=95.0)
     ap.add_argument('--dur', type=float, default=32.0)
-    ap.add_argument('--out', default=os.path.join(HERE, 'beats.js'))
+    ap.add_argument('--out', default=os.path.join(HERE, 'beats32.js'))
     ap.add_argument('--wav', default=os.path.join(HERE, 'out', 'music.wav'))
     a = ap.parse_args()
     wav = load_clip(a.song, a.start, a.dur, a.wav)
