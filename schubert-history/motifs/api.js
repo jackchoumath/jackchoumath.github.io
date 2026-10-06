@@ -85,8 +85,9 @@
         '\\sum': '∑', '\\otimes': '⊗', '\\star': '⋆', '\\le': '≤', '\\ne': '≠', '\\infty': '∞', '\\pi': 'π', '\\ell': 'ℓ', '\\times': '×', '\\S': 'S', '\\G': 'G', '\\quad': '  ', '\\,': '\u2009', '\\;': '\u2005', '\\!': '', '\\cdots': '⋯', '\\ldots': '…', '\\neq': '≠', '\\in': '∈', '\\subset': '⊂', '\\mapsto': '↦', '\\leftrightarrow': '↔', '\\Rightarrow': '⇒', '\\#': '#' }[s] ?? s);
       const fontFor = (s, sz) => {
         if (s === '\\S' || s === '\\G') return `${sz}px ${F.frak}`;
+        if (s === '\\sum') return `${sz}px KaTeX_Size1`;
         const g = glyph(s);
-        return /^[A-Za-z]$/.test(g) || /[σλμνπℓ]/.test(g) ? `italic ${sz}px ${F.math}` : `${sz}px ${F.main}`;
+        return /^[A-Za-z]$/.test(g) || /[σλμνπ]/.test(g) ? `italic ${sz}px ${F.math}` : `${sz}px ${F.main}`;
       };
       // Measure then draw.
       const parts = toks.map(tk => {

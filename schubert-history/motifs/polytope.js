@@ -108,7 +108,7 @@ MOTIF('polytope', (() => {
       dotsOf(true);
 
       // label, bottom left: the simplex never reaches that corner
-      U.math(ctx, '\\S_{12543}', box.x + box.w * 0.04, box.y + box.h * 0.93, Math.round(Math.min(box.w, box.h) * 0.075), rgba(C.ink, 0.9), 'left', seg(p, 0.26, 0.36));
+      U.math(ctx, '\\S_{12543}', box.x + box.w * 0.04, box.y + box.h * 0.1, Math.round(Math.min(box.w, box.h) * 0.075), rgba(C.ink, 0.9), 'left', seg(p, 0.26, 0.36));
     },
   };
 })());

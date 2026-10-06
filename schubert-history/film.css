@@ -10,6 +10,7 @@
 @font-face { font-family: "KaTeX_Math"; src: url(../schubert-reel/vendor/katex/fonts/KaTeX_Math-Italic.woff2) format("woff2"); font-style: italic; }
 @font-face { font-family: "KaTeX_Fraktur"; src: url(../schubert-reel/vendor/katex/fonts/KaTeX_Fraktur-Regular.woff2) format("woff2"); }
 @font-face { font-family: "KaTeX_AMS"; src: url(../schubert-reel/vendor/katex/fonts/KaTeX_AMS-Regular.woff2) format("woff2"); }
+@font-face { font-family: "KaTeX_Size1"; src: url(../schubert-reel/vendor/katex/fonts/KaTeX_Size1-Regular.woff2) format("woff2"); }
 * { box-sizing: border-box; margin: 0; }
 html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
 #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; }

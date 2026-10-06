@@ -151,7 +151,7 @@
 
   // ================================================================ state per frame
   // The digits start rolling LEAD seconds early so the new year has landed on the beat frame.
-  const LEAD = 0.066;
+  const LEAD = 0.083;
   function yearValue(t) {
     // Holds at each milestone; rolls quickly to the next one, landing on its beat.
     const e = lastEntryBefore(t + LEAD);
@@ -163,8 +163,7 @@
       const q = seg(t, jdt.t1, GAP[0], easeIn);
       return lerp(jdt.year, 1981.965, q);
     }
-    const dur = Math.min(0.14, (e.t1 - e.t0) * 0.3);
-    const q = seg(t, e.t0 - LEAD, e.t0 - LEAD + dur, easeQ);
+    const q = seg(t, e.t0 - LEAD, e.t0, easeQ);        // fully landed on the beat frame
     // The drop continues from where the build froze the counter.
     const from = jdt && e.t0 >= DROP && ENTRIES[e.i - 1] === jdt ? 1981.965 : prev;
     return lerp(from, e.year, q);
@@ -271,7 +270,7 @@
     // The camera steps around the lines on the kicks, then drifts.
     let step = 0;
     (BM.kicks || []).forEach(kt => { if (kt > e.t0 && kt < e.t1) step += seg(t, kt, kt + 0.3, easeQ); });
-    const az = (-36 + 5 * Math.min(step, 3) + 4 * seg(t, e.t0 + 3, e.t1, ease.soft)) * D2R;
+    const az = (-40 + 5 * Math.min(step, 3) + 8 * seg(t, e.t0, e.t1)) * D2R;
     const R0 = 10.5, el = 12 * D2R;
     const cam = camera({ eye: [R0 * Math.cos(el) * Math.cos(az), R0 * Math.cos(el) * Math.sin(az), R0 * Math.sin(el)], target: [0.5, 0, 0],
       fov: 2 * Math.atan(Math.tan(15 * D2R) / kz) / D2R, cx: box.x + box.w / 2, cy: box.y + box.h / 2 });
@@ -321,7 +320,7 @@
       const q = seg(t, two, two + 0.12, easeQ), z = lerp(1.6, 1, q) * (1 + 0.15 * pop8);
       for (const g of [ctx, hot]) {
         g.save(); g.translate(ax, ay); g.scale(z, z);
-        U.text(g, '= 2', 0, 0, `900 ${Math.round(fs2)}px ${F.display}`, rgba(C.amber, g === hot ? 0.6 : clamp(q * 2)), 'right');
+        U.text(g, '= 2', 0, 0, `900 ${Math.round(fs2)}px ${F.display}`, rgba(C.amber, g === hot ? 0.25 : clamp(q * 2)), 'right');
         g.restore();
       }
     }
@@ -408,7 +407,12 @@
     const inQ = seg(local, -0.06, flash ? 0.06 : 0.10, easeQ);
     const dir = e.i % 2 ? 1 : -1;
     mot.save();
-    if (e.motif === 'lines4') linesHero(mot, motHot, t, e, box);
+    if (e.motif === 'lines4') {
+      // The 1879 lines run long: keep them above the rail.
+      for (const g of [mot, motHot]) { g.save(); g.beginPath(); g.rect(0, 90, W, 875); g.clip(); }
+      linesHero(mot, motHot, t, e, box);
+      motHot.restore(); mot.restore();
+    }
     else if (e.motif === 'schubpoly') schubpolyHero(mot, motHot, t, e, box);
     else if (MOTIFS[e.motif]) {
       try { MOTIFS[e.motif].draw(mot, motHot, p, kick, MOTIF_ENV(local, dur, BEAT), box); }
@@ -540,7 +544,7 @@
     const s = lerp(1.35, 1, easeQ(seg(q, 0, 0.12))) * (1 + 0.05 * q);
     for (const g of [scene, hot]) {
       g.save(); g.translate(W / 2, H / 2 + 40); g.scale(s, s);
-      U.text(g, '?', 0, 120, `900 380px ${F.display}`, rgba(C.red, g === hot ? 0.7 : 1), 'center');
+      U.text(g, '?', 0, 120, `900 380px ${F.display}`, rgba(C.red, g === hot ? 0.3 : 1), 'center');
       g.restore();
     }
     U.text(scene, 'AND NOW?', W / 2, 870, `600 22px ${F.mono}`, rgba(C.ink, 0.8 * seg(q, 0.25, 0.6)), 'center');
@@ -672,7 +676,7 @@
       const slam = e ? seg(t - e.t0, 0, 0.12, easeQ) : 1;
       const sc = e ? lerp(1.12, 1, slam) : 1;
       const en = lastEntryBefore(t + LEAD);
-      const rolling = (en && t > en.t0 - LEAD && t < en.t0 + 0.1) || (!e && t >= S.build && t < GAP[0]);
+      const rolling = (en && t > en.t0 - LEAD && t < en.t0) || (!e && t >= S.build && t < GAP[0]);
       scene.save();
       scene.translate(110, 570); scene.scale(sc, sc); scene.translate(-110, -570);
       // Echo outline copies trail the slam.
@@ -737,9 +741,9 @@
     const jump = t >= mid ? 0.03 + 0.015 * Math.exp(-(t - mid) / 0.06) : 0;
     // The one-beat run steps the frame in, one notch per beat, then inhales into the stop.
     const run = e && e.len === 1 && e.b >= 56 ? e.b - 55 : 0;
-    let runZ = 0.012 * run;
+    let runZ = 0.007 * run;
     if (t >= bt(62) && t < STOP[0]) runZ -= 0.07 * seg(t, bt(62), STOP[0], easeIn);
-    const sr = rng(Math.floor(t * 60) * 13 + 5);
+    const sr = rng(Math.round(t * 60) * 13 + 5);   // all blur sub-samples of a frame share one shake
     const shakeA = 2.5 * clap * (inDrop ? 1 : 0.4) + 20 * impact + 10 * crash + 6 * tom + (rollOn ? 2 : 0);
     const sx = (sr() - 0.5) * 2 * shakeA, sy = (sr() - 0.5) * 2 * shakeA;
     const split = 14 * impact + 9 * crash + (inDrop ? 2.5 * kick : 0) + 0.8 * run * kick;
@@ -773,7 +777,7 @@
     const jdtE = ENTRIES.find(x => x.motif === 'jdt');
     if (rollOn && !e && jdtE && t >= jdtE.t1 && t < GAP[0]) {
       const gq = seg(t, jdtE.t1, GAP[0], easeIn);
-      const gr = rng(Math.floor(t * 30) * 7 + 3);
+      const gr = rng(Math.floor(t * 30 + 0.25) * 7 + 3);
       for (let i = 0; i < 6; i++) {
         if (gr() > 0.15 + 0.6 * gq) continue;
         const y = gr() * 600, h = 8 + gr() * 50, dx = (gr() - 0.5) * 80;
@@ -781,7 +785,7 @@
       }
     }
     // Flashes.
-    const flash = 0.85 * pulse(BM.impacts, t, 0.055) + 0.28 * pulse(BM.crashes, t, 0.05) + (inDrop ? 0.06 * clap : 0.025 * clap);
+    const flash = 0.85 * pulse((BM.impacts || []).filter(x => x > 0), t, 0.055) + 0.28 * pulse(BM.crashes, t, 0.05) + (inDrop ? 0.06 * clap : 0.025 * clap);
     if (flash > 0.003) { out.fillStyle = `rgba(255,248,235,${clamp(flash)})`; out.fillRect(0, 0, W, H); }
     // Vignette, fade in/out, grain.
     const vg = out.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 1.05);
@@ -795,7 +799,7 @@
   // ================================================================ boot
   async function boot() {
     const fonts = ['900 100px "Big Shoulders Display"', '100px Anton', '900 100px Archivo', 'italic 100px "Instrument Serif"', '100px "Instrument Serif"',
-      '500 40px "JetBrains Mono"', '600 40px "JetBrains Mono"', '40px KaTeX_Main', 'italic 40px KaTeX_Math', '40px KaTeX_Fraktur', '40px KaTeX_AMS', '600 40px Inter'];
+      '500 40px "JetBrains Mono"', '600 40px "JetBrains Mono"', '40px KaTeX_Main', 'italic 40px KaTeX_Math', '40px KaTeX_Fraktur', '40px KaTeX_AMS', '40px KaTeX_Size1', '600 40px Inter'];
     await Promise.all(fonts.map(f => document.fonts.load(f)));
     // Load every motif referenced by the timeline.
     const ids = [...new Set(ENTRIES.map(e => e.motif))].filter(id => id !== 'lines4' && id !== 'schubpoly');

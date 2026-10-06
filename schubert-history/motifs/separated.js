@@ -56,17 +56,23 @@ MOTIF('separated', {
     U.math(ctx, '\\S_{1342}\\,\\S_{321} =', box.x + box.w * 0.5, ey, fs * 1.1, rgba(C.ink, lhq), 'center');
     const TERMS = ['\\S_{3421}', '\\S_{4231}', '\\S_{4312}'];
     const step = fs * 4.1, tx0 = box.x + box.w * 0.5 - step;
+    const pw = U.math(ctx, '+\\;', 0, 0, fs, 'rgba(0,0,0,0)', 'left', 0);   // the first term has no '+'; shift it for even gaps
     TERMS.forEach((tm, j) => {
       const q = U.pop(seg(p, 0.36 + j * 0.09, 0.52 + j * 0.09));
       if (q <= 0) return;
-      const x = tx0 + j * step, y = ey + fs * 1.6;
+      const x = tx0 + j * step + (j ? 0 : pw / 2), y = ey + fs * 1.6;
       ctx.save(); ctx.translate(x, y); ctx.scale(q, q);
       U.math(ctx, (j ? '+\\;' : '') + tm, 0, 0, fs, rgba(j === 2 ? C.amber : C.ink, 1), 'center');
       ctx.restore();
       if (j === 2) { hot.save(); hot.translate(x, y); hot.scale(q, q); U.math(hot, '+\\;' + tm, 0, 0, fs, rgba(C.amber, 0.45), 'center'); hot.restore(); }
     });
     const cq = seg(p, 0.66, 0.8, ease.out);
-    U.text(ctx, 'DES(v) \u2264 k \u2264 DES(u)', box.x + box.w * 0.5, ey + fs * 3.3, `600 ${Math.round(fs * 0.5)}px ${F.mono}`, rgba(C.dim, cq), 'center');
+    // Des(v) <= k <= Des(u): mono words, with the inequality signs from KaTeX_Main (the mono subset lacks them).
+    const cf = `600 ${Math.round(fs * 0.5)}px ${F.mono}`, mf = `${Math.round(fs * 0.6)}px ${F.main}`;
+    const parts = [['DES(v) ', cf], ['\u2264', mf], [' k ', cf], ['\u2264', mf], [' DES(u)', cf]];
+    let cw = 0; parts.forEach(([str, f]) => { ctx.font = f; cw += ctx.measureText(str).width; });
+    let cxp = box.x + box.w * 0.5 - cw / 2;
+    parts.forEach(([str, f]) => { U.text(ctx, str, cxp, ey + fs * 3.3, f, rgba(C.dim, cq), 'left'); ctx.font = f; cxp += ctx.measureText(str).width; });
     void k;
   },
 });
