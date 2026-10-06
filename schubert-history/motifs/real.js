@@ -32,7 +32,7 @@ MOTIF('real', (() => {
   // Tangent segments: cover the tangency point and both hits, with a margin.
   const TAN = TS.map((t, i) => {
     const lo = Math.min(0, ...V[i]) - 0.28, hi = Math.max(0, ...V[i]) + 0.28;
-    return { t, lo, hi, z0: (0 - lo) / (hi - lo) };
+    return { t, lo, hi };
   });
 
   const TMAX = 1.62;                                  // curve shown for |t| <= TMAX
@@ -78,7 +78,7 @@ MOTIF('real', (() => {
       ctx.lineCap = 'round'; hot.lineCap = 'round';
 
       // Twisted cubic, drawn on from the middle outwards.
-      const cq = seg(p, 0, 0.18, ease.out);
+      const cq = seg(p, 0, 0.15, ease.out);
       ctx.strokeStyle = rgba(C.ink, 0.95); ctx.lineWidth = 2.6;
       ctx.beginPath();
       for (let m = 0; m <= 120; m++) {
@@ -89,7 +89,7 @@ MOTIF('real', (() => {
 
       // Four tangent lines, shooting out from their points of tangency.
       TAN.forEach(({ t, lo, hi }, i) => {
-        const q = seg(p, 0.07 + i * 0.03, 0.25 + i * 0.03, ease.out);
+        const q = seg(p, 0.05 + i * 0.025, 0.2 + i * 0.025, ease.out);
         if (q <= 0) return;
         line(ctx, at(t, lo * q), at(t, hi * q), 1, rgba(C.cyan, 0.85), 2);
         const c = P(g(t));
@@ -98,12 +98,12 @@ MOTIF('real', (() => {
 
       // The two transversals: both real. Each hit flashes a ring as the line reaches it.
       L.forEach((l, m) => {
-        const a0 = 0.22 + m * 0.06, len = 0.16, q = seg(p, a0, a0 + len);
+        const a0 = 0.17 + m * 0.05, len = 0.13, q = seg(p, a0, a0 + len);
         if (q <= 0) return;
         line(ctx, l.p0, l.p1, q, rgba(C.amber, 1), 3);
         line(hot, l.p0, l.p1, q, rgba(C.amber, 0.6 + 0.3 * k), 4);
         l.hits.forEach((h, i) => {
-          const since = (p - (a0 + len * l.us[i])) / 0.1;
+          const since = (p - (a0 + len * l.us[i])) / 0.09;
           if (since <= 0) return;
           const c = P(h), r = 4.5 * U.pop(clamp(since));
           U.dot(ctx, c[0], c[1], r, rgba(C.amberHot, 1));

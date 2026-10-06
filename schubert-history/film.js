@@ -202,12 +202,13 @@
     if (age < 0 || age > 1.3) return;
     const r = rng(seed);
     for (let i = 0; i < n; i++) {
-      const ang = r() * Math.PI * 2, sp = (300 + r() * 1300) * power;
-      const drag = 2.6;
-      const dist = sp * (1 - Math.exp(-drag * age)) / drag;
+      // Fast and short-lived: the debris clears the frame within half a second.
+      const ang = r() * Math.PI * 2, sp = (1100 + r() * 2600) * power;
+      const drag = 3.2;
+      const dist = 60 + sp * (1 - Math.exp(-drag * age)) / drag;
       const x = cx + Math.cos(ang) * dist, y = cy + Math.sin(ang) * dist;
       const sz = 5 + r() * 18, rot = (r() - 0.5) * 8 * age;
-      const life = clamp(1 - age / (0.7 + r() * 0.6));
+      const life = clamp(1 - age / (0.3 + r() * 0.4));
       if (life <= 0) continue;
       const col = colors[Math.floor(r() * colors.length)];
       ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
@@ -316,11 +317,29 @@
       ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(lerp(x1, x2, q), lerp(y1, y2, q)); ctx.stroke();
       if (q > 0.6) U.math(ctx, lab, (x1 + x2) / 2 + (Bp.x < A.x ? -34 : 34), (y1 + y2) / 2 + 8, 30, rgba(C.dim, 1), 'center', (q - 0.6) / 0.4);
     });
+    // After the cascade, a wave of sparks runs down the arrows on every beat:
+    // the divided differences keep firing, and each node flashes as the wave lands.
+    const kickP = pulse(BM.kicks, t, 0.1);
+    const settle = e.t0 + 1.5 * BEAT + 0.25;
+    const wave = t > settle ? ((t - settle) / BEAT % 1) * 3.2 : -1;
+    const nodeHit = i => (wave >= 0 && rank[i] > 0 ? Math.exp(-Math.max(0, wave - rank[i]) * 3) * (wave >= rank[i] ? 1 : 0) : 0);
+    if (wave >= 0) S3E.forEach(([a, b]) => {
+      const f = wave - rank[a];
+      if (f < 0 || f > 1) return;
+      const A = pos[a], Bp = pos[b];
+      const x1 = lerp(A.x, Bp.x, 0.16), y1 = lerp(A.y, Bp.y, 0.16) + 26, x2 = lerp(A.x, Bp.x, 0.84), y2 = lerp(A.y, Bp.y, 0.84) - 30;
+      const q = easeQ(f), px = lerp(x1, x2, q), py = lerp(y1, y2, q);
+      hot.strokeStyle = rgba(C.amber, 0.9); hot.lineWidth = 3;
+      hot.beginPath(); hot.moveTo(lerp(x1, x2, Math.max(0, q - 0.25)), lerp(y1, y2, Math.max(0, q - 0.25))); hot.lineTo(px, py); hot.stroke();
+      U.dot(hot, px, py, 6, rgba(C.amberHot, 1));
+    });
     S3.forEach((n, i) => {
       const tq = e.t0 + rank[i] * BEAT * 0.5;
-      const q = seg(t, tq, tq + 0.2, ease.back);
+      const q = seg(t, tq, tq + 0.2, ease.back) * (1 + 0.05 * kickP + 0.08 * nodeHit(i));
       if (q <= 0) return;
       const { x, y } = pos[i];
+      const hit = nodeHit(i);
+      if (hit > 0.02) { hot.save(); hot.translate(x, y); hot.scale(q, q); U.math(hot, n.p, 0, 52, 54, rgba(C.amber, 0.6 * hit), 'center'); hot.restore(); }
       ctx.save(); ctx.translate(x, y); ctx.scale(q, q);
       U.math(ctx, `\\S_{${n.w}}`, 0, -6, 34, rgba(C.dim, 1), 'center');
       const big = i === 0 ? 62 : 54;
@@ -606,7 +625,15 @@
     const split = 14 * impact + 9 * crash + (inDrop ? 2.5 * kick : 0);
     out.save();
     out.fillStyle = '#000'; out.fillRect(0, 0, W, H);
-    out.translate(W / 2 + sx, H / 2 + sy); out.scale(1 + punch, 1 + punch); out.translate(-W / 2, -H / 2);
+    // Camera rock: each bar of the drop tilts the frame the other way and springs back.
+    let rock = 0;
+    if (inDrop) (BM.downbeats || []).forEach((d, j) => {
+      const age = t - d;
+      if (d >= DROP && age >= 0 && age < 0.9) rock = (j % 2 ? 1 : -1) * 0.007 * Math.exp(-age / 0.22) * Math.cos(age * 14);
+    });
+    // Slow push-in through every entry; the cut resets it, which reads as a punch-in cut.
+    const push = e && !isFinal ? 0.025 * ease.soft(seg(t, e.t0, e.t1)) : 0;
+    out.translate(W / 2 + sx, H / 2 + sy); out.rotate(rock); out.scale(1 + punch + push, 1 + punch + push); out.translate(-W / 2, -H / 2);
     if (split > 0.6) {
       // Isolate channels and offset red and blue.
       const chans = [['rgb(255,0,0)', -split, 0], ['rgb(0,255,0)', 0, 0], ['rgb(0,0,255)', split, 0]];
