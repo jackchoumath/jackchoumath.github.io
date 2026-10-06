@@ -76,6 +76,8 @@ MOTIF('real', (() => {
         g2.moveTo(A[0], A[1]); g2.lineTo(lerp(A[0], Bq[0], q), lerp(A[1], Bq[1], q)); g2.stroke();
       };
       ctx.lineCap = 'round'; hot.lineCap = 'round';
+      // Dot sizes follow the drawing, small enough that the close pairs of hits stay two dots.
+      const rT = clamp(S * 0.032, 3, 4.2), rH = clamp(S * 0.034, 3.2, 4.2);
 
       // Twisted cubic, drawn on from the middle outwards.
       const cq = seg(p, 0, 0.15, ease.out);
@@ -93,24 +95,26 @@ MOTIF('real', (() => {
         if (q <= 0) return;
         line(ctx, at(t, lo * q), at(t, hi * q), 1, rgba(C.cyan, 0.85), 2);
         const c = P(g(t));
-        U.dot(ctx, c[0], c[1], 4.5 * U.pop(clamp(q * 2)), rgba(C.ink, 1));
+        U.dot(ctx, c[0], c[1], rT * U.pop(clamp(q * 2)), rgba(C.ink, 1));
       });
 
       // The two transversals: both real. Each hit flashes a ring as the line reaches it.
+      const A0 = m => 0.17 + m * 0.05, LEN = 0.13;
       L.forEach((l, m) => {
-        const a0 = 0.17 + m * 0.05, len = 0.13, q = seg(p, a0, a0 + len);
+        const q = seg(p, A0(m), A0(m) + LEN);
         if (q <= 0) return;
         line(ctx, l.p0, l.p1, q, rgba(C.amber, 1), 3);
         line(hot, l.p0, l.p1, q, rgba(C.amber, 0.6 + 0.3 * k), 4);
-        l.hits.forEach((h, i) => {
-          const since = (p - (a0 + len * l.us[i])) / 0.09;
-          if (since <= 0) return;
-          const c = P(h), r = 4.5 * U.pop(clamp(since));
-          U.dot(ctx, c[0], c[1], r, rgba(C.amberHot, 1));
-          U.dot(hot, c[0], c[1], r * 1.4, rgba(C.amber, 0.8));
-          if (since < 1) U.ring(ctx, c[0], c[1], 6 + 20 * ease.out(since), rgba(C.amber, 0.8 * (1 - since)), 2);
-        });
       });
+      // Hits as pale beads, also on the hot layer (it is composited over the line art).
+      L.forEach((l, m) => l.hits.forEach((h, i) => {
+        const since = (p - (A0(m) + LEN * l.us[i])) / 0.09;
+        if (since <= 0) return;
+        const c = P(h), r = rH * U.pop(clamp(since));
+        U.dot(ctx, c[0], c[1], r, rgba(C.amberHot, 1));
+        U.dot(hot, c[0], c[1], r, rgba(C.amberHot, 0.95));
+        if (since < 1) U.ring(ctx, c[0], c[1], 5 + 16 * ease.out(since), rgba(C.amber, 0.8 * (1 - since)), 2);
+      }));
       ctx.lineCap = 'butt'; hot.lineCap = 'butt';
     },
   };

@@ -84,7 +84,7 @@ MOTIF('bpd', (() => {
       const stage = d2 > 0.5 ? 2 : d1 > 0.5 ? 1 : 0;
 
       // Grid.
-      ctx.strokeStyle = rgba(C.faint, 0.95 * clamp(build * 3)); ctx.lineWidth = 1.2; ctx.beginPath();
+      ctx.strokeStyle = rgba(C.faint, 0.95 * clamp(build * 3)); ctx.lineWidth = 1.5; ctx.beginPath();
       for (let t = 0; t <= n; t++) {
         ctx.moveTo(gx + t * s, gy); ctx.lineTo(gx + t * s, gy + n * s);
         ctx.moveTo(gx, gy + t * s); ctx.lineTo(gx + n * s, gy + t * s);

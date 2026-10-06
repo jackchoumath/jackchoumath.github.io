@@ -66,7 +66,7 @@ MOTIF('groebner', (() => {
         const a = U.stagger(p, (i - 1) + (j - 1), 2 * n - 1, 0, t0 + step * 0.5, 0.5);
         if (a <= 0) continue;
         const x = gx + (j - 1) * s, y = gy + (i - 1) * s;
-        ctx.strokeStyle = rgba(C.faint, a); ctx.lineWidth = 1.2; ctx.strokeRect(x, y, s, s);
+        ctx.strokeStyle = rgba(C.faint, a); ctx.lineWidth = 1.5; ctx.strokeRect(x, y, s, s);
         const isX = crosses.some(([r, c]) => r === i && c === j);
         if (isX) {                                      // z_ij = 0 on the subspace L_P
           const g = s * 0.4 * pop, cx = x + s / 2, cy = y + s / 2;
@@ -88,10 +88,10 @@ MOTIF('groebner', (() => {
         const yc = ly0 + r * rowH;
         const fresh = r === cur ? q : 1;               // this row is still arriving
         const land = seg(fresh, 0.15, 0.6, ease.inOut);
-        const tx = lx + (r ? fs * 0.9 : fs * 0.9), ty = yc - 2 * ts;
+        const tx = lx + fs * 0.9, ty = yc - 2 * ts;
         const on = r === lit;
         // Thumbnail of the coordinate subspace.
-        ctx.strokeStyle = rgba(on ? C.amber : C.dim, 0.55 * clamp(fresh * 4)); ctx.lineWidth = 1.2;
+        ctx.strokeStyle = rgba(on ? C.amber : C.dim, 0.55 * clamp(fresh * 4)); ctx.lineWidth = 1.5;
         ctx.strokeRect(tx, ty, n * ts, n * ts);
         PDS[r].x.forEach(([i, j]) => {
           const bx = gx + (j - 0.5) * s, byy = gy + (i - 0.5) * s, sx = tx + (j - 0.5) * ts, sy = ty + (i - 0.5) * ts;
@@ -109,7 +109,8 @@ MOTIF('groebner', (() => {
         const ma = seg(fresh, 0.35, 0.75, ease.out);
         if (ma > 0) {
           const mx = tx + n * ts + fs * 0.45, my = yc + fs * 0.32, sl = (1 - ma) * fs * 0.6;
-          if (r) U.math(ctx, '+', lx - fs * 0.05, my, fs, rgba(C.ink, 0.9), 'left', ma);
+          // The plus sign waits until the flying cells have passed it.
+          if (r) U.math(ctx, '+', lx - fs * 0.05, my, fs, rgba(C.ink, 0.9), 'left', seg(fresh, 0.6, 0.8));
           U.math(ctx, PDS[r].m, mx + sl, my, fs, rgba(on ? C.amber : C.ink, 1), 'left', ma);
           if (on) U.math(hot, PDS[r].m, mx + sl, my, fs, rgba(C.amber, 0.45), 'left', ma);
         }

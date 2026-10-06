@@ -28,13 +28,17 @@ MOTIF('logconcave', (() => {
         g.translate(VW / 2, base); g.scale(drift, drift); g.translate(-VW / 2, -base);
       }
 
-      // sliding window centre kc: parks on k = 1 .. 7 in turn, gliding between, after the build
-      const T0 = 0.38, STEP = (1 - T0) / 7;
+      // sliding window centre kc: after the build it parks on nStop consecutive bars around the
+      // peak, gliding between. Each stop gets at least ~0.15 s, so a short motif does not strobe
+      // (all 7 windows k = 1..7 once dur >= ~1.7 s; k = 4, 5 for a one-beat flash).
+      const T0 = 0.38;
+      const nStop = Math.max(2, Math.min(N - 2, Math.floor((1 - T0) * (env.dur || 1.9) / 0.15)));
+      const k0 = 4 - Math.floor((nStop - 1) / 2), STEP = (1 - T0) / nStop;
       let kc = -1, f = 0;
       if (p >= T0) {
-        const u = Math.min(6.999, (p - T0) / STEP), s = Math.floor(u);
+        const u = Math.min(nStop - 0.001, (p - T0) / STEP), s = Math.floor(u);
         f = u - s;
-        kc = s === 0 ? 1 : s + ease.inOut(clamp(f / 0.35));
+        kc = k0 + (s === 0 ? 0 : s - 1 + ease.inOut(clamp(f / 0.35)));
       }
       const kInt = kc < 0 ? -1 : Math.round(kc);
       const settle = kc < 0 ? 0 : 1 - Math.abs(kc - kInt) * 2;   // 1 when parked on a bar

@@ -45,7 +45,10 @@ MOTIF('polytope', (() => {
   return {
     draw(ctx, hot, p, k, env, box) {
       const { C, U, rgba, clamp, lerp, ease, seg } = env;
-      const phi = 0.2 + 1.0 * ease.out(clamp(p / 0.4)) + 0.75 * p, el = 0.62;
+      // yaw swings in during the build, then drifts from ~1.33 to 1.6. That stays clear of the
+      // mirror-symmetric views (phi = 1.05, 2.1: front and back dots coincide) and of the
+      // edge-on view (phi = 1.83: a face collapses to a line). Both repeat with period pi/3 up to mirroring.
+      const phi = 0.2 + 1.0 * ease.out(clamp(p / 0.4)) + 0.4 * p, el = 0.62;
       const cf = Math.cos(phi), sf = Math.sin(phi), ce = Math.cos(el), se = Math.sin(el);
       // the simplex projects into |x| <= 0.983, |y| <= 0.748 for every rotation (checked numerically)
       const S = Math.min(box.w / 1.966, box.h / 1.496) * 0.9 * (1 + 0.012 * k), D = 6;
@@ -59,7 +62,10 @@ MOTIF('polytope', (() => {
         const x1 = n[0] * cf + n[2] * sf, z1 = -n[0] * sf + n[2] * cf;
         return [x1, n[1] * ce - z1 * se, n[1] * se + z1 * ce];
       };
-      const front = faces.map(F => rot(F.n)[2] > 0);
+      const front = faces.map(F => {     // perspective test: the eye sits at (0, 0, D) in view space
+        const n = rot(F.n), c = rot(F.c);
+        return n[0] * -c[0] + n[1] * -c[1] + n[2] * (D - c[2]) > 0;
+      });
       const LIGHT = [-0.45, 0.75, 0.5], LN = Math.hypot(...LIGHT);
       const shade = F => { const n = rot(F.n), l = Math.hypot(...n); return Math.max(0, (n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2]) / (l * LN)); };
       const PP = {}; ALL.forEach(s => { PP[s] = view(pos(s)); });
