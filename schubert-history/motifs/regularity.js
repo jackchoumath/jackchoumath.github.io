@@ -1,127 +1,112 @@
 // Motif 'regularity': Pechenik-Speyer-Weigandt, Castelnuovo-Mumford regularity of
 // matrix Schubert varieties: reg(S/I_w) = deg G_w - l(w), and deg G_w = sum of the
 // Rajchgot code of w (the top-degree part of G_w contains x^rajcode(w)).
-// w = 1432, l(w) = 3, Rothe diagram D(w) = {(2,2),(2,3),(3,2)}. Computed in Python
-// from G_{w0} = x1^3 x2^2 x3 with the isobaric operators pi_i f = d_i((1 - x_{i+1}) f):
+// w = 1432, l(w) = 3. Computed in Python (sympy, re-checked for this cut) from
+// G_{w0} = x1^3 x2^2 x3 with the isobaric operators pi_i f = d_i((1 - x_{i+1}) f):
 //   G_1432 = x1^2x2 + x1^2x3 + x1x2^2 + x1x2x3 + x2^2x3          (degree 3 = S_1432)
 //          - x1^2x2^2 - 2x1^2x2x3 - 2x1x2^2x3                    (degree 4)
 //          + x1^2x2^2x3                                           (degree 5)
 // rajcode(1432) = (2,2,1,0) (r_k = (n-k+1) - length of a longest increasing
-// subsequence of w(k..n) starting with w(k); this gives deg G_w for all w in S_3..S_5,
-// checked), sum 5 = deg G_w, and x^(2,2,1,0) is the top term. So the
-// regularity is 5 - 3 = 2: the height of the stack above its Schubert base.
-// Drawn in a 580 x 440 design frame scaled into the box.
+// subsequence of w(k..n) starting with w(k)), sum 5 = deg G_w, and x^(2,2,1,0) is the
+// top term. So the regularity is 5 - 3 = 2: the height of the stack above its
+// Schubert base.
+// Centre-stage cut (2 beats = 0.94 s, the beat at p = 0.5): stripped to the stack. The
+// three degree rows rise (Schubert base ink, the correction terms dim, the single top
+// term amber), the formula drops in above, a ruler beside the stack ticks off degrees
+// 3, 4, 5 and the amber 2 lands by p = 0.44; on the beat, and again at p = 0.78, a light
+// climbs the stack row by row.
 MOTIF('regularity', (() => {
-  const w = [1, 4, 3, 2], n = 4;
-  const winv = []; w.forEach((v, i) => { winv[v] = i + 1; });
-  const D = [];
-  for (let i = 1; i <= n; i++) for (let j = 1; j <= n; j++) if (j < w[i - 1] && i < winv[j]) D.push([i, j]);
-  // G_w by degree, lowest first (the Schubert polynomial is the bottom row)
   const ROWS = [
     ['x_1^2x_2', 'x_1^2x_3', 'x_1x_2^2', 'x_1x_2x_3', 'x_2^2x_3'],
     ['−x_1^2x_2^2', '−2x_1^2x_2x_3', '−2x_1x_2^2x_3'],
     ['x_1^2x_2^2x_3'],
   ];
-  const VW = 580, VH = 440;
-  const FS = 23, BH = 48, ROWGAP = 66, GAP = 7, baseY = 344, cx0 = 356;   // the stack
-  const cs = 36, gx = 14, gy = baseY - ROWGAP - 2 * cs;                       // the Rothe grid
+  const DEG = [3, 4, 5];
   const bump = x => Math.max(0, 1 - Math.abs(x));
 
   return {
     draw(ctx, hot, p, k, env, box) {
       const { C, F, U, rgba, clamp, lerp, ease, seg } = env;
-      const sc = Math.min(box.w / VW, box.h / VH);
-      const ox = box.x + (box.w - VW * sc) / 2, oy = box.y + (box.h - VH * sc) / 2;
-      const drift = 1 + 0.025 * ease.soft(clamp((p - 0.35) / 0.65)) + 0.012 * k;
-      for (const g of [ctx, hot]) {
-        g.save(); g.translate(ox, oy); g.scale(sc, sc);
-        g.translate(VW / 2, VH / 2); g.scale(drift, drift); g.translate(-VW / 2, -VH / 2);
-      }
-      // degree sweeps after the build: the light climbs the stack row by row
-      const sweep = r => [0.48, 0.74].reduce((a, t0) => Math.max(a, bump((p - t0 - r * 0.055) / 0.05)), 0);
+      const meas = (t, z) => U.math(ctx, t, -9999, -9999, z, 'rgba(0,0,0,0)');
+      // Layout in units of FS (the monomial size), measured at 100 px.
+      const Z = 100;
+      const BW = ROWS.map(row => row.map(t => Math.max(2.4, meas(t, Z) / Z + 0.75)));
+      const GAPU = 0.28, BHU = 1.9, PITCH = 2.5;
+      const rowW = BW.map(ws => ws.reduce((a, b) => a + b, 0) + GAPU * (ws.length - 1));
+      const stackW = Math.max(...rowW), RULU = 2.4;                 // ruler + tick labels to the right
+      const FZU = 1.25;
+      ctx.font = `${Z}px ${F.main}`;
+      const wF1 = ctx.measureText('reg = deg ').width / Z, wF2 = meas('\\G_{1432} − \\ell(1432) = ', Z) / Z, wTwo = 0.75;
+      const formW = (wF1 + wF2 + wTwo) * FZU;
+      const totH = FZU * 1.0 + 1.25 + 2 * PITCH + BHU;            // formula, gap, stack
+      const FS = Math.min(box.h * 0.8 / totH, box.w * 0.9 / Math.max(stackW + RULU, formW));
+      const drift = 1 + 0.025 * ease.soft(seg(p, 0.3, 1)) + 0.006 * k;
+      const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
+      for (const g of [ctx, hot]) { g.save(); g.translate(cx, cy); g.scale(drift, drift); g.translate(-cx, -cy); }
+      const top = cy - totH * FS / 2;
+      const fy = top + FZU * FS * 0.78;                             // formula baseline
+      const baseY = top + totH * FS - BHU * FS / 2;                 // centre line of the bottom row
+      const sx = cx - (stackW + RULU) * FS / 2 + stackW * FS / 2;   // stack centre (stack + ruler centred)
+      const lw = clamp(FS * 0.04, 1.4, 2.6), BH = BHU * FS;
+      // the light climbing the stack after the reveal: on the beat (p = 0.5) and at p = 0.78
+      const sweep = r => [0.5, 0.78].reduce((a, t0) => Math.max(a, bump((p - t0 - r * 0.06) / 0.07)), 0);
 
-      // ---------------------------------------------------- Rothe diagram of w
-      const X = j => gx + (j - 0.5) * cs, Y = i => gy + (i - 0.5) * cs;
-      ctx.strokeStyle = rgba(C.faint, seg(p, 0, 0.06, ease.out)); ctx.lineWidth = 1.5; ctx.beginPath();
-      for (let t = 0; t <= n; t++) {
-        ctx.moveTo(gx + t * cs, gy); ctx.lineTo(gx + t * cs, gy + n * cs);
-        ctx.moveTo(gx, gy + t * cs); ctx.lineTo(gx + n * cs, gy + t * cs);
-      }
-      ctx.stroke();
-      for (let i = 1; i <= n; i++) {               // dots and their death rays (right, down)
-        const q = seg(p, 0.01 + (i - 1) * 0.016, 0.08 + (i - 1) * 0.016, ease.out);
-        if (q <= 0) continue;
-        const x = X(w[i - 1]), y = Y(i);
-        U.drawOn(ctx, x, y, gx + n * cs, y, q, rgba(C.cyan, 0.6), 2);
-        U.drawOn(ctx, x, y, x, gy + n * cs, q, rgba(C.cyan, 0.6), 2);
-        U.dot(ctx, x, y, 5.5 * U.pop(q), rgba(C.ink, 1));
-      }
-      D.forEach(([i, j], m) => {                    // the l(w) = 3 boxes of D(w)
-        const q = seg(p, 0.07 + m * 0.02, 0.13 + m * 0.02);
-        if (q <= 0) return;
-        const s2 = U.pop(q) * (cs - 9), cx = X(j), cy = Y(i);
-        ctx.fillStyle = rgba(C.ink, 0.16); ctx.fillRect(cx - s2 / 2, cy - s2 / 2, s2, s2);
-        ctx.strokeStyle = rgba(C.ink, 0.95); ctx.lineWidth = 2; ctx.strokeRect(cx - s2 / 2, cy - s2 / 2, s2, s2);
-        const fl = Math.max(bump((p - 0.07 - m * 0.02 - 0.06) / 0.05), sweep(0));
-        if (fl > 0) { hot.strokeStyle = rgba(C.ink, 0.8 * fl); hot.lineWidth = 3; hot.strokeRect(cx - s2 / 2, cy - s2 / 2, s2, s2); }
-      });
-
-      // ---------------------------------------------------- the stack of G_w
-      const widths = ROWS.map(row => row.map(t => Math.max(58, U.math(ctx, t, -9999, -9999, FS, 'rgba(0,0,0,0)') + 18)));
-      const rowT = [0.1, 0.17, 0.23];               // when each row starts rising
+      // ---------------------------------------------------- the stack of G_w, by degree
+      const rowT = [0.0, 0.07, 0.14];                               // when each row starts rising
       ROWS.forEach((row, r) => {
-        const tot = widths[r].reduce((a, b) => a + b, 0) + GAP * (row.length - 1);
-        let x = cx0 - tot / 2;
-        const top = r === ROWS.length - 1, col = top ? C.amber : r === 0 ? C.ink : C.dim;
+        let x = sx - rowW[r] * FS / 2;
+        const isTop = r === ROWS.length - 1, col = isTop ? C.amber : r === 0 ? C.ink : C.dim;
         row.forEach((t, m) => {
-          const bw = widths[r][m], st = rowT[r] + m * 0.01, bx = x;
-          x += bw + GAP;
-          const q = clamp((p - st) / 0.07);
+          const bw = BW[r][m] * FS, st = rowT[r] + m * 0.018, bx = x;
+          x += bw + GAPU * FS;
+          const q = clamp((p - st) / 0.11);
           if (q <= 0) return;
-          const bob = 1.5 * Math.sin(6.283 * (p * 1.3 + m * 0.17 + r * 0.31)) * clamp((p - 0.35) / 0.1);
-          const y = baseY - r * ROWGAP + (1 - ease.out(q)) * 40 + bob, a = clamp(q * 3);
-          ctx.globalAlpha = a;
-          ctx.fillStyle = rgba(col, top ? 0.16 : 0.08); ctx.fillRect(bx, y - BH / 2, bw, BH);
-          ctx.strokeStyle = rgba(col, 0.95); ctx.lineWidth = top ? 2.5 : 2; ctx.strokeRect(bx, y - BH / 2, bw, BH);
-          ctx.globalAlpha = 1;
-          U.math(ctx, t, bx + bw / 2, y + FS * 0.32, FS, rgba(top ? C.amber : C.ink, 1), 'center', a);
-          const land = bump((q - 0.85) / 0.2) * 0.6, fl = Math.max(land, sweep(r));
-          const glow = top ? clamp(0.45 + 0.55 * (1 - clamp((p - st - 0.05) / 0.15)) + 0.25 * k + fl) : fl;
-          if (glow > 0) {
-            hot.strokeStyle = rgba(top ? C.amber : C.ink, glow * a); hot.lineWidth = 3; hot.strokeRect(bx, y - BH / 2, bw, BH);
-            if (top) U.math(hot, t, bx + bw / 2, y + FS * 0.32, FS, rgba(C.amber, 1), 'center', clamp(glow * 0.8) * a);
+          const bob = FS * 0.04 * Math.sin(6.283 * (p * 1.1 + m * 0.17 + r * 0.31)) * seg(p, 0.3, 0.45);
+          const y = baseY - r * PITCH * FS + (1 - ease.out(q)) * FS * 0.9 + bob, a = clamp(q * 3);
+          const sw = sweep(r);
+          ctx.save(); ctx.globalAlpha = a;
+          ctx.fillStyle = rgba(col, isTop ? 0.16 : 0.07 + 0.08 * sw); ctx.fillRect(bx, y - BH / 2, bw, BH);
+          ctx.strokeStyle = rgba(col, 0.95); ctx.lineWidth = isTop ? lw * 1.1 : lw; ctx.strokeRect(bx, y - BH / 2, bw, BH);
+          ctx.restore();
+          U.math(ctx, t, bx + bw / 2, y + FS * 0.33, FS, rgba(isTop ? C.amber : C.ink, 1), 'center', a);
+          const land = bump((q - 0.85) / 0.2) * 0.6;
+          const glow = isTop ? clamp(0.4 + 0.5 * (1 - clamp((p - st - 0.1) / 0.2)) + 0.25 * k + sw) : Math.max(land, sw);
+          if (glow > 0.01) {
+            hot.strokeStyle = rgba(isTop ? C.amber : C.ink, glow * a * (isTop ? 1 : 0.8)); hot.lineWidth = lw * 1.3;
+            hot.strokeRect(bx, y - BH / 2, bw, BH);
+            if (isTop) U.math(hot, t, bx + bw / 2, y + FS * 0.33, FS, rgba(C.amber, 0.25), 'center', clamp(glow) * a);
           }
         });
       });
 
-      // ---------------------------------------------------- the span = regularity
-      // a ruler beside the stack: one tick per degree 3, 4, 5, i.e. two steps
-      const aq = seg(p, 0.24, 0.33, ease.out);
+      // ---------------------------------------------------- the ruler: degrees 3, 4, 5
+      const aq = seg(p, 0.2, 0.34, ease.out);
       if (aq > 0) {
-        const ax = 556, y0 = baseY, yb = lerp(y0, baseY - 2 * ROWGAP, aq);
-        for (const [g, a, lw] of [[ctx, 1, 2.5], [hot, 0.55 + 0.3 * k + 0.4 * sweep(2), 3]]) {
-          U.line(g, ax, y0, ax, yb, rgba(C.amber, clamp(a)), lw);
-          [0, 1, 2].forEach(r => { const ty = baseY - r * ROWGAP; if (yb <= ty + 0.5) U.line(g, ax - 7, ty, ax + 7, ty, rgba(C.amber, clamp(a)), lw); });
+        const ax = sx + stackW * FS / 2 + 0.75 * FS, y0 = baseY, yb = lerp(y0, baseY - 2 * PITCH * FS, aq);
+        for (const [g, a, w] of [[ctx, 1, lw * 1.1], [hot, 0.4 + 0.3 * k + 0.4 * sweep(2), lw * 1.3]]) {
+          U.line(g, ax, y0, ax, yb, rgba(C.amber, clamp(a)), w);
+          DEG.forEach((_, r) => { const ty = baseY - r * PITCH * FS; if (yb <= ty + 0.5) U.line(g, ax - FS * 0.22, ty, ax + FS * 0.22, ty, rgba(C.amber, clamp(a)), w); });
         }
+        DEG.forEach((dg, r) => {
+          const ty = baseY - r * PITCH * FS, tq = clamp((y0 - yb - r * PITCH * FS) / (FS * 0.6) + 1);
+          if (tq > 0 && (r === 0 || yb <= ty + 0.5)) U.math(ctx, String(dg), ax + FS * 0.5, ty + FS * 0.3, FS * 0.85, rgba(C.dim, 1), 'left', clamp(tq));
+        });
       }
-      // reg = deg G_w - l(w) = 2  ("reg = deg" upright, the rest in math italic)
-      const fq = seg(p, 0.22, 0.32, ease.out);
+
+      // ---------------------------------------------------- reg = deg G_w - l(w) = 2
+      const fq = seg(p, 0.16, 0.28, ease.out);
       if (fq > 0) {
-        // reg(S/I_w) = deg G_w - l(w) (Pechenik-Speyer-Weigandt), spelled out for w = 1432.
-        const FZ = 31, fy = 104 + (1 - fq) * 10;
-        ctx.font = `${FZ}px ${F.main}`;
-        const wd = ctx.measureText('reg = deg ').width;
-        const wm = U.math(ctx, '\\G_{1432} − \\ell(1432) = ', -9999, -9999, FZ, 'rgba(0,0,0,0)');
-        const fx = VW / 2 - (wd + wm + FZ * 0.55) / 2;
-        U.text(ctx, 'reg = deg', fx, fy, `${FZ}px ${F.main}`, rgba(C.ink, 1), 'left', 'alphabetic', fq);
-        U.math(ctx, '\\G_{1432} − \\ell(1432) = ', fx + wd, fy, FZ, rgba(C.ink, 1), 'left', fq);
-        const two = clamp((p - 0.28) / 0.07);
+        const FZ = FZU * FS, y = fy + (1 - fq) * FS * 0.3;
+        const fx = cx - formW * FS / 2;
+        U.text(ctx, 'reg = deg ', fx, y, `${FZ}px ${F.main}`, rgba(C.ink, 1), 'left', 'alphabetic', fq);   // upright operator names
+        U.math(ctx, '\\G_{1432} − \\ell(1432) = ', fx + wF1 * FZ, y, FZ, rgba(C.ink, 1), 'left', fq);
+        const two = seg(p, 0.36, 0.44);
         if (two > 0) {
-          const s2 = lerp(1.7, 1, ease.out(two)) * (1 + 0.05 * k), tx = fx + wd + wm + FZ * 0.3;
-          const glow = 0.45 + 0.55 * (1 - clamp((p - 0.28) / 0.2)) + 0.4 * sweep(2);
-          for (const [g, a] of [[ctx, 1], [hot, clamp(glow)]]) {
-            g.save(); g.translate(tx, fy - FZ * 0.35); g.scale(s2, s2);
-            U.math(g, '2', 0, FZ * 0.35, FZ * 1.15, rgba(C.amber, 1), 'center', a * clamp(two * 3));
+          const s2 = lerp(1.8, 1, ease.out(two)) * (1 + 0.06 * k * seg(p, 0.48, 0.52)), tx = fx + (wF1 + wF2) * FZ + wTwo * FZ * 0.45;
+          const glow = 0.1 + 0.1 * (1 - seg(p, 0.44, 0.7)) + 0.05 * sweep(2);   // big glyph: hot copy <= 0.25
+          for (const [g, a] of [[ctx, 1], [hot, glow]]) {
+            g.save(); g.translate(tx, y - FZ * 0.35); g.scale(s2, s2);
+            U.math(g, '2', 0, FZ * 0.35, FZ * 1.12, rgba(C.amber, a), 'center', clamp(two * 3));
             g.restore();
           }
         }

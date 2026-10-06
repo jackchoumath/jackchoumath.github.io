@@ -29,28 +29,35 @@ MOTIF('jdt', (() => {
     SLIDES.push({ start, moves, exit: [r, c] });
   }
   // Timeline (fractions of p): marker in, moves, exit — per slide.
+  // Built by p = 0.18; four slides of ~0.15 s each; the straight shape's outline
+  // closes on beat 3 of a 4-beat card (p = 0.75), then the tableau settles.
   const PLAN = [
-    { mark: 0.2, moves: [[0.27, 0.37], [0.38, 0.48]], exit: [0.48, 0.56] },
-    { mark: 0.52, moves: [[0.58, 0.68], [0.69, 0.79]], exit: [0.79, 0.87] },
+    { mark: 0.12, moves: [[0.19, 0.27], [0.27, 0.35]], exit: [0.35, 0.42] },
+    { mark: 0.37, moves: [[0.43, 0.51], [0.51, 0.59]], exit: [0.59, 0.66] },
   ];
+  const FIN = [0.6, 0.75];
 
   return {
     draw(ctx, hot, p, k, env, box) {
       const { C, F, U, rgba, clamp, lerp, ease, seg } = env;
-      const s = Math.min(box.w / 5.0, box.h / 4.3);
-      const gx = box.x + box.w / 2 - 1.5 * s, gy = box.y + box.h / 2 - 1.5 * s;
+      const s = Math.min(box.w / 4.2, box.h * 0.84 / 3);
+      // The skew tableau is balanced in its 3x3 frame; the straight shape (3,1,1) leans
+      // up-left, so the frame glides a little down-right while it rectifies.
+      const glide = 0.2 * s * ease.inOut(seg(p, 0.43, 0.75));
+      const gx = box.x + box.w / 2 - 1.5 * s + glide, gy = box.y + box.h / 2 - 1.5 * s + glide;
       const cellXY = ([r, c]) => [gx + c * s, gy + r * s];
-      const pad = 3, lw = 2.5;
+      const pad = Math.max(2, s * 0.02), lw = Math.max(1.5, s * 0.016);
       const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
-      const drift = 1 + 0.03 * ease.soft(clamp((p - 0.25) / 0.75));
+      const land = seg(p, FIN[1], FIN[1] + 0.14);
+      const drift = (1 + 0.03 * ease.soft(clamp((p - 0.25) / 0.75))) * (1 + 0.035 * Math.sin(Math.PI * land) * (1 - land));
       ctx.save(); hot.save();
       for (const g of [ctx, hot]) { g.translate(cx, cy); g.scale(drift, drift); g.translate(-cx, -cy); }
 
       // Dashed inner cells (the removed corner) until a box lands in them.
       const filledAt = {};                              // cell key -> p when a box starts sliding in
       SLIDES.forEach((sl, j) => sl.moves.forEach((m, i) => { filledAt[m.to.join()] = PLAN[j].moves[i][0]; }));
-      const dashA = seg(p, 0.06, 0.2, ease.out);
-      ctx.save(); ctx.setLineDash([5, 6]); ctx.lineWidth = 1.5;
+      const dashA = seg(p, 0.03, 0.14, ease.out);
+      ctx.save(); ctx.setLineDash([s * 0.035, s * 0.04]); ctx.lineWidth = Math.max(1, lw * 0.6);
       for (const cell of INNER) {
         const fa = 1 - seg(p, filledAt[cell.join()], filledAt[cell.join()] + 0.04);
         if (fa <= 0) continue;
@@ -68,12 +75,12 @@ MOTIF('jdt', (() => {
         if (x1 - x0 < 3 || y1 - y0 < 3 || a <= 0.01) return;
         ctx.save(); ctx.globalAlpha = a;
         ctx.fillStyle = rgba(C.amber, 0.15); ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
-        ctx.strokeStyle = rgba(C.amber, 1); ctx.lineWidth = lw; ctx.setLineDash([7, 5]);
+        ctx.strokeStyle = rgba(C.amber, 1); ctx.lineWidth = lw; ctx.setLineDash([s * 0.045, s * 0.03]);
         ctx.strokeRect(x0, y0, x1 - x0, y1 - y0); ctx.setLineDash([]);
         U.dot(ctx, (x0 + x1) / 2, (y0 + y1) / 2, s * 0.07 * frac, rgba(C.amber, 1));
         ctx.restore();
         hot.save(); hot.globalAlpha = a * (0.75 + 0.25 * k);
-        hot.strokeStyle = rgba(C.amber, 0.9); hot.lineWidth = 3; hot.strokeRect(x0, y0, x1 - x0, y1 - y0);
+        hot.strokeStyle = rgba(C.amber, 0.9); hot.lineWidth = lw * 1.2; hot.strokeRect(x0, y0, x1 - x0, y1 - y0);
         U.dot(hot, (x0 + x1) / 2, (y0 + y1) / 2, s * 0.1 * frac, rgba(C.amber, 0.9));
         hot.restore();
       };
@@ -119,7 +126,7 @@ MOTIF('jdt', (() => {
       // Boxes: pop in, then slide.
       const ord = [...tokens].sort((A, B) => A.pos[0] + A.pos[1] - (B.pos[0] + B.pos[1]));
       ord.forEach((tk, n) => {
-        const q = U.stagger(p, n, tokens.length, 0.0, 0.24, 0.45);
+        const q = U.stagger(p, n, tokens.length, 0.0, 0.17, 0.45);
         if (q <= 0) return;
         const sc = U.pop(q) * (1 + 0.06 * tk.moving);
         const [x, y] = cellXY(tk.pos), mx = x + s / 2, my = y + s / 2, h = (s / 2 - pad) * sc;
@@ -129,13 +136,13 @@ MOTIF('jdt', (() => {
         U.text(ctx, String(tk.val), mx, my + s * 0.03, `${Math.round(s * 0.48 * sc)}px ${F.main}`, rgba(C.ink, 1), 'center', 'middle');
         ctx.restore();
         if (tk.moving > 0.02) {
-          hot.save(); hot.globalAlpha = 0.5 * tk.moving; hot.strokeStyle = rgba(C.ink, 0.8); hot.lineWidth = 3;
+          hot.save(); hot.globalAlpha = 0.5 * tk.moving; hot.strokeStyle = rgba(C.ink, 0.8); hot.lineWidth = lw * 1.2;
           hot.strokeRect(mx - h, my - h, 2 * h, 2 * h); hot.restore();
         }
       });
 
       // Straight shape reached: its outline traces in amber.
-      const fin = seg(p, 0.86, 0.98, ease.out);
+      const fin = seg(p, FIN[0], FIN[1], ease.out);
       if (fin > 0) {
         const shape = [];
         Object.keys(T).forEach(key => { const [r, c] = key.split(',').map(Number); shape[r] = Math.max(shape[r] || 0, c + 1); });
@@ -147,7 +154,7 @@ MOTIF('jdt', (() => {
         const lens = P.slice(1).map((q, i) => Math.hypot(q[0] - P[i][0], q[1] - P[i][1]));
         let left = fin * lens.reduce((a, b) => a + b, 0);
         for (const g of [ctx, hot]) {
-          g.save(); g.strokeStyle = rgba(C.amber, g === ctx ? 0.95 : 0.7); g.lineWidth = g === ctx ? 3 : 4;
+          g.save(); g.strokeStyle = rgba(C.amber, g === ctx ? 0.95 : 0.45 + 0.3 * k + 0.25 * Math.sin(Math.PI * land)); g.lineWidth = g === ctx ? lw * 1.2 : lw * 1.6;
           g.lineJoin = 'miter'; g.beginPath(); g.moveTo(...P[0]);
           let rem = left;
           for (let i = 0; i < lens.length && rem > 0; i++) {

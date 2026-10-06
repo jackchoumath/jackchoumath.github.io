@@ -34,7 +34,7 @@ MOTIF('patterns', (() => {
   }
 
   // Layout in units of the lattice spacing s. Wide boxes: badges flank the grid,
-  // verdict above, one-line notation below. Narrow boxes: badges in a row on top.
+  // verdict above, one-line notation below. Narrow boxes: badges in a row at the bottom.
   function layout(box) {
     const sA = Math.min(box.w * 0.96 / 9.5, box.h * 0.95 / 6.15);
     const sB = Math.min(box.w * 0.96 / 6.6, box.h * 0.95 / 8.9);
@@ -48,12 +48,13 @@ MOTIF('patterns', (() => {
         dy: gy + 2.92 * s,                   // one-line notation baseline
       };
     }
-    const s = sB, sb = 0.4 * s, top = cy - 4.3 * s, gy = top + 4.75 * s;
+    // Stacked (finale-wall tiles): verdict on top as in the wide layout, the badges as a
+    // legend row under the notation, so the film's year tag (top left) never meets them.
+    const s = sB, sb = 0.4 * s, top = cy - 4.2 * s, vy = top + 0.36 * s, gy = vy + 2.74 * s, dy = gy + 2.92 * s;
     return {
       s, sb, gx: cx, gy, wide: false,
-      badges: [{ x: cx - 1.35 * s, y: top + 0.8 * s }, { x: cx + 1.35 * s, y: top + 0.8 * s }],
-      vy: gy + 3.75 * s,
-      dy: gy + 2.92 * s,
+      badges: [{ x: cx - 1.35 * s, y: dy + 1.1 * s }, { x: cx + 1.35 * s, y: dy + 1.1 * s }],
+      vy, dy,
     };
   }
 
@@ -101,7 +102,7 @@ MOTIF('patterns', (() => {
       BAD.forEach((pat, bi) => {
         const b = L.badges[bi], q = U.stagger(p, bi, 2, 0.03, 0.17, 0.6);
         if (q <= 0) return;
-        const on = bi === 1 ? act : 0, sc = U.pop(q) * (1 + 0.05 * on * k);
+        const on = bi === 1 ? act : 0, sc = U.pop(q) * (1 + 0.05 * on * k + 0.03 * seg(p, 0.6, 0.7) * k);
         const BX = j => (j - 1.5) * sb, BY = v => -(v - 2.5) * sb;
         const half = 2 * sb, e = 0.42 * sb;
         ctx.save(); ctx.translate(b.x, b.y); ctx.scale(sc, sc); ctx.globalAlpha = clamp(q * 1.5);
@@ -176,12 +177,15 @@ MOTIF('patterns', (() => {
         if (red > 0.01) { hot.save(); hot.strokeStyle = rgba(C.red, 0.4 * red); hot.lineWidth = lw; pl(hot); hot.stroke(); hot.restore(); }
       }
 
-      // ---- scan over the smooth permutation (keeps the last beats alive)
-      const scan = seg(p, 0.6, 0.97, ease.inOut);
-      const scanX = lerp(X(0) - 0.7 * s, X(n - 1) + 0.7 * s, scan);
-      const scanA = seg(p, 0.6, 0.66) * (1 - seg(p, 0.9, 0.97));
+      // ---- scan over the smooth permutation (keeps the last beats alive): a cyan line with a
+      // trailing band sweeps the lattice, left edge to right edge, ringing each dot it
+      // passes; it stays inside the lattice (clipped) and fades out at the right edge.
+      const scan = seg(p, 0.6, 0.95, ease.inOut);
+      const sx0 = X(0) - ext, sx1 = X(n - 1) + ext;
+      const scanX = lerp(sx0, sx1, scan);
+      const scanA = seg(p, 0.6, 0.65) * (1 - seg(p, 0.86, 0.95));
       if (scanA > 0.01) {
-        ctx.save();
+        ctx.save(); ctx.beginPath(); ctx.rect(sx0, Y(n) - ext, sx1 - sx0, Y(1) - Y(n) + 2 * ext); ctx.clip();
         const gr = ctx.createLinearGradient(scanX - 0.6 * s, 0, scanX, 0);
         gr.addColorStop(0, rgba(C.cyan, 0)); gr.addColorStop(1, rgba(C.cyan, 0.07 * scanA));
         ctx.fillStyle = gr; ctx.fillRect(scanX - 0.6 * s, Y(n) - ext, 0.6 * s, Y(1) - Y(n) + 2 * ext);
@@ -225,10 +229,14 @@ MOTIF('patterns', (() => {
         const x = X(i), y = L.dy;
         const col = (inOcc(i) && red > 0.5) ? rgba(C.red, 1) : rgba(C.ink, 0.95);
         if (MOVED.includes(i) && mq > 0) {
-          const dir = Math.sign(V[i] - W[i]);   // the digit rolls the way its dot moves
-          ctx.save(); ctx.beginPath(); ctx.rect(x - 0.45 * s, y - 1.0 * fd, 0.9 * s, 1.25 * fd); ctx.clip();
-          U.text(ctx, String(W[i]), x, y - dir * mq * 0.8 * fd, `${fd}px ${F.main}`, col, 'center', 'alphabetic', q * (1 - mq));
-          U.text(ctx, String(V[i]), x, y + dir * (1 - mq) * 0.8 * fd, `${fd}px ${F.main}`, rgba(C.ink, 0.95), 'center', 'alphabetic', q * mq);
+          // Odometer: a window one digit tall; the old digit rolls fully out the way its
+          // dot moves while the new one rolls in, then the new digit cools amber -> ink.
+          const dir = Math.sign(V[i] - W[i]), T = 0.92 * fd;
+          const cool = seg(p, MORPH[1], MORPH[1] + 0.16, ease.out);
+          const inCol = rgba(C.amber.map((a, j) => Math.round(lerp(a, C.ink[j], cool))), 0.95);
+          ctx.save(); ctx.beginPath(); ctx.rect(x - 0.45 * s, y - 0.86 * fd, 0.9 * s, 1.04 * fd); ctx.clip();
+          if (mq < 1) U.text(ctx, String(W[i]), x, y - dir * mq * T, `${fd}px ${F.main}`, col, 'center', 'alphabetic', q * (1 - 0.5 * mq));
+          U.text(ctx, String(V[i]), x, y + dir * (1 - mq) * T, `${fd}px ${F.main}`, inCol, 'center', 'alphabetic', q * (0.5 + 0.5 * mq));
           ctx.restore();
         } else {
           U.text(ctx, String(W[i]), x, y, `${fd}px ${F.main}`, col, 'center', 'alphabetic', q);

@@ -17,6 +17,13 @@
 // Lattice (i,j) -> i*e1 + j*e2; H(i,j): (i,j)-(i+1,j), A(i,j): (i,j)-(i,j+1),
 // B(i,j): (i+1,j)-(i,j+1). Up cell U(i,j) has edges A(i,j), B(i,j), H(i,j);
 // down cell D(i,j) has edges H(i,j+1), A(i+1,j), B(i,j).
+// Re-checked for this cut by an independent enumerator: with this piece set the
+// puzzle counts for u = v = 1201 and all 12 words w of that content equal the
+// coefficients of S_2143^2 (c = 1 for w = 0121 -> 3241 and w = 1012 -> 4132, else 0),
+// and the drawn filling is the unique puzzle for w = 0121.
+// Centre-stage cut (4 beats = 1.875 s): the triangle and its boundary labels are
+// centred as one block (~86% of the stage height); the pieces land by p = 0.3, one
+// flash, then two diagonal sweeps whose fronts cross the board on beats 2 and 3.
 (function () {
   const N = 4, SQ = Math.sqrt(3) / 2;
   const NW = '1201', NE = '1201', SO = '0121';
@@ -55,9 +62,11 @@
     draw(ctx, hot, p, k, env, box) {
       const { C, F, U, rgba, clamp, lerp, ease } = env;
       const COL = { 0: C.ink, 1: C.amber, 2: C.cyan };
-      const side = Math.min(box.h * 0.78 / SQ, box.w * 0.8);
-      const s = side / N;
-      const x0 = box.x + box.w / 2 - side / 2, y0 = box.y + box.h / 2 + side * SQ / 2 - side * 0.02;
+      // Composition in lattice units, labels included: x in [-0.2, N + 0.2], y in [-0.52, N SQ].
+      // It fills ~86% of the stage height and is centred as a whole (the bottom labels count).
+      const s = Math.min(box.h * 0.86 / (N * SQ + 0.52), box.w * 0.9 / (N + 0.4));
+      const side = N * s;
+      const x0 = box.x + box.w / 2 - side / 2, y0 = box.y + box.h / 2 + s * (N * SQ - 0.52) / 2;
       const P = q => [x0 + q[0] * s, y0 - q[1] * s];
       const lw = Math.max(1.6, Math.min(3, s * 0.026));
       const gap = s * 0.045;
@@ -121,7 +130,7 @@
       });
 
       // ---- pieces fly in from outside, outer ring first
-      const T0 = 0.06, T1 = 0.25, FLY = 0.1;
+      const T0 = 0.05, T1 = 0.2, FLY = 0.1;
       cells.forEach(c => {
         const st0 = T0 + (T1 - T0) * c.rank / (cells.length - 1);
         const q = clamp((p - st0) / FLY);
@@ -142,7 +151,7 @@
       if (burst > 0) cells.forEach(c => { poly(hot, shape(c, {})); hot.fillStyle = rgba(c.kind === 'x' ? C.violet : COL[c.kind], 0.3 * burst); hot.fill(); });
 
       // ---- after assembly: composite edges light up in a travelling pulse
-      const lit = clamp((p - 0.36) / 0.08);
+      const lit = clamp((p - 0.33) / 0.08);
       if (lit > 0) {
         cells.forEach(c => {
           const q = shape(c, {});
@@ -155,7 +164,8 @@
         });
       }
       // ---- two diagonal sweeps: each piece's outline lights up in its own labels
-      [[0.5, 0.72], [0.78, 1.0]].forEach(([a0, a1], si) => {
+      // (each front crosses the middle of the board on a beat: p = 0.5 and 0.75 of a 4-beat card)
+      [[0.38, 0.62], [0.63, 0.87]].forEach(([a0, a1], si) => {
         const q = clamp((p - a0) / (a1 - a0));
         if (q <= 0 || q >= 1) return;
         const front = lerp(-0.6, N + 0.6, ease.inOut(q));

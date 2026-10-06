@@ -11,6 +11,13 @@
 // it is {a in 3*Delta_3 : a_i <= 2, a_4 <= 1}. Its lattice points are exactly the 13
 // exponents (saturation); the other 7 points of the simplex stay dark.
 // The point (1,1,1,0) carries coefficient 2 (double ring).
+// Re-checked for this cut: S_12543 by divided differences (sympy), hull by scipy
+// (9 vertices, 8 facets, 15 edges, every edge a multiple of some e_i - e_j, 13
+// lattice points = the 13 exponents).
+// Centre-stage cut (4 beats = 1.875 s): the simplex is centred; the caption
+// S_12543 / "n monomials" hangs just left of it and counts up with the dots to 13
+// (amber); after the build a slow push-in, and the two layers a4 = 0, 1 light on
+// beats 2 and 3.
 MOTIF('polytope', (() => {
   const TERMS = '0021 0111 0120 0201 0210 1011 1020 1101 1110 1200 2001 2010 2100'.split(' ');
   const FACES = [['2001', '0021', '0201'], ['0120', '0021', '1020'], ['0210', '1200', '0201'], ['2010', '2001', '2100'],
@@ -50,9 +57,20 @@ MOTIF('polytope', (() => {
       // edge-on views (phi = 0.28, 1.83, 2.38, ...: a face collapses to a line).
       const phi = 0.2 + 1.0 * ease.out(clamp(p / 0.4)) + 0.4 * p, el = 0.62;
       const cf = Math.cos(phi), sf = Math.sin(phi), ce = Math.cos(el), se = Math.sin(el);
-      // the simplex projects into |x| <= 0.983, |y| <= 0.748 for every rotation (checked numerically)
-      const S = Math.min(box.w / 1.966, box.h / 1.496) * 0.9 * (1 + 0.012 * k), D = 6;
-      const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
+      // the simplex projects into |x| <= 0.983, -0.748 <= y <= 0.742 for every rotation (checked
+      // numerically); it is centred on the stage. The caption (S_12543 over "13 monomials") hangs
+      // just left of it, level with the top face, or in the lower-left corner of a narrow box.
+      const { F } = env;
+      const S0 = Math.min(box.w * 0.92 / 1.966, box.h * 0.87 / 1.49);
+      const S = S0 * (1 + 0.06 * ease.soft(seg(p, 0.3, 1)) + 0.006 * k), D = 6;   // slow push-in after the build
+      const rDot = clamp(S0 * 0.016, 2, 6.5), rOff = clamp(S0 * 0.008, 1.2, 3.2);   // sizes follow the drawing
+      const lwF = clamp(S0 * 0.0068, 1.2, 2.8), lwT = clamp(S0 * 0.0037, 1, 1.5);
+      const cx = box.x + box.w / 2, cy = box.y + box.h / 2 + 0.003 * S0;
+      const fz = Math.max(9, Math.min(box.h * 0.085, box.w * 0.048));
+      const labW = Math.max(U.math(ctx, '\\S_{12543}', -9999, -9999, fz, 'rgba(0,0,0,0)'), fz * 3.3);
+      const side = cx - 0.86 * S0 - fz * 0.4 - labW >= box.x + fz * 0.3;
+      const rx = side ? cx - 0.86 * S0 - fz * 0.4 : box.x + fz * 0.3 + labW;
+      const ly = side ? cy - 0.28 * S0 : box.y + box.h - fz * 1.6;
       const view = q => {                  // rotate about the vertical axis, tilt, perspective
         const x1 = q[0] * cf + q[2] * sf, z1 = -q[0] * sf + q[2] * cf;
         const y2 = q[1] * ce - z1 * se, z2 = q[1] * se + z1 * ce, f = D / (D - z2);
@@ -73,27 +91,27 @@ MOTIF('polytope', (() => {
       // the simplex 3*Delta_3 and its 20 lattice points, faint
       TET.forEach(([i, j], m) => {
         const a = view(V[i]), b = view(V[j]);
-        U.drawOn(ctx, a[0], a[1], b[0], b[1], seg(p, 0.01 * m, 0.1 + 0.01 * m, ease.out), rgba(C.dim, 0.32), 1.5);
+        U.drawOn(ctx, a[0], a[1], b[0], b[1], seg(p, 0.01 * m, 0.1 + 0.01 * m, ease.out), rgba(C.dim, 0.32), lwT);
       });
-      OFF.forEach((s, m) => U.dot(ctx, PP[s][0], PP[s][1], 3.2 * U.pop(seg(p, 0.04 + 0.01 * m, 0.12 + 0.01 * m)), rgba(C.dim, 0.75)));
+      OFF.forEach((s, m) => U.dot(ctx, PP[s][0], PP[s][1], rOff * U.pop(seg(p, 0.04 + 0.01 * m, 0.12 + 0.01 * m)), rgba(C.dim, 0.75)));
 
       // polytope edges draw on, back ones dim
       const eq = e => seg(p, 0.06 + 0.012 * edges.indexOf(e), 0.15 + 0.012 * edges.indexOf(e), ease.out);
       const isFront = e => e.faces.some(fi => front[fi]);
-      edges.forEach(e => { if (!isFront(e)) { const a = PP[e.a], b = PP[e.b]; U.drawOn(ctx, a[0], a[1], b[0], b[1], eq(e), rgba(C.ink, 0.16), 1.5); } });
+      edges.forEach(e => { if (!isFront(e)) { const a = PP[e.a], b = PP[e.b]; U.drawOn(ctx, a[0], a[1], b[0], b[1], eq(e), rgba(C.ink, 0.16), lwT); } });
 
       // lattice points = monomials; those on back faces only go under the front faces
       const onFront = s => { const q = pos(s); return faces.some((F, fi) => front[fi] && Math.abs(F.n.reduce((acc, x, d) => acc + x * (q[d] - F.c[d]), 0)) < 1e-9); };
-      const scan = [0.5, 0.78];            // after the build: light the two layers a4 = 0, 1
+      const scan = [0.5, 0.75];            // after the build, on beats 2 and 3: light the layers a4 = 0, 1
       const dotsOf = layer => PTS.forEach((s, m) => {
         if (onFront(s) !== layer) return;
         const q = seg(p, 0.13 + 0.012 * m, 0.21 + 0.012 * m);
         if (q <= 0) return;
-        const [x, y] = PP[s], r = (layer ? 6.5 : 5) * U.pop(q);
+        const [x, y] = PP[s], r = (layer ? rDot : rDot * 0.77) * U.pop(q);
         const lit = scan.reduce((acc, t0) => Math.max(acc, 1 - Math.abs(p - t0 - 0.07 * +s[3]) / 0.06), 0);
         U.dot(ctx, x, y, r, rgba(C.amber, layer ? 1 : 0.6));
         U.dot(hot, x, y, r * (1.1 + 0.5 * clamp(lit)), rgba(C.amber, clamp(0.55 + 0.45 * clamp(lit) + 0.2 * k) * (layer ? 1 : 0.6)));
-        if (s === '1110') { U.ring(ctx, x, y, r + 5, rgba(C.amber, 0.8 * q), 2); U.ring(hot, x, y, r + 5, rgba(C.amber, 0.5 * q), 2); }
+        if (s === '1110') { U.ring(ctx, x, y, r + rDot * 0.8, rgba(C.amber, 0.8 * q), lwT * 1.3); U.ring(hot, x, y, r + rDot * 0.8, rgba(C.amber, 0.5 * q), lwT * 1.3); }
       });
       dotsOf(false);
 
@@ -104,11 +122,18 @@ MOTIF('polytope', (() => {
         ctx.beginPath(); F.f.forEach((s, m) => (m ? ctx.lineTo(PP[s][0], PP[s][1]) : ctx.moveTo(PP[s][0], PP[s][1]))); ctx.closePath();
         ctx.fillStyle = rgba(C.amber, (0.06 + 0.2 * shade(F)) * fq); ctx.fill();
       });
-      edges.forEach(e => { if (isFront(e)) { const a = PP[e.a], b = PP[e.b]; U.drawOn(ctx, a[0], a[1], b[0], b[1], eq(e), rgba(C.ink, 0.95), 2.5); } });
+      edges.forEach(e => { if (isFront(e)) { const a = PP[e.a], b = PP[e.b]; U.drawOn(ctx, a[0], a[1], b[0], b[1], eq(e), rgba(C.ink, 0.95), lwF); } });
       dotsOf(true);
 
-      // label, bottom left: the simplex never reaches that corner
-      U.math(ctx, '\\S_{12543}', box.x + box.w * 0.04, box.y + box.h * 0.1, Math.round(Math.min(box.w, box.h) * 0.075), rgba(C.ink, 0.9), 'left', seg(p, 0.26, 0.36));
+      // caption: the polynomial, and a count that ticks up with the dots and lands on the 13th
+      const lq = seg(p, 0.16, 0.28, ease.out);
+      if (lq > 0) {
+        U.math(ctx, '\\S_{12543}', rx, ly + fz * 0.3 + (1 - lq) * fz * 0.25, fz, rgba(C.ink, 0.95), 'right', lq);
+        const n = PTS.filter((_, m) => p >= 0.13 + 0.012 * m + 0.03).length;
+        const done = n === PTS.length, pop = done ? Math.exp(-Math.max(0, p - 0.34) * 9) : 0;
+        const z = Math.round(fz * 0.5 * (1 + 0.15 * pop));
+        if (z >= 11) U.text(ctx, `${n} monomial${n === 1 ? "" : "s"}`, rx, ly + fz * 1.25, `${z}px ${F.main}`, rgba(done ? C.amber : C.dim, 1), 'right', 'alphabetic', lq);
+      }
     },
   };
 })());

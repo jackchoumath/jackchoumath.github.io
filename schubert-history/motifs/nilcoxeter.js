@@ -78,13 +78,13 @@ MOTIF('nilcoxeter', (() => {
 
   return {
     draw(ctx, hot, p, k, env, box) {
-      const { C, F, U, rgba, clamp, lerp, ease, seg } = env;
+      const { C, U, rgba, clamp, lerp, ease, seg } = env;
       const mix = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
 
       // ---------------------------------------------------------------- sizes (units of fz)
-      const PS = 0.80, QS = 0.76, LS = 0.36;              // product, coefficient, label sizes
+      const PS = 0.80, QS = 0.76, LS = 0.44;              // product, coefficient, label sizes
       const DW = 3.3, GS = 0.58;                           // diagram width, strand spacing
-      const ROW0 = 1.62, PITCH = 1.78;                     // product baseline -> row centres
+      const ROW0 = 1.7, PITCH = 1.9;                     // product baseline -> row centres
       const mw = (s, sz) => U.math(ctx, s, -99999, -99999, sz, 'rgba(0,0,0,0)');
       const pieceGap = (a, b) => (a === '+' || b === '+' ? 0.2 : 0.02);
       const piecesW = (arr, sz) => arr.reduce((acc, s, i) => acc + mw(s, sz) + (i ? pieceGap(arr[i - 1], s) * sz : 0), 0);
@@ -108,7 +108,7 @@ MOTIF('nilcoxeter', (() => {
       const tx0 = cx - termsW * fz / 2;                     // left of the terms block
       const colX = [tx0 + leadW[0] * fz, tx0 + (leadW[0] + CG + DW + SG + leadW[1]) * fz];   // right edges of coefficient columns
       const rowY = r => oy + (ROW0 + r * PITCH) * fz;
-      const slotPos = i => ({ r: Math.floor(i / 2), c: i % 2 });
+      const slotPos = i => ({ r: Math.floor(i / 2) });   // slots fill a 3 x 2 grid
       // diagram origin for slot i (left end, middle strand)
       const diagX = i => colX[i % 2] + CG * fz;
 
@@ -130,7 +130,7 @@ MOTIF('nilcoxeter', (() => {
       const x1lit = Math.sin(Math.PI * seg(p, 0.75, 0.93)) * (p > 0.75 ? 1 : 0);
       lit[0] = Math.max(lit[0], 0.85 * x1lit);
       // top term: braid 212 -> 121 -> 212
-      const yb = ease.inOut(seg(p, 0.54, 0.67)) - ease.inOut(seg(p, 0.84, 0.97));
+      const yb = ease.inOut(seg(p, 0.5625, 0.69)) - ease.inOut(seg(p, 0.86, 0.98));
       const topOn = p >= EVENTS[7].t;
       if (topOn) { const f = Math.exp(-(p - 0.5) / 0.08) * 0.9; for (let c = 0; c < 3; c++) lit[c] = Math.max(lit[c], f); }
       if (yb > 0.02 && yb < 0.98) for (let c = 0; c < 3; c++) lit[c] = Math.max(lit[c], 0.35 * Math.sin(Math.PI * yb));
@@ -207,6 +207,7 @@ MOTIF('nilcoxeter', (() => {
 
       // faint gate guides: the three columns = the three factors of the product
       const guides = (x0, ym, a) => {
+        a *= clamp((fz - 16) / 14);
         if (a <= 0.01) return;
         ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = rgba(C.faint, 1); ctx.lineWidth = Math.max(1, lw * 0.6);
         ctx.setLineDash([Math.max(2, gS * 0.1), Math.max(2, gS * 0.12)]);
@@ -221,11 +222,15 @@ MOTIF('nilcoxeter', (() => {
       const slotStart = SLOTS.map((_, i) => Math.min(...EVENTS.filter(e => e.slot === i).map(e => e.t)));
       const mergeM = ease.inOut(seg(p, EVENTS[3].t, EVENTS[3].t + 0.035));
       const curCoefW = i => (i === 2 ? lerp(mw('x_1', sz), coefW[2] * fz, mergeM) : coefW[i] * fz);
-      // each term's sign floats just left of its coefficient (the diagrams stay on a grid)
+      // each term's sign floats just left of its coefficient (the diagrams stay on a grid);
+      // it pops with the slot's first term (same centre and scale), so it never floats detached
       SLOTS.forEach((_, i) => {
-        const a = ease.out(popOf(slotStart[i])), xr = diagX(i) - CG * fz;
+        const q = popOf(slotStart[i]), a = ease.out(q), xr = diagX(i) - CG * fz;
         if (a <= 0) return;
-        U.math(ctx, i === 0 ? '=' : '+', xr - curCoefW(i) - SG * fz, rowY(slotPos(i).r) + sz * 0.27, sz, rgba(ink, 0.7), 'right', a);
+        const ym = rowY(slotPos(i).r), sc = U.pop(q), pcx = (xr - coefW[i] * fz * 0.5 + diagX(i) + dW) / 2;
+        ctx.save(); ctx.translate(pcx, ym); ctx.scale(sc, sc); ctx.translate(-pcx, -ym);
+        U.math(ctx, i === 0 ? '=' : '+', xr - curCoefW(i) - SG * fz, ym + sz * 0.27, sz, rgba(ink, 0.7), 'right', a);
+        ctx.restore();
       });
 
       // ---------------------------------------------------------------- terms
@@ -239,11 +244,12 @@ MOTIF('nilcoxeter', (() => {
           x += mw(pc, s);
         });
       };
+      // Schubert labels (dropped when the box is too small for them to be legible)
+      const labVis = clamp((fz - 28) / 14);
       const lab = SLOTS.map((_, i) => ease.out(seg(p, 0.56 + 0.025 * i, 0.66 + 0.025 * i)));
       SLOTS.forEach((S, i) => {
         const { r } = slotPos(i), ym = rowY(r), xd = diagX(i), xr = xd - CG * fz;
-        const evs = EVENTS.filter(e => e.slot === i && !e.dead);
-        const first = evs[0], q = popOf(first.t);
+        const first = EVENTS.find(e => e.slot === i && !e.dead), q = popOf(first.t);
         if (q <= 0) return;
         const top = !!first.top, sc = U.pop(q) * (top ? 1 + 0.035 * k : 1);
         const fresh = Math.exp(-(p - first.t) / 0.06);
@@ -261,10 +267,14 @@ MOTIF('nilcoxeter', (() => {
         for (const g of [ctx, hot]) { g.save(); g.translate(pcx, ym); g.scale(sc, sc); g.translate(-pcx, -ym); }
         guides(xd, ym, clamp(q * 2.5));
         diagram(ctx, xd, ym, X, { q: ease.out(clamp(q * 1.6)), color: rgba(wc, top ? 1 : 0.92), alpha: clamp(q * 2.5) });
-        if (top) diagram(hot, xd, ym, X, { q: ease.out(clamp(q * 1.6)), color: rgba(C.amber, 0.5 + 0.2 * k), alpha: 1, dots: false });
+        if (top) {
+          diagram(hot, xd, ym, X, { q: ease.out(clamp(q * 1.6)), color: rgba(C.amber, 0.5 + 0.2 * k), alpha: 1, dots: false });
+          // the Yang–Baxter triple point glows as the three crossings pass through it
+          const tp = Math.pow(Math.sin(Math.PI * clamp(yb)), 4);
+          if (tp > 0.02) U.ring(hot, xd + colAt(1), ym, gS * 0.62, rgba(C.amber, 0.55 * tp), lw);
+        }
         // coefficient
-        let cols = S.coef.map(() => rgba(top ? C.amber : mix(ink, cyan, 0.7 * fresh), 1));
-        let pieces = S.coef, xr2 = xr;
+        const cols = S.coef.map(() => rgba(top ? C.amber : mix(ink, cyan, 0.7 * fresh), 1));
         if (i === 2) {
           // x1 alone until x2 arrives, then (x1 + x2); x1/x2 light with the sliding crossing
           const t3 = EVENTS[3].t;
@@ -279,29 +289,29 @@ MOTIF('nilcoxeter', (() => {
             S.coef.forEach((pc, j) => {
               if (j) x += pieceGap(S.coef[j - 1], pc) * sz;
               if (j !== 1) {
-                const dx = j === 3 ? (1 - m2) * sz * 0.6 : 0, dy = j === 3 ? 0 : 0;
-                U.math(ctx, pc, x + dx, ym + sz * 0.27 + dy, sz, rgba(j === 3 ? c2 : j === 2 ? ink : C.dim, j === 2 ? 0.8 : 1), 'left', m2);
+                const dx = j === 3 ? (1 - m2) * sz * 0.6 : 0;   // x2 slides in from the right
+                U.math(ctx, pc, x + dx, ym + sz * 0.27, sz, rgba(j === 3 ? c2 : j === 2 ? ink : C.dim, j === 2 ? 0.8 : 1), 'left', m2);
               }
               x += mw(pc, sz);
             });
           }
         } else {
-          drawCoef(ctx, pieces, xr2, ym + sz * 0.27, cols, 1);
-          if (top) drawCoef(hot, pieces, xr2, ym + sz * 0.27, pieces.map(() => rgba(C.amber, 0.2 + 0.08 * k)), 1);
+          drawCoef(ctx, S.coef, xr, ym + sz * 0.27, cols, 1);
+          if (top) drawCoef(hot, S.coef, xr, ym + sz * 0.27, S.coef.map(() => rgba(C.amber, 0.17 + 0.07 * k)), 1);
         }
         for (const g of [ctx, hot]) g.restore();
         // Schubert polynomial label above the coefficient
-        if (lab[i] > 0) {
+        if (lab[i] * labVis > 0.01) {
           const ls = LS * fz, wcoef = coefW[i] * fz;
-          U.math(ctx, `\\S_{${S.w}}`, xr - wcoef / 2, ym - 0.72 * fz - (1 - lab[i]) * ls * 0.4, ls,
-            rgba(top ? C.amber : C.dim, top ? 0.9 : 1), 'center', lab[i]);
+          U.math(ctx, `\\S_{${S.w}}`, xr - wcoef / 2, ym - 0.74 * fz - (1 - lab[i]) * ls * 0.4, ls,
+            rgba(top ? C.amber : C.dim, top ? 0.9 : 1), 'center', lab[i] * labVis);
         }
       });
 
       // ---------------------------------------------------------------- the dead term u2 u2 = 0
       {
         const e = EVENTS[5], i = e.slot, ym = rowY(slotPos(i).r), xd = diagX(i), xr = xd - CG * fz;
-        const q = popOf(e.t), red = seg(p, e.t + 0.06, e.t + 0.1), die = ease.in(seg(p, e.t + 0.1, e.t + 0.14));
+        const q = popOf(e.t), red = seg(p, e.t + 0.04, e.t + 0.068), die = ease.in(seg(p, e.t + 0.068, e.t + 0.1));
         if (q > 0 && die < 1) {
           const sc = U.pop(q), syc = 1 - die;
           const col = mix(mix(ink, cyan, 0.6 * Math.exp(-(p - e.t) / 0.06)), C.red, red);
@@ -320,9 +330,10 @@ MOTIF('nilcoxeter', (() => {
           }
         }
         // the red zero
-        const z = seg(p, e.t + 0.12, e.t + 0.16), zf = 1 - seg(p, 0.47, 0.5);
+        // ... holds until the downbeat at p = .5, where the amber top term replaces it
+        const z = seg(p, e.t + 0.082, e.t + 0.115), zf = 1 - seg(p, 0.49, 0.508);
         if (z > 0 && zf > 0) {
-          const zs = sz * 1.15 * U.pop(z);
+          const zs = sz * 1.15 * U.pop(z) * (1 - 0.35 * (1 - zf));
           const zx = (xr + xd + dW) / 2 - fz * 0.4;
           U.math(ctx, '0', zx, ym + zs * 0.35, zs, rgba(C.red, 1), 'center', zf * clamp(z * 2));
           U.math(hot, '0', zx, ym + zs * 0.35, zs, rgba(C.red, 0.22), 'center', zf * clamp(z * 2));

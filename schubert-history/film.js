@@ -651,7 +651,8 @@
       hot.fillStyle = rgba(C.amber, 0.9); hot.fillRect(W / 2 - w / 2, H / 2 - 1.5, w, 3);
       scene.fillStyle = rgba(C.amberHot, 1); scene.fillRect(W / 2 - w / 2, H / 2 - 1, w, 2);
     } else {
-      const R0 = 300, pts = [0, 1, 2].map(k => [CX + R0 * Math.cos(-Math.PI / 2 + k * 2 * Math.PI / 3), CY + 30 + R0 * Math.sin(-Math.PI / 2 + k * 2 * Math.PI / 3)]);
+      // Same centre and size as the puzzle hero's opening outline, so the light hands straight over to it.
+      const R0 = 255, pts = [0, 1, 2].map(k => [CX + R0 * Math.cos(-Math.PI / 2 + k * 2 * Math.PI / 3), CY + R0 * Math.sin(-Math.PI / 2 + k * 2 * Math.PI / 3)]);
       const total = easeIn(q) * 3;
       for (const [g2, col, lw] of [[hot, rgba(C.cyan, 0.9), 4], [scene, rgba(C.ink, 1), 2]]) {
         g2.strokeStyle = col; g2.lineWidth = lw; g2.beginPath(); g2.moveTo(...pts[0]);

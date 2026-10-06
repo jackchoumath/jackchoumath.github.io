@@ -12,6 +12,11 @@
 //   droop (1,2)->(2,3)      {(1,1),(1,2),(2,1)}     x1^2 x2
 // Each droop: the ┌ at the NW corner of a rectangle with no other elbows slides
 // to the blank SE corner (which becomes ┘). Both droops checked against the list.
+// Re-checked for this cut: S_1432 = x1^2x2 + x1^2x3 + x1x2^2 + x1x2x3 + x2^2x3 (sympy),
+// and the three weights shown are terms of it.
+// Centre-stage cut (2 beats = 0.94 s): built by p = 0.2, first droop lands just before
+// the beat (p = 0.5), the second by p = 0.78; composition (grid, pipe ends, entry dots)
+// centred at ~88% of the stage height.
 MOTIF('bpd', (() => {
   const n = 4;
   // Fixed pipes [entry column, exit row]: each goes straight up, then east.
@@ -75,16 +80,21 @@ MOTIF('bpd', (() => {
   return {
     draw(ctx, hot, p, k, env, box) {
       const { C, U, rgba, clamp, ease, seg, lerp } = env;
-      const s = Math.min(box.w * 0.62, box.h * 0.8) / n;
-      const gx = box.x + (box.w - n * s) / 2, gy = box.y + (box.h - n * s) / 2 - s * 0.05;
+      // The composition (grid, pipe ends 0.2 s to the right, entry dots 0.2 s below) fills
+      // ~88% of the stage height and is centred as a whole.
+      const s = Math.min(box.w * 0.66 / 4.2, box.h * 0.88 / 4.25) * (1 + 0.025 * ease.soft(seg(p, 0.2, 1)));
+      const gx = box.x + box.w / 2 - 2.1 * s, gy = box.y + box.h / 2 - 2.12 * s;
       const X = j => gx + (j - 0.5) * s, Y = i => gy + (i - 0.5) * s;
       const bot = gy + n * s + s * 0.2, right = gx + n * s + s * 0.2;
-      const build = seg(p, 0, 0.26, ease.out);
-      const d1 = seg(p, 0.3, 0.56, ease.inOut), d2 = seg(p, 0.64, 0.9, ease.inOut);
+      // 2-beat card (0.94 s): built by p = 0.2, first droop lands just before the beat at
+      // p = 0.5, the second by p = 0.78; the last fifth holds the final diagram, glowing.
+      const build = seg(p, 0, 0.2, ease.out);
+      const d1 = seg(p, 0.21, 0.44, ease.inOut), d2 = seg(p, 0.55, 0.78, ease.inOut);
       const stage = d2 > 0.5 ? 2 : d1 > 0.5 ? 1 : 0;
 
       // Grid.
-      ctx.strokeStyle = rgba(C.faint, 0.95 * clamp(build * 3)); ctx.lineWidth = 1.5; ctx.beginPath();
+      const lw = clamp(s * 0.022, 1.5, 3);
+      ctx.strokeStyle = rgba(C.faint, 0.95 * clamp(build * 3)); ctx.lineWidth = clamp(s * 0.011, 1, 1.6); ctx.beginPath();
       for (let t = 0; t <= n; t++) {
         ctx.moveTo(gx + t * s, gy); ctx.lineTo(gx + t * s, gy + n * s);
         ctx.moveTo(gx, gy + t * s); ctx.lineTo(gx + n * s, gy + t * s);
@@ -104,13 +114,12 @@ MOTIF('bpd', (() => {
         const f = a > 0 && a < 1 ? 1 - seg(a, 0.6, 1) : 0;          // a new blank flashes amber
         const col = C.cyan.map((v, m) => Math.round(lerp(v, C.amber[m], f)));
         ctx.fillStyle = rgba(col, 0.13 * al); ctx.fillRect(X(j) - g, Y(i) - g, 2 * g, 2 * g);
-        ctx.strokeStyle = rgba(col, 0.75 * al); ctx.lineWidth = 1.6; ctx.strokeRect(X(j) - g, Y(i) - g, 2 * g, 2 * g);
-        if (f > 0) { hot.strokeStyle = rgba(C.amber, 0.6 * f); hot.lineWidth = 2; hot.strokeRect(X(j) - g, Y(i) - g, 2 * g, 2 * g); }
+        ctx.strokeStyle = rgba(col, 0.8 * al); ctx.lineWidth = lw * 0.6; ctx.strokeRect(X(j) - g, Y(i) - g, 2 * g, 2 * g);
+        if (f > 0) { hot.strokeStyle = rgba(C.amber, 0.6 * f); hot.lineWidth = lw * 0.7; hot.strokeRect(X(j) - g, Y(i) - g, 2 * g, 2 * g); }
         U.math(ctx, `x_${i}`, X(j) - s * 0.03, Y(i) + s * 0.1, s * 0.3, rgba(C.ink, 0.95), 'center', al);
       });
 
       // Fixed pipes: up from the south edge, east to the exit row.
-      const lw = 3;
       ctx.lineCap = 'round';
       FIXED.forEach(([c, r], m) => {
         const pts = flatten([[X(c), bot], [X(c), Y(r)], [right, Y(r)]], s / 2);
@@ -130,7 +139,7 @@ MOTIF('bpd', (() => {
       const ra = Math.sin(Math.PI * clamp(rect[4])) * 0.9;
       if (ra > 0.01) {
         const [a0, b0, c0, e0] = rect;
-        ctx.save(); ctx.setLineDash([s * 0.08, s * 0.07]); ctx.strokeStyle = rgba(C.amber, ra); ctx.lineWidth = 2;
+        ctx.save(); ctx.setLineDash([s * 0.08, s * 0.07]); ctx.strokeStyle = rgba(C.amber, ra); ctx.lineWidth = lw * 0.6;
         ctx.strokeRect(gx + (b0 - 1) * s + 3, gy + (a0 - 1) * s + 3, (e0 - b0 + 1) * s - 6, (c0 - a0 + 1) * s - 6);
         ctx.restore();
       }

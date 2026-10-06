@@ -6,54 +6,80 @@
 //   (3,2)/(1) = {(0,1),(0,2),(1,0),(1,1)} is connected with no 2x2 square, it
 //   spans 2 rows, sign (-1)^(k - rows) = +1, one q per hook  ->  + q sigma_1.
 // (Same answer from Bertram's quantum Pieri: lambda_1 = n-k, drop a 3-ribbon.)
-// Story: lambda = (2,2) fills the dashed 2x2 box, Pieri's new box lands OUTSIDE
-// it (amber), the 4-cell ribbon flashes violet and is torn off in one piece,
-// leaving (1), and a big amber q stamps on (on the second beat of a 2-beat slot).
+// Story on a 4-beat card: lambda = (2,2) fills the dashed k x (n-k) frame; Pieri's new
+// box lands OUTSIDE it on beat one; a violet snake traces the rim hook, numbering its
+// n = 4 cells; the hook is torn off in one piece (the diagram slides over to make room)
+// and q stamps on, on beat two, as the formula completes. Then it stays alive: q breathes on the kicks, and on beat three
+// a violet light runs along the ghost of the removed hook.
 MOTIF('quantum', (() => {
   const LAM = [[0, 0], [0, 1], [1, 0], [1, 1]];          // (2,2)
   const NEW = [0, 2];                                     // the box outside the frame
   const HOOK = [[1, 0], [1, 1], [0, 1], [0, 2]];          // rim hook of (3,2), along the rim
-  const inHook = (r, c) => HOOK.some(([a, b]) => a === r && b === c);
+  const NHOOK = HOOK.length;                              // = n = 4
 
   return {
     draw(ctx, hot, p, k, env, box) {
       const { C, U, rgba, clamp, lerp, ease, seg } = env;
-      const s = Math.min(box.w / 5.4, box.h / 3.7);
+      // Layout (units of the cell size s): q (1.15 wide) + diagram (3 wide incl. the new
+      // box), the formula under it. The group is centred on the box.
+      const s = Math.min(box.w * 0.84 / 4.35, box.h * 0.84 / 3.2);
+      const fz = s * 0.34;                                  // formula size
+      const groupW = 4.35 * s, groupH = 2 * s + 0.62 * s + fz;
+      const left = box.x + (box.w - groupW) / 2, top = box.y + (box.h - groupH) / 2;
+      // Until q arrives the diagram alone is centred; as the hook tears off it slides right
+      // to make room for q (which lands at its final place, left of the surviving cell).
+      const room = seg(p, 0.37, 0.47, ease.inOut);
+      const gxF = left + 1.3 * s, gx = gxF - 0.625 * s * (1 - room), gy = top;   // top-left of the diagram
       const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
-      const gx = cx - 0.8 * s, gy = cy - 1.42 * s;          // top-left of the diagram
       const at = (r, c) => [gx + c * s + s / 2, gy + r * s + s / 2];
+      const lw = clamp(s * 0.016, 1.5, 3), ins = Math.max(2, s * 0.035);
 
-      // Timeline.
-      const qNew = seg(p, 0.11, 0.21);                      // new box arrives
-      const qRed = seg(p, 0.23, 0.3);                       // ribbon turns violet, snake traced
-      const qOff = seg(p, 0.32, 0.45, ease.out);            // ribbon yanked off (rigid motion)
-      const qFade = seg(p, 0.35, 0.45);                     // ... and fades once it is clear
-      const qQ = seg(p, 0.42, 0.52);                        // q stamps on
-      const live = clamp((p - 0.52) / 0.48);                // afterglow
+      // Timeline (beats of a 4-beat card at p = .25, .5, .75).
+      const qNew = seg(p, 0.12, 0.25);                      // new box arrives, lands on beat one
+      const qRed = seg(p, 0.27, 0.4);                       // ribbon turns violet, snake traced
+      const qOff = seg(p, 0.4, 0.5, ease.inOut);            // ribbon torn off (rigid motion)
+      const qFade = seg(p, 0.43, 0.5);                      // ... and fades as it leaves
+      const qQ = seg(p, 0.44, 0.5);                         // q slams on, lands on beat two
+      const live = clamp((p - 0.5) / 0.5);                  // afterglow
 
-      // Slow drift so the frame never freezes.
-      const drift = 1 + 0.035 * ease.soft(clamp((p - 0.3) / 0.7));
+      // Slow push-in so the frame never freezes.
+      const drift = 1 + 0.03 * ease.soft(clamp((p - 0.25) / 0.75));
       for (const g of [ctx, hot]) { g.save(); g.translate(cx, cy); g.scale(drift, drift); g.translate(-cx, -cy); }
 
-      const square = (g, x, y, w, fill, stroke, lw) => {
-        if (fill) { g.fillStyle = fill; g.fillRect(x - w / 2 + 1.5, y - w / 2 + 1.5, w - 3, w - 3); }
-        if (stroke) { g.strokeStyle = stroke; g.lineWidth = lw; g.strokeRect(x - w / 2 + 1.5, y - w / 2 + 1.5, w - 3, w - 3); }
+      const square = (g, x, y, w, fill, stroke, lwd) => {
+        const h = w / 2 - ins;
+        if (h <= 0) return;
+        if (fill) { g.fillStyle = fill; g.fillRect(x - h, y - h, 2 * h, 2 * h); }
+        if (stroke) { g.strokeStyle = stroke; g.lineWidth = lwd; g.strokeRect(x - h, y - h, 2 * h, 2 * h); }
       };
 
       // --- the k x (n-k) = 2 x 2 frame (dashed, marching) -------------------------
-      const fa = seg(p, 0, 0.1);
-      ctx.save();
-      ctx.setLineDash([s * 0.1, s * 0.07]); ctx.lineDashOffset = -p * s * 0.6;
-      ctx.strokeStyle = rgba(C.dim, 0.85 * fa); ctx.lineWidth = 2;
-      const m = 0.07 * s;
-      ctx.strokeRect(gx - m, gy - m, 2 * s + 2 * m, 2 * s + 2 * m);
-      ctx.restore();
+      const fa = seg(p, 0, 0.08);
+      if (fa > 0) {
+        ctx.save();
+        ctx.setLineDash([s * 0.09, s * 0.065]); ctx.lineDashOffset = -p * s * 0.9;
+        ctx.strokeStyle = rgba(C.dim, 0.85 * fa); ctx.lineWidth = lw * 0.8;
+        const m = 0.06 * s;
+        ctx.strokeRect(gx - m, gy - m, 2 * s + 2 * m, 2 * s + 2 * m);
+        ctx.restore();
+      }
 
       // --- ghost of the removed ribbon (stays after it is torn off) --------------
+      // On beat three a violet light runs along it, cell by cell, in rim order.
       if (qOff > 0) {
-        ctx.save(); ctx.setLineDash([s * 0.06, s * 0.06]);
-        ctx.strokeStyle = rgba(C.violet, 0.6 * clamp(qOff * 2) * (1 - 0.4 * live)); ctx.lineWidth = 1.5;
-        HOOK.forEach(([r, c]) => { const [x, y] = at(r, c); ctx.strokeRect(x - s / 2 + 6, y - s / 2 + 6, s - 12, s - 12); });
+        const echo = seg(p, 0.7, 0.86);
+        ctx.save(); ctx.setLineDash([s * 0.05, s * 0.05]); ctx.lineWidth = lw * 0.7;
+        HOOK.forEach(([r, c], i) => {
+          const [x, y] = at(r, c);
+          const e = echo > 0 && echo < 1 ? Math.max(0, 1 - Math.abs(echo * (NHOOK + 1) - (i + 0.5)) / 1.1) : 0;
+          ctx.strokeStyle = rgba(C.violet, (0.55 + 0.4 * e) * clamp(qOff * 2));
+          const h = s / 2 - ins * 2.4;
+          ctx.strokeRect(x - h, y - h, 2 * h, 2 * h);
+          if (e > 0.02) {
+            hot.save(); hot.strokeStyle = rgba(C.violet, 0.5 * e); hot.lineWidth = lw; hot.setLineDash([]);
+            hot.strokeRect(x - h, y - h, 2 * h, 2 * h); hot.restore();
+          }
+        });
         ctx.restore();
       }
 
@@ -62,7 +88,7 @@ MOTIF('quantum', (() => {
         const q = U.stagger(p, 0, 4, 0, 0.1, 0.5);
         if (q > 0) {
           const [x, y] = at(0, 0), lit = clamp((qOff - 0.6) / 0.4);
-          square(ctx, x, y, s * U.pop(q), rgba(C.ink, 0.12 * clamp(q * 2)), rgba(C.ink, 0.95 * clamp(q * 2)), lerp(2.4, 3, lit));
+          square(ctx, x, y, s * U.pop(q), rgba(C.ink, (0.1 + 0.06 * lit) * clamp(q * 2)), rgba(C.ink, 0.95 * clamp(q * 2)), lerp(lw, lw * 1.25, lit));
         }
       }
 
@@ -70,31 +96,38 @@ MOTIF('quantum', (() => {
       const oa = 1 - qFade;                                 // ribbon opacity while torn off
       if (oa > 0.01) {
         const [rx, ry] = at(0.5, 1.2);                      // ribbon centroid (pivot)
-        const tx = qOff * s * 0.75, ty = -qOff * s * 0.85, sc = 1 - 0.45 * qOff, rot = 0.35 * qOff;
+        const tx = qOff * s * 0.55, ty = -qOff * s * 0.5, sc = 1 + 0.12 * qOff, rot = 0.22 * qOff;
         for (const g of [ctx, hot]) { g.save(); g.translate(rx + tx, ry + ty); g.rotate(rot); g.scale(sc, sc); g.translate(-rx, -ry); }
-        HOOK.forEach(([r, c]) => {
+        HOOK.forEach(([r, c], i) => {
           const isNew = r === NEW[0] && c === NEW[1];
           const qIn = isNew ? qNew : U.stagger(p, LAM.findIndex(([a, b]) => a === r && b === c), 4, 0, 0.1, 0.5);
           if (qIn <= 0) return;
           let [x, y] = at(r, c);
-          if (isNew) x += (1 - ease.out(qNew)) * s * 1.2;   // slides in from the right
-          const w = s * U.pop(qIn), a = clamp(qIn * 2) * oa, red = qRed;
+          if (isNew) x += (1 - ease.out(qNew)) * s * 0.9;   // slides in from the right
+          const w = s * U.pop(qIn), a = clamp(qIn * 2) * oa;
+          // cell i turns violet as the snake reaches it (the last one exactly at qRed = 1)
+          const red = clamp((qRed * (NHOOK - 0.6) - i) / 0.4);
           if (red < 1) {
             const base = isNew ? C.amber : C.ink;
-            square(ctx, x, y, w, rgba(base, (isNew ? 0.35 : 0.12) * a * (1 - red)), rgba(base, 0.95 * a * (1 - red)), 2.4);
-            if (isNew) square(hot, x, y, w, rgba(C.amber, 0.4 * a * (1 - red)), rgba(C.amber, 0.7 * a * (1 - red)), 2.4);
+            square(ctx, x, y, w, rgba(base, (isNew ? 0.2 : 0.1) * a * (1 - red)), rgba(base, 0.95 * a * (1 - red)), isNew ? lw * 1.2 : lw);
+            if (isNew) {
+              const land = Math.exp(-Math.max(0, p - 0.25) * 14);   // flash on landing
+              square(hot, x, y, w, null, rgba(C.amber, (0.35 + 0.4 * land) * a * (1 - red)), lw * 1.3);
+            }
           }
           if (red > 0) {
-            square(ctx, x, y, w, rgba(C.violet, 0.3 * a * red), rgba(C.violet, a * red), 2.6);
-            square(hot, x, y, w, rgba(C.violet, 0.22 * a * red), rgba(C.violet, 0.7 * a * red), 2.6);
+            square(ctx, x, y, w, rgba(C.violet, 0.22 * a * red), rgba(C.violet, a * red), lw * 1.1);
+            square(hot, x, y, w, null, rgba(C.violet, 0.55 * a * red), lw * 1.1);
+            // cell number 1..n along the rim
+            U.text(ctx, String(i + 1), x + s * 0.3, y - s * 0.24, `${Math.round(s * 0.2)}px ${env.F.main}`, rgba(C.ink, 0.9 * a * red), 'center', 'middle');
           }
         });
         // the snake through the ribbon's cells, traced along the rim
         if (qRed > 0) {
           const pts = HOOK.map(([r, c]) => at(r, c)), tq = qRed * (pts.length - 1);
-          for (const [g, col, al, lw] of [[hot, C.violet, 0.9, 5], [ctx, C.ink, 1, 3]]) {
+          for (const [g, col, al, w] of [[hot, C.violet, 0.8, lw * 2], [ctx, C.ink, 1, lw * 1.1]]) {
             g.save(); g.lineJoin = 'round'; g.lineCap = 'round';
-            g.strokeStyle = rgba(col, al * oa); g.lineWidth = lw; g.beginPath();
+            g.strokeStyle = rgba(col, al * oa); g.lineWidth = w; g.beginPath();
             pts.forEach(([x, y], j) => {
               if (j === 0) g.moveTo(x, y);
               else if (j <= tq) g.lineTo(x, y);
@@ -102,27 +135,42 @@ MOTIF('quantum', (() => {
             });
             g.stroke(); g.restore();
           }
-          U.dot(ctx, pts[0][0], pts[0][1], 5, rgba(C.ink, oa * clamp(qRed * 4)));
+          U.dot(ctx, pts[0][0], pts[0][1], lw * 1.8, rgba(C.ink, oa * clamp(qRed * 4)));
         }
         ctx.restore(); hot.restore();
       }
 
-      // --- the big q stamps on ---------------------------------------------------
+      // --- the big q stamps on, left of the surviving cell -------------------------
+      const qx = gxF - 0.68 * s, qy = gy + 0.5 * s, qfs = s * 0.95;
       if (qQ > 0) {
-        const sc = lerp(2.0, 1, ease.back(qQ)) * (1 + 0.04 * k) * (1 + 0.025 * Math.sin(live * 9));
-        const qx = gx - 0.62 * s, qy = gy + 0.78 * s, fs = s * 1.25;
-        for (const [g, al] of [[ctx, 1], [hot, 0.75 + 0.15 * k]]) {
+        const sc = lerp(1.9, 1, ease.out(qQ)) * (1 + 0.05 * k * live) * (1 + 0.02 * Math.sin(live * Math.PI * 4));
+        const al = clamp(qQ * 2.5);
+        for (const [g, a] of [[ctx, 1], [hot, Math.min(0.25, 0.12 + 0.08 * k * live + 0.13 * (1 - live))]]) {
           g.save(); g.translate(qx, qy); g.scale(sc, sc);
-          U.math(g, 'q', 0, 0, fs, rgba(C.amber, al), 'center', clamp(qQ * 2.5));
+          U.math(g, 'q', 0, qfs * 0.22, qfs, rgba(C.amber, a), 'center', al);
           g.restore();
         }
-        const ring = clamp(qQ * 1.3);                        // stamp shock ring
-        if (ring < 1) U.ring(hot, qx, qy - fs * 0.2, s * (0.35 + 0.5 * ease.out(ring)), rgba(C.amberHot, 0.7 * (1 - ring)), 2);
+        const ring = clamp((p - 0.5) / 0.12);                // shock ring as it lands
+        if (p >= 0.5 && ring < 1) U.ring(hot, qx, qy, s * (0.4 + 0.45 * ease.out(ring)), rgba(C.amberHot, 0.6 * (1 - ring)), lw);
       }
 
-      // --- label ------------------------------------------------------------------
+      // --- the formula: the left side first, "= q sigma_1" lands with the stamp -----
+      const fy = gy + 2 * s + 0.62 * s + fz * 0.7;
       const la = seg(p, 0.04, 0.14);
-      U.math(ctx, '\\sigma_1\\,\\star\\,\\sigma_{22}\\;=\\;q\\,\\sigma_1', cx, gy + 2 * s + s * 0.78, s * 0.36, rgba(C.ink, 0.92), 'center', la);
+      if (la > 0) {
+        const LHS = '\\sigma_1\\,\\star\\,\\sigma_{22}\\;=\\;', Q = 'q', RHS = '\\,\\sigma_1';
+        const wL = U.math(ctx, LHS, 0, 0, fz, '#000', 'left', 0), wQ = U.math(ctx, Q, 0, 0, fz, '#000', 'left', 0);
+        const wR = U.math(ctx, RHS, 0, 0, fz, '#000', 'left', 0);
+        const fx = cx - (wL + wQ + wR) / 2;
+        U.math(ctx, LHS, fx, fy, fz, rgba(C.ink, 0.92), 'left', la);
+        const ra = seg(p, 0.47, 0.53);
+        if (ra > 0) {
+          U.math(ctx, Q, fx + wL, fy, fz, rgba(C.amber, 1), 'left', ra);
+          U.math(ctx, RHS, fx + wL + wQ, fy, fz, rgba(C.ink, 0.92), 'left', ra);
+        } else {
+          U.math(ctx, '?', fx + wL, fy, fz, rgba(C.dim, 0.7), 'left', la * clamp((p - 0.12) / 0.06));
+        }
+      }
       ctx.restore(); hot.restore();
     },
   };

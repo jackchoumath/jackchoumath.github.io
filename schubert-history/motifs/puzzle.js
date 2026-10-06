@@ -6,7 +6,11 @@
 // LR coefficients computed two independent ways (LR tableaux, and products of
 // Schur polynomials): every boundary triple in Gr(1,3), Gr(2,4), Gr(2,5),
 // Gr(3,5), Gr(2,6), Gr(3,6), Gr(4,6), Gr(3,7) (42 875 triples), plus all
-// degree-matching triples of Gr(4,8), where c = 3 also occurs.
+// degree-matching triples of Gr(4,8), where c = 3 also occurs. Re-checked for the
+// 75-second cut with an independent edge-label enumerator (labels 0, 1, 10; the
+// triangle 0, 1, 10 read clockwise; 199 triples up to n = 5 agree with LR tableaux,
+// the mirror convention fails): for the boundary below it finds exactly two puzzles,
+// and they are PZ_A and PZ_B.
 //  * Upward triangle of side n, cut into n^2 unit triangles. Pieces: the
 //    0-triangle and the 1-triangle (both orientations), and the 60-degree
 //    rhombus with opposite edges equal, which may be rotated but not reflected.
@@ -29,6 +33,13 @@
 // R + A/B/H + i + j is the rhombus glued along edge A(i,j) "/", B(i,j) "\" or
 // H(i,j) "_". Lattice point (i,j) sits at i*e1 + j*e2 with e1 = (1,0) and
 // e2 = (1/2, sqrt3/2). The corners are (0,0), (n,0) and the apex (0,n).
+//
+// Hero card, 8 beats (beat j at p = j/8): the light-triangle of the interstitial
+// splits into two outlines and the boundary strings draw on both; puzzle A crashes in
+// (pieces fly in from outside, outer ring first) and is complete on beat 3; the count
+// line appears ("c = #PUZZLES >= 1"); puzzle B is dealt in as a wave across its
+// triangle and is complete on beat 5, where the count slams to "= 2". Beats 6 and 7:
+// light sweeps across A, then B (one, two), while the 2 pulses on the kicks.
 (function () {
   const N = 6, SQ = Math.sqrt(3) / 2;
   const NW = '101010', NE = '101010', SO = '010101';
@@ -65,9 +76,6 @@
     return { code, kind, pts, labs, c, inr, diag };
   }
   const A = PZ_A.map(parse), B = PZ_B.map(parse);
-  const inB = new Set(PZ_B), inA = new Set(PZ_A);
-  A.forEach(pc => { pc.common = inB.has(pc.code); });
-  B.forEach(pc => { pc.common = inA.has(pc.code); });
   const CEN = [N / 2, N * SQ / 3];                       // triangle centroid (unit coords)
 
   // Distance from point P along unit direction d (unit coords) to the triangle boundary.
@@ -80,9 +88,9 @@
     return t;
   }
 
-  // Assembly order: outside -> in (a closing iris), deterministic jitter.
+  // Puzzle A assembles outside -> in (a closing iris), deterministic jitter.
   const r0 = R.rng(1729);
-  A.forEach((pc, m) => {
+  A.forEach(pc => {
     const dx = pc.c[0] - CEN[0], dy = pc.c[1] - CEN[1], d = Math.hypot(dx, dy);
     const ang = d > 0.05 ? Math.atan2(dy, dx) : r0() * 6.283;
     pc.dir = [Math.cos(ang), Math.sin(ang)];
@@ -90,15 +98,11 @@
     pc.spin = (r0() < 0.5 ? -1 : 1) * (0.7 + 0.9 * r0());
     pc.extra = 0.55 + 0.6 * r0();
   });
-  const order = A.map((pc, m) => m).sort((a, b) => A[a].key - A[b].key);
-  order.forEach((m, r) => { A[m].rank = r; });
-  // Morph order (A-only pieces out, B-only pieces in): a cascade from the apex down.
-  const morphKey = pc => -pc.c[1] + 0.35 * pc.c[0];
-  const aOnly = A.filter(pc => !pc.common).sort((a, b) => morphKey(a) - morphKey(b));
-  const bOnly = B.filter(pc => !pc.common).sort((a, b) => morphKey(a) - morphKey(b));
-  aOnly.forEach((pc, r) => { pc.mrank = r; });
-  bOnly.forEach((pc, r) => { pc.mrank = r; });
-  const NM = aOnly.length;
+  A.map((pc, m) => m).sort((a, b) => A[a].key - A[b].key).forEach((m, r) => { A[m].rank = r; });
+  // Puzzle B is dealt as a wave from its left corner to its right side.
+  const r1 = R.rng(31);
+  B.forEach(pc => { pc.key = pc.c[0] + 0.35 * pc.c[1] + 0.5 * r1(); });
+  B.map((pc, m) => m).sort((a, b) => B[a].key - B[b].key).forEach((m, r) => { B[m].rank = r; });
 
   // Boundary edges, in reading order on each side.
   const BND = [];
@@ -109,34 +113,46 @@
   }
   const NRM = [[-SQ, 0.5], [SQ, 0.5], [0, -1]];          // outward normals (unit coords, y up)
 
+  // Timeline (p over the 8-beat hero; beat j at p = j / 8).
+  const T0 = 0.03, FLY = 0.075, T1 = 0.375 - FLY;        // A: last piece lands on beat 3
+  const DEAL = 0.06, D0 = 0.405, D1 = 0.625 - DEAL;      // B: last piece lands on beat 5
+  const DONE_A = 0.375, DONE_B = 0.625;
+
   MOTIF('puzzle', {
     pieces: { A, B, BND, N },        // exposed for the consistency check
     draw(ctx, hot, p, k, env, box) {
       const { C, F, U, rgba, clamp, lerp, ease } = env;
-      const side = Math.min(box.h * 0.85 / SQ, box.w * 0.94);
-      const s = side / N;
-      const cx = box.x + box.w / 2, cyMid = box.y + box.h / 2;
-      const x0 = cx - side / 2, y0 = cyMid + side * SQ / 2 - side * 0.018;
-      const X = u => x0 + u * s, Y = v => y0 - v * s;
-      const P = q => [X(q[0]), Y(q[1])];
-      const lw = Math.max(2, Math.min(3, s * 0.028));
+      // ---- layout: two triangles side by side (gap GAP units), the count line under them
+      const GAP = 1.05, SIDE = 0.5, TOPU = 0.3, DIG = 0.66, CNT = 1.15;
+      let s = Math.min(box.w / (2 * N + GAP + 2 * SIDE), box.h / (N * SQ + TOPU + DIG + CNT));
+      const withCount = s >= 40;
+      if (!withCount) s = Math.min(box.w / (2 * N + GAP + 2 * SIDE), box.h / (N * SQ + TOPU + DIG));
+      const H = (N * SQ + TOPU + DIG + (withCount ? CNT : 0)) * s;
+      const cx = box.x + box.w / 2, top = box.y + (box.h - H) / 2;
+      const yBase = top + (TOPU + N * SQ) * s;
+      const xA = cx - (2 * N + GAP) * s / 2, xB = xA + (N + GAP) * s;
+      const lw = Math.max(1.5, Math.min(3, s * 0.028));
       const inset = s * 0.036;
       const ink = C.ink, amb = C.amber, cyan = C.cyan;
       const labCol = (l, a = 1) => rgba(l ? amb : ink, a);
-      const tc = P(CEN);
+      const showDigits = s >= 26;
 
-      // Whole-puzzle transform: beat punch + slow drift so it never freezes.
-      const zoom = 1 + 0.018 * k + 0.02 * ease.soft(clamp((p - 0.45) / 0.55));
-      const group = g => { g.translate(tc[0], tc[1]); g.scale(zoom, zoom); g.translate(-tc[0], -tc[1]); };
+      // One puzzle frame: unit coords -> screen, with the beat punch about its centroid.
+      const frame = x0 => {
+        const P = q => [x0 + q[0] * s, yBase - q[1] * s];
+        return { x0, P, tc: P(CEN) };
+      };
+      const FA = frame(xA), FB = frame(xB);
+      const zoom = 1 + 0.012 * k * clamp((p - DONE_A) * 8) + 0.015 * ease.soft(clamp((p - 0.5) / 0.5));
+      const group = (g, fr) => { g.translate(fr.tc[0], fr.tc[1]); g.scale(zoom, zoom); g.translate(-fr.tc[0], -fr.tc[1]); };
 
       // ------------------------------------------------------------ pieces
-      // Local piece path around its own centroid (screen units), inset for the mosaic gap.
       function localPts(pc) {
         const f = Math.max(0, (pc.inr * s - inset) / (pc.inr * s));
         return pc.pts.map(q => [(q[0] - pc.c[0]) * s * f, -(q[1] - pc.c[1]) * s * f]);
       }
-      function withPiece(g, pc, st, fn) {
-        const c = P(pc.c);
+      function withPiece(g, fr, pc, st, fn) {
+        const c = fr.P(pc.c);
         g.save();
         g.translate(c[0] + (st.dx || 0), c[1] + (st.dy || 0));
         if (st.rot) g.rotate(st.rot);
@@ -146,8 +162,8 @@
         g.restore();
       }
       function polyPath(g, q) { g.beginPath(); q.forEach((v, m) => (m ? g.lineTo(v[0], v[1]) : g.moveTo(v[0], v[1]))); g.closePath(); }
-      function drawPiece(g, pc, st) {
-        withPiece(g, pc, st, q => {
+      function drawPiece(g, fr, pc, st) {
+        withPiece(g, fr, pc, st, q => {
           polyPath(g, q);
           if (pc.kind === 'R') {
             const d0 = [(pc.diag[0][0] - pc.c[0]) * s, -(pc.diag[0][1] - pc.c[1]) * s];
@@ -169,18 +185,17 @@
           }
         });
       }
-      function flashPiece(g, pc, st, a) {
+      function flashPiece(g, fr, pc, st, a) {
         if (a <= 0.003) return;
-        withPiece(g, pc, st, q => {
+        withPiece(g, fr, pc, st, q => {
           polyPath(g, q);
           const col = pc.kind === 'R' ? cyan : pc.kind === '1' ? C.amberHot : ink;
-          g.fillStyle = rgba(col, 0.55 * a); g.fill();
+          g.fillStyle = rgba(col, 0.5 * a); g.fill();
           g.strokeStyle = rgba(col, a); g.lineWidth = lw; g.stroke();
         });
       }
 
-      // Assembly state of piece pc of puzzle A (q = local flight progress).
-      const T0 = 0.03, T1 = 0.33, FLY = 0.115;
+      // Puzzle A: flight of piece pc (null before it starts).
       function flight(pc) {
         const st0 = T0 + (T1 - T0) * pc.rank / (A.length - 1);
         const q = clamp((p - st0) / FLY);
@@ -188,199 +203,163 @@
         const e = ease.out(q);
         const dist = (exitDist(pc.c, pc.dir) + pc.extra) * s;
         let dx = pc.dir[0] * dist, dy = -pc.dir[1] * dist;
-        // keep the start point inside the box
-        const c = P(pc.c), m = s * 0.3;
+        const c = FA.P(pc.c), m = s * 0.3;                // keep the start point inside the box
         dx = clamp(c[0] + dx, box.x + m, box.x + box.w - m) - c[0];
         dy = clamp(c[1] + dy, box.y + m, box.y + box.h - m) - c[1];
-        return { q, dx: dx * (1 - e), dy: dy * (1 - e), rot: pc.spin * (1 - e), sc: lerp(0.45, 1, ease.back(q)), a: clamp(q * 5) };
+        return { q, dx: dx * (1 - e), dy: dy * (1 - e), rot: pc.spin * (1 - e), sc: lerp(0.45, 1, ease.back(q)), a: clamp(q * 5), st0 };
+      }
+      // Puzzle B: dealt in (drops a little, flips open horizontally).
+      function deal(pc) {
+        const st0 = D0 + (D1 - D0) * pc.rank / (B.length - 1);
+        const q = clamp((p - st0) / DEAL);
+        if (q <= 0) return null;
+        return { q, dy: -(1 - ease.out(q)) * s * 0.7, sx: ease.back(q), sy: lerp(1.25, 1, ease.out(q)), a: clamp(q * 4) };
       }
 
-      // ------------------------------------------------------------ crash shockwave (p = 0)
-      hot.save(); group(hot);
+      // ------------------------------------------------------------ opening: the light-triangle splits in two
       {
-        const q = clamp(p / 0.09);
+        const q = clamp(p / 0.08);
         if (q < 1) {
-          // triangular shock front
-          const sc = lerp(0.18, 1.08, ease.out(q));
-          const tri = [L(0, 0), L(N, 0), L(0, N)].map(v => [tc[0] + (X(v[0]) - tc[0]) * sc, tc[1] + (Y(v[1]) - tc[1]) * sc]);
-          hot.strokeStyle = rgba(C.amberHot, 0.95 * (1 - q) ** 1.5); hot.lineWidth = Math.min(3, lw * 1.4);
-          hot.lineJoin = 'miter'; polyPath(hot, tri); hot.stroke();
-          // spark rays out of the centre
-          const rr = R.rng(77);
-          hot.lineCap = 'butt';
-          for (let m = 0; m < 18; m++) {
-            const ang = (m / 18) * 6.2832 + rr() * 0.3, len = side * (0.18 + 0.25 * rr());
-            const ca = Math.cos(ang), sa = Math.sin(ang), mg = 6;
-            // longest radius that keeps the ray inside the box
-            const rMax = Math.min(ca > 0 ? (box.x + box.w - mg - tc[0]) / ca : ca < 0 ? (box.x + mg - tc[0]) / ca : 1e9,
-              sa > 0 ? (box.y + box.h - mg - tc[1]) / sa : sa < 0 ? (box.y + mg - tc[1]) / sa : 1e9) / zoom;
-            const r1 = Math.min(rMax, side * 0.05 + ease.out(q) * side * (0.25 + 0.2 * rr())), r2 = Math.min(rMax, r1 + len * (1 - q));
-            if (r2 - r1 < 1) continue;
-            hot.strokeStyle = rgba(m % 3 ? C.amberHot : C.cyan, 0.9 * (1 - q));
-            hot.lineWidth = 2.5;
-            hot.beginPath(); hot.moveTo(tc[0] + ca * r1, tc[1] + sa * r1);
-            hot.lineTo(tc[0] + ca * r2, tc[1] + sa * r2); hot.stroke();
-          }
-        }
-      }
-      hot.restore();
-
-      ctx.save(); group(ctx);
-      hot.save(); group(hot);
-
-      // ------------------------------------------------------------ boundary strings
-      const fo = s * 0.075;
-      BND.forEach(e => {
-        const t0 = e.m * 0.009 + e.side * 0.003;
-        const q = clamp((p - t0) / 0.05);
-        if (q <= 0) return;
-        const n = NRM[e.side];
-        const a = P([e.a[0] + n[0] * fo / s, e.a[1] + n[1] * fo / s]), b = P([e.b[0] + n[0] * fo / s, e.b[1] + n[1] * fo / s]);
-        const g0 = 0.07, g1 = 0.93;
-        const pa = [lerp(a[0], b[0], g0), lerp(a[1], b[1], g0)], pb = [lerp(a[0], b[0], g1), lerp(a[1], b[1], g1)];
-        ctx.lineCap = 'butt';
-        U.drawOn(ctx, pa[0], pa[1], pb[0], pb[1], ease.out(q), labCol(e.l, 1), Math.min(3, lw * 1.2));
-        // the digit
-        const mid = [(e.a[0] + e.b[0]) / 2 + n[0] * 0.33, (e.a[1] + e.b[1]) / 2 + n[1] * 0.33];
-        const mp = P(mid), sc = U.pop(clamp((p - t0 - 0.01) / 0.06));
-        if (sc > 0.01) {
-          ctx.save(); ctx.translate(mp[0], mp[1]); ctx.scale(sc, sc);
-          U.text(ctx, String(e.l), 0, 0, `700 ${Math.round(s * 0.27)}px ${F.main}`, labCol(e.l, 1), 'center', 'middle');
-          ctx.restore();
-        }
-        // arrival flash on the emissive layer
-        const fl = 1 - clamp((p - t0) / 0.09);
-        if (fl > 0 && q > 0) { hot.lineCap = 'butt'; U.drawOn(hot, pa[0], pa[1], pb[0], pb[1], ease.out(q), rgba(e.l ? C.amberHot : ink, 0.8 * fl), Math.min(3, lw * 1.6)); }
-      });
-      // side names
-      const nameA = clamp((p - 0.06) / 0.08);
-      if (nameA > 0) {
-        const fnt = `italic ${Math.round(s * 0.36)}px ${F.math}`;
-        const nl = P([N / 4 + NRM[0][0] * 0.78, N * SQ / 2 + NRM[0][1] * 0.78]);
-        const nr = P([3 * N / 4 + NRM[1][0] * 0.78, N * SQ / 2 + NRM[1][1] * 0.78]);
-        U.text(ctx, 'λ', nl[0], nl[1], fnt, rgba(C.dim, 1), 'center', 'middle', nameA);
-        U.text(ctx, 'μ', nr[0], nr[1], fnt, rgba(C.dim, 1), 'center', 'middle', nameA);
-        const nb = P([-0.42, -0.33]);
-        U.text(ctx, 'ν', nb[0], nb[1], fnt, rgba(C.dim, 1), 'center', 'middle', nameA);
-      }
-
-      // ------------------------------------------------------------ puzzle A assembly / morph to B
-      const M0 = 0.625, M1 = 0.715, MOUT = 0.034, MIN = 0.05, MLAG = 0.016;
-      const mStart = r => M0 + (M1 - M0) * r / (NM - 1);
-      // ghosts (speed trails) first, then pieces
-      A.forEach(pc => {
-        const f = flight(pc);
-        if (!f || f.q >= 1) return;
-        [0.07, 0.14].forEach((lag, gi) => {
-          const st0 = T0 + (T1 - T0) * pc.rank / (A.length - 1);
-          const qq = clamp((p - lag * FLY * 2.2 - st0) / FLY);
-          if (qq <= 0) return;
-          const e = ease.out(qq), e1 = ease.out(f.q);
-          const k1 = (1 - e) / Math.max(1e-6, 1 - e1);
-          withPiece(hot, pc, { dx: f.dx * k1, dy: f.dy * k1, rot: pc.spin * (1 - e), sc: lerp(0.45, 1, ease.back(qq)), a: (gi ? 0.12 : 0.24) * (1 - f.q) }, q => {
-            polyPath(hot, q); hot.fillStyle = rgba(pc.kind === 'R' ? cyan : pc.kind === '1' ? amb : ink, 1); hot.fill();
+          [FA, FB].forEach(fr => {
+            const e = ease.out(q);
+            const ox = lerp(cx, fr.tc[0], e), oy = lerp(box.y + box.h / 2, fr.tc[1], e), sc = lerp(0.75, 1.04, e);
+            const tri = [L(0, 0), L(N, 0), L(0, N)].map(v => [ox + (v[0] - CEN[0]) * s * sc, oy - (v[1] - CEN[1]) * s * sc]);
+            hot.strokeStyle = rgba(C.amberHot, 0.9 * (1 - q) ** 1.5); hot.lineWidth = Math.min(3, lw * 1.4);
+            hot.lineJoin = 'miter'; polyPath(hot, tri); hot.stroke();
+            ctx.strokeStyle = rgba(ink, 0.8 * (1 - q)); ctx.lineWidth = lw * 0.7; polyPath(ctx, tri); ctx.stroke();
           });
-        });
-      });
-      A.forEach(pc => {
-        const f = flight(pc);
-        if (!f) return;
-        let st = f;
-        if (!pc.common) {
-          const q = clamp((p - mStart(pc.mrank)) / MOUT);
-          if (q >= 1) return;
-          if (q > 0) st = { ...f, sx: 1 - ease.in(q), sy: 1 + 0.08 * Math.sin(Math.PI * q), sc: undefined, a: 1 };
         }
-        drawPiece(ctx, pc, st);
-        if (f.q < 1) flashPiece(hot, pc, st, clamp((f.q - 0.35) / 0.25) * (1 - f.q) / 0.65 * 1.2);
-      });
-      B.forEach(pc => {
-        if (pc.common) return;
-        const q = clamp((p - mStart(pc.mrank) - MLAG) / MIN);
-        if (q <= 0) return;
-        const st = { sx: ease.back(q), sy: 1 + 0.08 * Math.sin(Math.PI * clamp(q * 1.4)), a: clamp(q * 4) };
-        drawPiece(ctx, pc, st);
-        flashPiece(hot, pc, st, Math.sin(Math.PI * clamp(q * 1.15)) * 0.9);
-      });
-      const nowPieces = p < M0 + 0.06 ? A : B;
+      }
 
-      // final piece lands: burst on the whole board
-      const landT = T1 + FLY;
-      const burst = clamp(1 - Math.abs(p - landT - 0.012) / 0.03);
-      if (burst > 0) A.forEach(pc => flashPiece(hot, pc, {}, 0.38 * burst));
-
-      // ------------------------------------------------------------ glow sweeps
-      function sweep(pc0, pc1, dir, strength, bandW) {
-        const q = clamp((p - pc0) / (pc1 - pc0));
-        if (q <= 0 || q >= 1) return;
-        const corners = [L(0, 0), L(N, 0), L(0, N)].map(P);
-        const pr = corners.map(v => v[0] * dir[0] + v[1] * dir[1]);
-        const lo = Math.min(...pr) - bandW, hi = Math.max(...pr) + bandW;
-        const c = lerp(lo, hi, ease.inOut(q));
-        const ax = dir[0] * (c - bandW), ay = dir[1] * (c - bandW), bx = dir[0] * (c + bandW), by = dir[1] * (c + bandW);
-        const mk = (col, a) => {
-          const gr = hot.createLinearGradient(ax, ay, bx, by);
-          gr.addColorStop(0, rgba(col, 0)); gr.addColorStop(0.5, rgba(col, a)); gr.addColorStop(1, rgba(col, 0));
-          return gr;
-        };
-        const fillG = mk(C.amberHot, 0.16 * strength), lineG = mk(C.amberHot, 0.95 * strength);
-        nowPieces.forEach(pc => {
-          const f = Math.max(0, (pc.inr * s - inset) / (pc.inr * s)), c0 = P(pc.c);
-          polyPath(hot, pc.pts.map(q => [c0[0] + (q[0] - pc.c[0]) * s * f, c0[1] - (q[1] - pc.c[1]) * s * f]));
-          hot.fillStyle = fillG; hot.fill();
-          hot.strokeStyle = lineG; hot.lineWidth = Math.min(3, lw * 1.1); hot.stroke();
+      // ------------------------------------------------------------ both puzzles
+      [[FA, 0], [FB, 1]].forEach(([fr, which]) => {
+        ctx.save(); group(ctx, fr); hot.save(); group(hot, fr);
+        // boundary strings (identical on both puzzles: the same lambda, mu, nu)
+        const fo = s * 0.075;
+        BND.forEach(e => {
+          const t0 = 0.012 + e.m * 0.008 + e.side * 0.003 + which * 0.01;
+          const q = clamp((p - t0) / 0.05);
+          if (q <= 0) return;
+          const nn = NRM[e.side];
+          const a = fr.P([e.a[0] + nn[0] * fo / s, e.a[1] + nn[1] * fo / s]), b = fr.P([e.b[0] + nn[0] * fo / s, e.b[1] + nn[1] * fo / s]);
+          const pa = [lerp(a[0], b[0], 0.07), lerp(a[1], b[1], 0.07)], pb = [lerp(a[0], b[0], 0.93), lerp(a[1], b[1], 0.93)];
+          ctx.lineCap = 'butt';
+          U.drawOn(ctx, pa[0], pa[1], pb[0], pb[1], ease.out(q), labCol(e.l, 1), Math.min(3, lw * 1.2));
+          if (showDigits) {
+            const mid = [(e.a[0] + e.b[0]) / 2 + nn[0] * 0.33, (e.a[1] + e.b[1]) / 2 + nn[1] * 0.33];
+            const mp = fr.P(mid), sc = U.pop(clamp((p - t0 - 0.01) / 0.06));
+            if (sc > 0.01) {
+              ctx.save(); ctx.translate(mp[0], mp[1]); ctx.scale(sc, sc);
+              U.text(ctx, String(e.l), 0, 0, `700 ${Math.round(s * 0.27)}px ${F.main}`, labCol(e.l, 1), 'center', 'middle');
+              ctx.restore();
+            }
+          }
+          const fl = 1 - clamp((p - t0) / 0.09);
+          if (fl > 0) { hot.lineCap = 'butt'; U.drawOn(hot, pa[0], pa[1], pb[0], pb[1], ease.out(q), rgba(e.l ? C.amberHot : ink, 0.75 * fl), Math.min(3, lw * 1.6)); }
         });
-      }
-      const dn = Math.hypot(1, 0.55);
-      sweep(0.44, 0.63, [1 / dn, -0.55 / dn], 1, s * 1.1);
-      sweep(0.79, 1.05, [-1 / dn, -0.55 / dn], 0.75, s * 1.4);
+        // side names
+        const nameA = clamp((p - 0.06) / 0.08);
+        if (nameA > 0 && showDigits) {
+          const fnt = `italic ${Math.round(s * 0.36)}px ${F.math}`;
+          const nl = fr.P([N / 4 + NRM[0][0] * 0.8, N * SQ / 2 + NRM[0][1] * 0.8]);
+          const nr = fr.P([3 * N / 4 + NRM[1][0] * 0.8, N * SQ / 2 + NRM[1][1] * 0.8]);
+          U.text(ctx, 'λ', nl[0], nl[1], fnt, rgba(C.dim, 1), 'center', 'middle', nameA);
+          U.text(ctx, 'μ', nr[0], nr[1], fnt, rgba(C.dim, 1), 'center', 'middle', nameA);
+          const nb = fr.P([-0.3, -0.35]);
+          U.text(ctx, 'ν', nb[0], nb[1], fnt, rgba(C.dim, 1), 'center', 'middle', nameA);
+        }
 
-      ctx.restore(); hot.restore();
-
-      // ------------------------------------------------------------ the count
-      // One line, hugging the top of the box: in the film's hero layout the giant
-      // year intrudes into the box's left side from ~0.18 h down, so the formula
-      // must stay above it. In tiny boxes (the finale wall) it is illegible and
-      // collides with the wall's year stamp, so it is left out there.
-      const fs = s * 0.5;
-      const la = ease.out(clamp((p - 0.47) / 0.1));
-      if (la > 0 && s >= 45) {
-        const lx = box.x + box.w * 0.035 - (1 - la) * box.w * 0.03, ly = box.y + box.h * 0.035 + fs * 0.95;
-        const wm = U.math(ctx, 'c_{λμ}^{ν}', lx, ly, fs, rgba(ink, 1), 'left', la);
-        // Two lines, so the count never runs into the triangle's boundary labels.
-        U.text(ctx, '=', lx + wm + fs * 0.22, ly, `800 ${Math.round(fs * 0.78)}px ${F.display}`, rgba(ink, 0.85), 'left', 'alphabetic', la);
-        U.text(ctx, '#PUZZLES', lx, ly + fs * 0.95, `800 ${Math.round(fs * 0.78)}px ${F.display}`, rgba(ink, 0.85), 'left', 'alphabetic', la);
-      }
-      // tally: one lit triangle per puzzle found (under the "= 2")
-      const big = s * 1.05, by = box.y + box.h * 0.035 + big * 0.72;
-      const rx = box.x + box.w * 0.965, ts = s * 0.3, ty = by + ts * 1.25;
-      [0.455, M1 + MLAG + MIN * 0.6].forEach((t, m) => {
-        const q = clamp((p - t) / 0.06);
-        if (q <= 0) return;
-        const sc = U.pop(q), ix = rx - ts * 0.5 - (1 - m) * ts * 1.35, iy = ty;
-        const tri = [[ix - ts / 2, iy], [ix + ts / 2, iy], [ix, iy - ts * SQ]].map(v => [ix + (v[0] - ix) * sc, iy - ts * SQ / 3 + (v[1] - iy + ts * SQ / 3) * sc]);
-        ctx.save(); polyPath(ctx, tri); ctx.fillStyle = rgba(amb, 0.85); ctx.fill(); ctx.restore();
-        const fl = 1 - clamp((p - t) / 0.12);
-        if (fl > 0) { polyPath(hot, tri); hot.fillStyle = rgba(C.amberHot, fl); hot.fill(); }
+        if (which === 0) {
+          // speed trails, then the pieces
+          A.forEach(pc => {
+            const f = flight(pc);
+            if (!f || f.q >= 1) return;
+            [0.07, 0.14].forEach((lag, gi) => {
+              const qq = clamp((p - lag * FLY * 2.2 - f.st0) / FLY);
+              if (qq <= 0) return;
+              const e = ease.out(qq), e1 = ease.out(f.q);
+              const k1 = (1 - e) / Math.max(1e-6, 1 - e1);
+              withPiece(hot, fr, pc, { dx: f.dx * k1, dy: f.dy * k1, rot: pc.spin * (1 - e), sc: lerp(0.45, 1, ease.back(qq)), a: (gi ? 0.1 : 0.2) * (1 - f.q) }, q => {
+                polyPath(hot, q); hot.fillStyle = rgba(pc.kind === 'R' ? cyan : pc.kind === '1' ? amb : ink, 1); hot.fill();
+              });
+            });
+          });
+          A.forEach(pc => {
+            const f = flight(pc);
+            if (!f) return;
+            drawPiece(ctx, fr, pc, f);
+            if (f.q < 1) flashPiece(hot, fr, pc, f, clamp((f.q - 0.35) / 0.25) * (1 - f.q) / 0.65 * 1.1);
+          });
+        } else {
+          B.forEach(pc => {
+            const f = deal(pc);
+            if (!f) return;
+            drawPiece(ctx, fr, pc, f);
+            if (f.q < 1) flashPiece(hot, fr, pc, f, Math.sin(Math.PI * f.q) * 0.75);
+          });
+        }
+        const pcs = which ? B : A, done = which ? DONE_B : DONE_A;
+        // completion burst on the whole board
+        const burst = clamp(1 - Math.abs(p - done - 0.01) / 0.03);
+        if (burst > 0) pcs.forEach(pc => flashPiece(hot, fr, pc, {}, 0.32 * burst));
+        // glow sweeps: right after completion, and again on beat 6 (A) / beat 7 (B)
+        const sweep = (p0, p1, dir, strength, bandW) => {
+          const q = clamp((p - p0) / (p1 - p0));
+          if (q <= 0 || q >= 1) return;
+          const corners = [L(0, 0), L(N, 0), L(0, N)].map(fr.P);
+          const pr = corners.map(v => v[0] * dir[0] + v[1] * dir[1]);
+          const lo = Math.min(...pr) - bandW, hi = Math.max(...pr) + bandW;
+          const c = lerp(lo, hi, ease.inOut(q));
+          const ax = dir[0] * (c - bandW), ay = dir[1] * (c - bandW), bx = dir[0] * (c + bandW), by = dir[1] * (c + bandW);
+          const mk = (col, a) => {
+            const gr = hot.createLinearGradient(ax, ay, bx, by);
+            gr.addColorStop(0, rgba(col, 0)); gr.addColorStop(0.5, rgba(col, a)); gr.addColorStop(1, rgba(col, 0));
+            return gr;
+          };
+          const fillG = mk(C.amberHot, 0.14 * strength), lineG = mk(C.amberHot, 0.9 * strength);
+          pcs.forEach(pc => {
+            const f = Math.max(0, (pc.inr * s - inset) / (pc.inr * s)), c0 = fr.P(pc.c);
+            polyPath(hot, pc.pts.map(q => [c0[0] + (q[0] - pc.c[0]) * s * f, c0[1] - (q[1] - pc.c[1]) * s * f]));
+            hot.fillStyle = fillG; hot.fill();
+            hot.strokeStyle = lineG; hot.lineWidth = Math.min(3, lw * 1.1); hot.stroke();
+          });
+        };
+        const dn = Math.hypot(1, 0.55);
+        sweep(done + 0.005, done + 0.12, [1 / dn, -0.55 / dn], 1, s * 1.1);
+        sweep(0.75 + which * 0.125 - 0.01, 0.75 + which * 0.125 + 0.1, [-1 / dn, -0.55 / dn], 0.7, s * 1.3);
+        ctx.restore(); hot.restore();
       });
-      // "= 2" slams in when the second puzzle is complete
-      const t2 = M1 + MLAG + MIN * 0.6, q2 = clamp((p - t2) / 0.07);
-      if (q2 > 0) {
-        // Slam about the right edge / vertical middle of the glyphs, with the
-        // overshoot capped so the "2" never leaves the top of the box.
-        const gh = big * 0.33, cyG = by - gh;
-        const scMax = Math.max(1, Math.min(1.6, (cyG - box.y - 4) / gh));
-        const sc = lerp(scMax, 1, ease.out(q2)) * (1 + 0.04 * k);
-        ctx.save(); ctx.translate(rx, cyG); ctx.scale(sc, sc);
-        ctx.font = `${Math.round(big)}px ${F.main}`;
-        const w2 = ctx.measureText('2').width;
-        U.text(ctx, '2', 0, gh, `${Math.round(big)}px ${F.main}`, rgba(amb, 1), 'right', 'alphabetic', clamp(q2 * 3));
-        U.text(ctx, '=', -w2 - big * 0.12, gh, `${Math.round(big * 0.7)}px ${F.main}`, rgba(ink, 1), 'right', 'alphabetic', clamp(q2 * 3));
-        ctx.restore();
-        hot.save(); hot.translate(rx, cyG); hot.scale(sc, sc);
-        const glow = 0.35 + 0.65 * (1 - clamp((p - t2) / 0.15)) + 0.2 * k;
-        U.text(hot, '2', 0, gh, `${Math.round(big)}px ${F.main}`, rgba(amb, 1), 'right', 'alphabetic', clamp(glow));
-        hot.restore();
+
+      // ------------------------------------------------------------ the count, centred under the two puzzles
+      if (!withCount) return;
+      const la = ease.out(clamp((p - DONE_A + 0.01) / 0.06));
+      if (la <= 0) return;
+      const fz = s * 0.56, ly = yBase + DIG * s + CNT * s * 0.62;
+      const two = p >= DONE_B;
+      const LHS = 'c_{λμ}^{ν}', EQ = '\\;=\\;';
+      const wL = U.math(ctx, LHS, 0, 0, fz, '#000', 'left', 0), wE = U.math(ctx, EQ, 0, 0, fz, '#000', 'left', 0);
+      const wordFont = `800 ${Math.round(fz * 0.8)}px ${F.display}`;
+      ctx.font = wordFont; const wW = ctx.measureText('#PUZZLES').width;
+      const nfz = fz * 1.3;
+      ctx.font = `${Math.round(nfz)}px ${F.main}`; const wN = ctx.measureText('2').width;
+      const rel = two ? '=' : '≥';
+      const total = wL + wE + wW + wE + wN;
+      let x = cx - total / 2;
+      ctx.save(); ctx.globalAlpha *= la; ctx.translate(0, (1 - la) * s * 0.25);
+      U.math(ctx, LHS, x, ly, fz, rgba(ink, 1), 'left'); x += wL;
+      U.math(ctx, EQ, x, ly, fz, rgba(ink, 0.9), 'left'); x += wE;
+      U.text(ctx, '#PUZZLES', x, ly, wordFont, rgba(ink, 0.9), 'left'); x += wW;
+      U.math(ctx, `\\;${rel}\\;`, x, ly, fz, rgba(ink, 0.9), 'left'); x += wE;
+      ctx.restore();
+      // the number: "1" (ink) after puzzle A, slams to an amber "2" when puzzle B is complete
+      const q2 = two ? clamp((p - DONE_B) / 0.05) : 0;
+      const pop = two ? Math.exp(-(p - DONE_B) * 10) : Math.exp(-Math.max(0, p - DONE_A) * 10);
+      const z = (two ? lerp(1.7, 1, ease.out(q2)) : 1 + 0.25 * pop) * (1 + 0.05 * k * (two ? 1 : 0));
+      const nx = x + wN / 2, ny = ly - nfz * 0.34;
+      for (const [g, a] of two ? [[ctx, 1], [hot, Math.min(0.25, 0.1 + 0.15 * pop + 0.06 * k)]] : [[ctx, 1]]) {
+        g.save(); g.translate(nx, ny); g.scale(z, z);
+        U.text(g, two ? '2' : '1', 0, nfz * 0.34, `${Math.round(nfz)}px ${F.main}`, rgba(two ? amb : ink, g === hot ? a : la), 'center');
+        g.restore();
       }
     },
   });
