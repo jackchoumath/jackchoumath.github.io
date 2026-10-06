@@ -384,9 +384,27 @@
   }
 
   var stageCatalogs = new Map();
+  var catalogBuilders = new Map();
 
-  function stageCatalog(n) {
-    if (stageCatalogs.has(n)) return stageCatalogs.get(n);
+  // The k-th permutation of 1..n in lexicographic order (0 <= k < n!).
+  function nthPermutation(n, k) {
+    var remaining = Array.from({ length: n }, function (_, i) { return i + 1; });
+    var factorial = 1;
+    for (var i = 2; i < n; i += 1) factorial *= i;
+    var permutation = [];
+    for (var place = n - 1; place >= 0; place -= 1) {
+      var digit = Math.floor(k / factorial);
+      k -= digit * factorial;
+      permutation.push(remaining.splice(digit, 1)[0]);
+      if (place > 0) factorial /= place;
+    }
+    return permutation;
+  }
+
+  // Catalogs are built in resumable steps so an interface can prepare the
+  // next board size during idle time instead of pausing between stages.
+  function catalogBuilder(n) {
+    if (catalogBuilders.has(n)) return catalogBuilders.get(n);
     var catalog = [];
     var keys = new Set();
     function addPermutation(prefix) {
@@ -416,30 +434,137 @@
         score: 5 * additions + 3 * setupMoves
       });
     }
+    var step;
     if (n <= 8) {
-      function visit(prefix, remaining) {
-        if (!remaining.length) { addPermutation(prefix); return; }
-        remaining.forEach(function (value, i) {
-          visit(prefix.concat(value), remaining.slice(0, i).concat(remaining.slice(i + 1)));
-        });
-      }
-      visit([], Array.from({ length: n }, function (_, i) { return i + 1; }));
+      var total = 1;
+      for (var i = 2; i <= n; i += 1) total *= i;
+      var index = 0;
+      step = function () {
+        if (index >= total) return false;
+        addPermutation(nthPermutation(n, index));
+        index += 1;
+        return true;
+      };
     } else {
       // Enumerating n! permutations stops being practical above eight. A
       // fixed seeded sample gives reproducible difficulty pools and bounded work;
       // the player's RNG still chooses randomly among unseen candidates.
       var seed = (0x50495045 ^ n) >>> 0;
-      function sampleRandom() {
+      var sampleRandom = function () {
         seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
         return seed / 4294967296;
-      }
-      for (var attempt = 0; attempt < 16384 && catalog.length < 4096; attempt += 1) {
+      };
+      var attempt = 0;
+      step = function () {
+        if (attempt >= 16384 || catalog.length >= 4096) return false;
         addPermutation(randomPermutation(n, sampleRandom));
+        attempt += 1;
+        return true;
+      };
+    }
+    var builder = {
+      run: function (deadline, now) {
+        for (var count = 0; ; count += 1) {
+          if (count % 64 === 63 && deadline !== undefined && now() >= deadline) return false;
+          if (!step()) break;
+        }
+        catalog.sort(function (a, b) { return a.score - b.score || a.key.localeCompare(b.key); });
+        stageCatalogs.set(n, catalog);
+        catalogBuilders.delete(n);
+        return true;
+      }
+    };
+    catalogBuilders.set(n, builder);
+    return builder;
+  }
+
+  function stageCatalog(n) {
+    if (stageCatalogs.has(n)) return stageCatalogs.get(n);
+    catalogBuilder(n).run();
+    return stageCatalogs.get(n);
+  }
+
+  // Advance the catalog for size n for at most budgetMs. Returns true once it
+  // is ready, after which progressiveStage(…, n, …) needs no catalog work.
+  function prepareStageCatalog(n, budgetMs) {
+    if (!Number.isInteger(n) || n < 3 || n > 17) throw new RangeError("Progressive stages support sizes 3 through 17.");
+    if (stageCatalogs.has(n)) return true;
+    var now = typeof performance !== "undefined" && performance.now ? function () { return performance.now(); } : Date.now;
+    var budget = budgetMs === undefined ? Infinity : budgetMs;
+    return catalogBuilder(n).run(budget === Infinity ? undefined : now() + budget, now);
+  }
+
+  function isStageCatalogReady(n) { return stageCatalogs.has(n); }
+
+  // Trace every pipe through the displayed (n-1) × (n-1) square. Empty
+  // staircase squares are bumps (two elbows) and squares on the antidiagonal
+  // r + c = n - 1 hold a single elbow. A filled square is a crossing unless its
+  // two pipes have already crossed: two pipes cross at most once, and every
+  // later meeting acts as a bump (the Demazure product convention), so pipe i
+  // always leaves through column w(i). Coordinates are in cell units with
+  // (0, 0) at the top-left corner of the displayed board. Pipe k (1-based)
+  // enters row k from the left; pipe n enters from below.
+  function pipeLayout(board, n) {
+    validateBoard(board, n);
+    var side = n - 1;
+    // Resolve tiles from the bottom row up, left to right, so both incoming
+    // pipes of a square are known before deciding whether they cross there.
+    var crosses = Array(n * n).fill(false);
+    var rightOut = Array(n * n);
+    var topOut = Array(n * n);
+    var crossed = new Set();
+    for (var r = n - 1; r >= 0; r -= 1) {
+      for (var c = 0; r + c <= n - 1; c += 1) {
+        var index = r * n + c;
+        var left = c === 0 ? r + 1 : rightOut[index - 1];
+        if (r + c === n - 1) { topOut[index] = left; continue; }
+        var bottom = topOut[index + n];
+        var pair = Math.min(left, bottom) + "," + Math.max(left, bottom);
+        if (board[index] && !crossed.has(pair)) {
+          crossed.add(pair);
+          crosses[index] = true;
+          rightOut[index] = left;
+          topOut[index] = bottom;
+        } else {
+          topOut[index] = left;
+          rightOut[index] = bottom;
+        }
       }
     }
-    catalog.sort(function (a, b) { return a.score - b.score || a.key.localeCompare(b.key); });
-    stageCatalogs.set(n, catalog);
-    return catalog;
+    var pipes = [];
+    function fmt(value) { return String(Math.round(value * 1000) / 1000); }
+    for (var label = 1; label <= n; label += 1) {
+      var row, col, fromLeft, d;
+      if (label < n) { row = label - 1; col = 0; fromLeft = true; d = "M0 " + fmt(row + 0.5); }
+      else { row = n - 2; col = 0; fromLeft = false; d = "M0.5 " + fmt(side); }
+      var crossings = [];
+      var bounces = [];
+      while (row >= 0 && col < side) {
+        var at = row * n + col;
+        if (row + col < n - 1 && board[at] && !crosses[at]) bounces.push(at);
+        if (crosses[at]) {
+          crossings.push(at);
+          if (fromLeft) { d += "L" + fmt(col + 1) + " " + fmt(row + 0.5); col += 1; }
+          else { d += "L" + fmt(col + 0.5) + " " + fmt(row); row -= 1; }
+        } else if (fromLeft) {
+          d += "A0.5 0.5 0 0 0 " + fmt(col + 0.5) + " " + fmt(row);
+          row -= 1; fromLeft = false;
+        } else {
+          d += "A0.5 0.5 0 0 1 " + fmt(col + 1) + " " + fmt(row + 0.5);
+          col += 1; fromLeft = true;
+        }
+      }
+      pipes.push({
+        label: label,
+        d: d,
+        // Exits through the top edge in a column, or the right edge of row 1.
+        exit: row < 0 ? { side: "top", col: col } : { side: "right", row: row },
+        crossings: crossings,
+        // Filled squares where this pipe meets one it already crossed.
+        bounces: bounces
+      });
+    }
+    return pipes;
   }
 
   // Keep the first three sizes for five stages each, then ten stages per size.
@@ -562,6 +687,10 @@
     randomStage: randomStage,
     stageSize: stageSize,
     stageTier: stageTier,
-    progressiveStage: progressiveStage
+    progressiveStage: progressiveStage,
+    prepareStageCatalog: prepareStageCatalog,
+    isStageCatalogReady: isStageCatalogReady,
+    nthPermutation: nthPermutation,
+    pipeLayout: pipeLayout
   });
 });

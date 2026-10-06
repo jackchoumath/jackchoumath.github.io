@@ -9,32 +9,64 @@ Electronic Journal of Combinatorics 31 (2024), no. 3, Paper 3.15.
 Serve the repository with any static web server and open `/pipe-dreams/`.
 The game uses plain HTML, CSS, and JavaScript with no build step or third-party
 browser dependencies. It can also be opened directly using `index.html`.
-GitHub Pages can serve this directory as part of the existing personal website.
 
 Select an occupied cell marked with a small dot, then select its highlighted
-destination to move it. Its original position now shows a green +:
-click it to add a cell there.
-Selecting other cells or clicking invalid positions keeps that option available.
-Completing another valid ladder leaves the previous origin empty and replaces
-the highlight. If a selected move lands on the previous origin, the landing
-takes precedence; clear the selection to use the K-ladder option instead.
-Both clicks of a K-ladder count as one move; Undo reverses the whole move.
-The rules open automatically on a new player's first visit. The Rules button
-can reopen them at any time; returning players' saved games open directly.
-Undo, Restart, and Hint help recover from positions that cannot reach the maximum
-using forward moves. Reaching the maximum cell count automatically starts the
-next stage after a brief pause showing the completed board. Opening the rules,
-reset confirmation, or leave confirmation pauses that transition; undoing or restarting cancels it.
-The reset icon beside the stage number returns to a fresh stage 1 after a
-Yes/No confirmation. Choosing No or pressing Escape keeps the current game.
-The top-right X button asks “Leave game?”; Yes saves progress and closes the
-game tab, while No or Escape keeps playing. Tabs opened with the homepage Play
-button can close themselves. If the browser blocks closing a directly opened
-tab, the dialog explains how to close it manually.
+destination to move it; or drag the cell onto its destination. A dashed arrow
+shows where the selected cell will land, and hovering a movable cell with a
+mouse previews its destination. The original position then shows a green +:
+click it to add a cell there. Selecting other cells or clicking invalid
+positions keeps that option available. Completing another valid ladder leaves
+the previous origin empty and replaces the highlight. If a selected move lands
+on the previous origin, the landing takes precedence; clear the selection to
+use the K-ladder option instead. Both clicks of a K-ladder count as one move.
 
-Keyboard: arrows navigate the board; Enter or Space selects a cell; U or
-Ctrl/Cmd+Z undoes; H shows a hint; Escape clears a selection
-or closes the rules. Progress is saved in this browser when local storage is available.
+A status line beneath the board says what to do next and, when a cell cannot
+move, exactly why (the square to its right is filled or outside the staircase,
+a half-filled row blocks it, or there is no empty pair above). When an added
+cell leaves no forward moves below the maximum, a notice suggests Undo or
+Restart.
+
+New players get a guided first stage: the next cell to tap glows, following
+the paper's construction, until the first stage is cleared. The rules also open
+automatically on a first visit and can be reopened at any time.
+
+Undo, Redo, Restart, and Hint help recover from positions that cannot reach the
+maximum. Restarting is undoable: the stage's moves go onto the redo stack in
+order, so Redo replays them. Reaching the maximum turns the board green in a
+wave and shows a summary (moves, active time, hints) with a Next stage button;
+the next stage also starts by itself after 2.6 seconds. Opening any dialog
+pauses that countdown; undoing or restarting cancels it.
+
+The rules end with the citation of the paper the game is based on.
+Settings offers System/Light/Dark appearance (shared with the homepage through
+`jack-chou-theme`), a Tiles or Pipes board style, sounds and vibration, and
+"Start over from stage 1" behind a Yes/No confirmation. The Pipes style draws
+the actual pipe dream, each pipe in its own color: empty cells are pairs of
+elbows and filled cells are crossings, except that two pipes cross at most
+once. Where two pipes that already crossed meet again at a filled cell, that
+cell acts as a bump (the Demazure product convention), so pipe i always leaves
+through column w(i).
+
+The top-right X button asks “Leave game?”; Yes saves progress and closes the
+game tab, while No or Escape keeps playing. If the browser blocks closing a
+directly opened tab, the dialog explains how to close it manually.
+
+Keyboard: arrows navigate the board; Enter or Space selects a cell, except
+that Space adds the cell at the green + whenever one is offered and presses
+Next stage on a finished board; U or
+Ctrl/Cmd+Z undoes; Shift+U, Ctrl+Y, or Ctrl/Cmd+Shift+Z redoes; R restarts; H
+shows a hint; N continues after a finished stage; Escape clears a selection or
+closes a dialog. Progress, completion records, and settings are saved in this
+browser when local storage is available (`pipe-dreams-game-v1`,
+`pipe-dreams-meta-v1`, `pipe-dreams-settings-v1`). The game save keeps the original format, with an
+added `redo` list that is replayed and validated on load like the history.
+
+On phones held upright the controls move to a labelled bar at the bottom of the
+screen; phones turned sideways and tablets keep a compact top bar. The board
+stays the largest square that fits, and the layout respects safe areas. Touch
+taps act as the finger lifts, so a quick tap on the + right after a move is
+never lost, and hover effects apply only to devices that can hover.
+Dark mode, reduced motion, and keyboard focus are supported throughout.
 
 ## Mathematical conventions
 
@@ -68,7 +100,12 @@ or closes the rules. Progress is saved in this browser when local storage is ava
   arbitrary cell, and only the latest ladder is eligible for conversion.
 
 `engine.js` contains independent mathematics and exports to both browser and
-CommonJS environments. `app.js` handles interaction, saved progress, and stage
+CommonJS environments. `pipeLayout(board, n)` traces every pipe through the
+displayed square for the Pipes style, resolving squares from the bottom row up
+so that a filled square whose two pipes already crossed is drawn as a bump. Puzzle catalogs are built in resumable
+steps: the interface calls `prepareStageCatalog(n, budgetMs)` during idle time
+for the next stage's board size, so reaching a larger board never pauses the
+page (the S8 catalog alone takes most of a second to build). `app.js` handles interaction, saved progress, and stage
 completion. Hints first use a known continuation of the paper's construction,
 then search the finite forward move graph with a bounded budget. Exhausting
 that budget reports that no hint was found, rather than claiming the position
@@ -83,9 +120,18 @@ hint paths, and difficulty progression. Add `--exhaustive-s7` to inspect all
 2,097,152 S7 staircase boards and 6,330,368 legal transitions, including exact
 maximum counts for every permutation.
 
+It also checks chunked catalog preparation against synchronous catalogs and
+checks all 33,792 S5–S6 pipe layouts: pipes leave in the order of the
+Demazure product, each pair crosses at most once, and every filled square is a
+crossing or a bounce of exactly two pipes.
+
 Run `node pipe-dreams/interaction.test.js` to check ladder-first play, source
 conversion, illegal clicks, hints, undo, saved progress, and move expiry.
-It also checks board rebuilding and stage transitions across all supported sizes.
+It also checks board rebuilding and stage transitions across all supported sizes,
+redo and undoable restarts, the completion summary and Next button, the Space
+shortcut for adding cells and continuing, completion records, the first-stage
+tutorial, blocked-cell and stranded-board feedback, the pipes view, settings,
+and the citation at the end of the rules.
 
 Each difficulty group lasts five stages: Difficulty 1 at stages 1–5,
 Difficulty 2 at stages 6–10, Difficulty 3 at stages 11–15, and so on.
@@ -115,10 +161,13 @@ All moves, targets, hints, keyboard
 navigation, and saved histories still use the actual permutation size; the
 engine's n-wide board indices are preserved while rendering only n−1 rows and columns.
 
-The board is the largest square fitting beneath a compact toolbar, centered
-with side margins when needed. Cell counts and stage appear above it; all
-empty squares share the same background. Controls are icons with hover labels
-and accessible names. The rules dialog uses “Moving cells” and “Adding cells,”
+The board is the largest square fitting between a compact toolbar and the
+status line, centered with side margins when needed. Cell counts, a row of
+small squares for the cells still to add, the stage, and its difficulty appear
+above it. Squares outside the staircase are shaded so the
+playable region is visible at a glance. Controls are icons with hover labels
+and accessible names (labelled beneath the icons on phones), and the rules
+dialog ends with a list of controls and shortcuts. The rules dialog uses “Moving cells” and “Adding cells,”
 with diagrams of adjacent moves and jumps over filled rows. Illegal examples
 show a jump blocked by a half-filled row and a destination whose left neighbor
 is occupied; outlined sources and striped destinations mark attempted moves.

@@ -2,49 +2,95 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#f3f0e7">
-  <meta name="description" content="A pipe dream puzzle about moving and adding cells.">
+  <meta name="description" content="A pipe dream puzzle about moving and adding cells, based on Chou–Yu, Constructing Maximal Pipedreams of Double Grothendieck Polynomials.">
   <title>Pipe dreams</title>
-  <link rel="stylesheet" href="style.css?v=20261003-phone2">
-  <script src="engine.js?v=20261004-ten-stage-sizes" defer></script>
-  <script src="app.js?v=20261004-stage7" defer></script>
+  <script>
+    // Apply the saved site theme before the first paint to avoid a flash.
+    (function () {
+      var theme = null;
+      try { theme = localStorage.getItem('jack-chou-theme'); } catch (error) { /* Use the system theme. */ }
+      // Without an explicit choice the stylesheet follows the system theme.
+      if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css?v=20261006-v2">
+  <script src="engine.js?v=20261006-v2" defer></script>
+  <script src="app.js?v=20261006-v2" defer></script>
 </head>
 <body>
   <main class="game">
     <h1 class="sr-only">Pipe dreams</h1>
-    <header class="topbar">
-      <div class="board-meta">
-        <div class="stage-stack">
-          <span class="stage">Stage <span id="stage-number">01</span></span>
-          <button id="reset-stage-button" class="icon-button stage-reset" type="button" aria-label="Reset to stage 1" title="Reset to stage 1">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5v14M20 5l-10 7 10 7Z"/></svg>
-          </button>
-          <span id="difficulty-label" class="difficulty"></span>
-        </div>
-      </div>
+
+    <div class="board-meta">
+      <span class="stage">Stage <span id="stage-number">01</span></span>
+      <span id="difficulty-label" class="meta-line difficulty"></span>
+    </div>
+
+    <div class="score-block">
       <div id="board-score" class="score" aria-label="Filled cells and maximum">
         <span id="current-count">—</span><span class="score-divider" aria-hidden="true">/</span><span id="target-count">—</span>
       </div>
+      <div id="progress-pips" class="progress-pips" aria-hidden="true"></div>
+    </div>
+
+    <div class="top-actions">
       <nav class="controls" aria-label="Game controls">
-        <button id="undo-button" class="icon-button" type="button" disabled aria-label="Undo last move" title="Undo (U)">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 4 10l5 5M4 10h10a6 6 0 0 1 0 12" transform="translate(0 -2)"/></svg>
+        <button id="undo-button" class="icon-button" type="button" disabled aria-label="Undo last move" title="Undo (U)" aria-keyshortcuts="U Control+Z Meta+Z">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 4 9l5 5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+          <span class="button-label">Undo</span>
         </button>
-        <button id="restart-button" class="icon-button" type="button" aria-label="Restart this stage" title="Restart stage">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1 7M4 4v6h6"/></svg>
+        <button id="redo-button" class="icon-button" type="button" disabled aria-label="Redo move" title="Redo (Shift+U)" aria-keyshortcuts="Shift+U Control+Shift+Z Control+Y">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5-5 5M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+          <span class="button-label">Redo</span>
         </button>
-        <button id="hint-button" class="icon-button" type="button" aria-label="Show a hint" title="Hint (H)">
+        <button id="restart-button" class="icon-button" type="button" aria-label="Restart this stage" title="Restart stage (R)" aria-keyshortcuts="R">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.6-5.9L4 8.5M4 3.5v5h5"/></svg>
+          <span class="button-label">Restart</span>
+        </button>
+        <button id="hint-button" class="icon-button" type="button" aria-label="Show a hint" title="Hint (H)" aria-keyshortcuts="H">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M8 14a6 6 0 1 1 8 0c-1 .8-1 1.5-1 2H9c0-.5 0-1.2-1-2Z"/></svg>
+          <span class="button-label">Hint</span>
         </button>
-        <button id="rules-button" class="icon-button" type="button" aria-label="Game rules" title="Rules">
+        <span class="control-divider" aria-hidden="true"></span>
+        <button id="rules-button" class="icon-button" type="button" aria-label="Game rules" title="Rules" aria-haspopup="dialog">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4 2c-1 .7-1.5 1.2-1.5 2M12 17h.01"/></svg>
+          <span class="button-label">Rules</span>
+        </button>
+        <button id="settings-button" class="icon-button" type="button" aria-label="Settings" title="Settings" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>
+          <span class="button-label">Settings</span>
         </button>
       </nav>
       <button id="leave-game-button" class="icon-button leave-game" type="button" aria-label="Leave game" title="Leave game">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg>
       </button>
-    </header>
-    <div id="board" class="board" role="group" aria-label="Pipe dream board"></div>
+    </div>
+
+    <section class="board-area" aria-label="Puzzle">
+      <div id="board-frame" class="board-frame">
+        <div id="board" class="board" role="group" aria-label="Pipe dream board"></div>
+        <svg id="board-overlay" class="board-overlay" aria-hidden="true" focusable="false"></svg>
+      </div>
+      <div class="status-area">
+        <p id="status-line" class="status-line" aria-hidden="true"></p>
+        <div id="complete-banner" class="complete-banner" hidden>
+          <svg class="complete-check" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m7.5 12.5 3 3 6-6.5"/></svg>
+          <div class="complete-text">
+            <strong id="complete-title">Stage complete</strong>
+            <span id="complete-stats"></span>
+          </div>
+          <button id="next-stage-button" class="next-button" type="button" title="Next stage (Space)" aria-keyshortcuts="Space N">
+            <span>Next stage</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+            <span class="countdown" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+    </section>
+
     <p id="status-message" class="sr-only" role="status" aria-live="polite"></p>
     <p id="notice" class="notice" hidden></p>
   </main>
@@ -59,11 +105,45 @@
   </dialog>
 
   <dialog id="reset-stage-dialog" class="rules-dialog reset-dialog" aria-labelledby="reset-stage-question">
-    <p id="reset-stage-question">Reset stage to stage 1?</p>
+    <p id="reset-stage-question">Start over from stage 1?</p>
+    <p class="dialog-note">Your current puzzle will be replaced.</p>
     <div class="dialog-actions">
       <button id="reset-stage-no" class="dialog-button" type="button" autofocus>No</button>
       <button id="reset-stage-yes" class="dialog-button confirm-reset" type="button">Yes</button>
     </div>
+  </dialog>
+
+  <dialog id="settings-dialog" class="rules-dialog settings-dialog" aria-labelledby="settings-title">
+    <div class="dialog-heading">
+      <h2 id="settings-title">Settings</h2>
+      <button id="close-settings" class="icon-button" type="button" aria-label="Close settings" title="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg>
+      </button>
+    </div>
+    <fieldset class="setting">
+      <legend>Appearance</legend>
+      <div class="segmented">
+        <label><input id="theme-system" type="radio" name="theme" value="system"><span>System</span></label>
+        <label><input id="theme-light" type="radio" name="theme" value="light"><span>Light</span></label>
+        <label><input id="theme-dark" type="radio" name="theme" value="dark"><span>Dark</span></label>
+      </div>
+    </fieldset>
+    <fieldset class="setting">
+      <legend>Board style</legend>
+      <div class="segmented style-choice">
+        <label><input id="style-tiles" type="radio" name="board-style" value="tiles"><span><i class="style-swatch tiles-swatch" aria-hidden="true"></i>Tiles</span></label>
+        <label><input id="style-pipes" type="radio" name="board-style" value="pipes"><span><i class="style-swatch pipes-swatch" aria-hidden="true"></i>Pipes</span></label>
+      </div>
+      <p class="setting-help">Pipes draws the actual pipe dream: each empty cell is a pair of elbows and each filled cell is a crossing. Two pipes cross at most once; where they meet again, the filled cell acts as elbows, so pipe <i>i</i> leaves through column <i>w</i>(<i>i</i>).</p>
+    </fieldset>
+    <fieldset class="setting">
+      <legend>Feedback</legend>
+      <label class="switch-row"><span>Sounds and vibration</span><input id="sound-toggle" type="checkbox" role="switch"><i class="switch" aria-hidden="true"></i></label>
+    </fieldset>
+    <fieldset class="setting danger-zone">
+      <legend>Progress</legend>
+      <button id="reset-stage-button" class="dialog-button wide" type="button">Start over from stage 1…</button>
+    </fieldset>
   </dialog>
 
   <dialog id="rules-dialog" class="rules-dialog" aria-labelledby="rules-title">
@@ -73,17 +153,17 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg>
       </button>
     </div>
-    <p>Goal: move and create cells until reaching the maximum number of cells.</p>
+    <p class="rules-goal">Goal: move and create cells until the counter reaches its maximum.</p>
     <div class="rules-move-comparison">
       <div>
         <h3>Moving cells</h3>
-        <div class="move-diagram" role="img" aria-label="Move the bottom-left cell to the empty top-right square, leaving its original square empty."><span class="mini-board"><i></i><i></i><i class="filled"></i><i></i></span><span>→</span><span class="mini-board"><i></i><i class="filled"></i><i></i><i></i></span></div>
-        <div class="move-diagram jump-diagram" role="img" aria-label="A cell can also move up and right over two rows of filled pairs. The filled pairs remain in place, and the original square becomes empty."><span class="mini-board jump-board"><i></i><i></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i></i></span><span>→</span><span class="mini-board jump-board"><i></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i></i><i></i></span></div>
+        <div class="move-diagram" role="img" aria-label="Move the bottom-left cell to the empty top-right square, leaving its original square empty."><span class="mini-board"><i></i><i></i><i class="filled"></i><i></i></span><span class="diagram-arrow">→</span><span class="mini-board"><i></i><i class="filled arrived"></i><i></i><i></i></span></div>
+        <div class="move-diagram jump-diagram" role="img" aria-label="A cell can also move up and right over two rows of filled pairs. The filled pairs remain in place, and the original square becomes empty."><span class="mini-board jump-board"><i></i><i></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i></i></span><span class="diagram-arrow">→</span><span class="mini-board jump-board"><i></i><i class="filled arrived"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i></i><i></i></span></div>
       </div>
       <div>
         <h3>Adding cells</h3>
-        <div class="move-diagram" role="img" aria-label="After moving a cell, click the plus at its original square to add a cell there."><span class="mini-board"><i></i><i class="filled"></i><i class="origin"></i><i></i></span><span>→</span><span class="mini-board"><i></i><i class="filled"></i><i class="filled added"></i><i></i></span></div>
-        <div class="move-diagram jump-diagram" role="img" aria-label="After a move over filled pairs, you can also add a cell at the highlighted original square. The filled pairs remain in place."><span class="mini-board jump-board"><i></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="origin"></i><i></i></span><span>→</span><span class="mini-board jump-board"><i></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled added"></i><i></i></span></div>
+        <div class="move-diagram" role="img" aria-label="After moving a cell, click the plus at its original square to add a cell there."><span class="mini-board"><i></i><i class="filled"></i><i class="origin"></i><i></i></span><span class="diagram-arrow">→</span><span class="mini-board"><i></i><i class="filled"></i><i class="filled added"></i><i></i></span></div>
+        <div class="move-diagram jump-diagram" role="img" aria-label="After a move over filled pairs, you can also add a cell at the highlighted original square. The filled pairs remain in place."><span class="mini-board jump-board"><i></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="origin"></i><i></i></span><span class="diagram-arrow">→</span><span class="mini-board jump-board"><i></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled added"></i><i></i></span></div>
       </div>
     </div>
     <p>Choose a cell with an empty square immediately to its right. Look upward through these two columns, skipping rows where both squares are filled. If the first remaining row has both squares empty, move the cell into its right square. A row with only one filled square blocks the move. After moving a cell, you can choose to create a cell in its original position. A small circle at the top right of a cell means it can be moved.</p>
@@ -108,6 +188,20 @@
         </figure>
       </div>
     </section>
+    <section class="rules-controls" aria-labelledby="controls-title">
+      <h3 id="controls-title">Controls</h3>
+      <dl class="shortcut-list">
+        <div><dt>Tap or click</dt><dd>Select a cell, then tap its outlined destination. Or drag the cell there.</dd></div>
+        <div><dt><kbd>Space</kbd></dt><dd>Add the cell at the green +, or go to the next stage</dd></div>
+        <div><dt><kbd>U</kbd> / <kbd>Ctrl</kbd><kbd>Z</kbd></dt><dd>Undo</dd></div>
+        <div><dt><kbd>Shift</kbd><kbd>U</kbd> / <kbd>Ctrl</kbd><kbd>Y</kbd></dt><dd>Redo</dd></div>
+        <div><dt><kbd>R</kbd></dt><dd>Restart the stage (Redo replays your moves)</dd></div>
+        <div><dt><kbd>H</kbd></dt><dd>Hint</dd></div>
+        <div><dt>Arrows, <kbd>Enter</kbd></dt><dd>Move around the board and select</dd></div>
+        <div><dt><kbd>Esc</kbd></dt><dd>Clear the selection</dd></div>
+      </dl>
+    </section>
+    <p class="paper-credit">Based on Chen-An Chou and Tianyi Yu, <a href="https://www.combinatorics.org/ojs/index.php/eljc/article/view/v31i3p15" target="_blank" rel="noopener noreferrer">Constructing Maximal Pipedreams of Double Grothendieck Polynomials</a>, Electron. J. Combin. 31 (2024), P3.15.</p>
   </dialog>
 </body>
 </html>

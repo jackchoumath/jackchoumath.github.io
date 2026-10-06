@@ -705,6 +705,96 @@ assert.deepEqual(engine.findWinningPath(Array(25).fill(0), 0, 5, { maxStates: 0,
 console.log(`Large boards: ${largeStages} distinct sampled S9–S17 stages and every intermediate canonical hint passed; nine fresh catalogs took ${catalogTime} ms combined (${catalogTimes.join(", ")}). Search cutoffs stay distinct from proven dead ends.`);
 console.log(`500 seeded S7 stages and arbitrary-state solver paths passed. Total: ${Date.now() - started} ms.`);
 
+// Resumable catalogs: lexicographic decoding, chunked preparation, and
+// identical stage selection whether a catalog was built in slices or at once.
+{
+  const listed = [...permutations([1, 2, 3, 4, 5, 6])];
+  listed.forEach((permutation, k) => assert.deepEqual(engine.nthPermutation(6, k), permutation, `lexicographic permutation ${k}`));
+  delete require.cache[require.resolve("./engine.js")];
+  const fresh = require("./engine.js");
+  for (const n of [8, 10]) {
+    assert.equal(fresh.isStageCatalogReady(n), false);
+    let slices = 0;
+    while (!fresh.prepareStageCatalog(n, 1)) slices += 1;
+    assert(slices > 0, `S${n} catalog was prepared over several slices`);
+    assert.equal(fresh.isStageCatalogReady(n), true);
+    assert.equal(fresh.prepareStageCatalog(n, 0), true, "a ready catalog needs no further work");
+    for (const stage of n === 8 ? [16, 20, 25] : [36, 40, 45]) {
+      for (const sample of [0, 0.31, 0.77, 0.999]) {
+        assert.deepEqual(fresh.progressiveStage(stage, n, () => sample).permutation,
+          engine.progressiveStage(stage, n, () => sample).permutation, `chunked S${n} catalog matches at stage ${stage}`);
+      }
+    }
+  }
+  assert.throws(() => engine.prepareStageCatalog(18, 1), RangeError);
+}
+
+// Pipe layouts follow the Demazure convention: two pipes cross at most once,
+// later meetings at filled squares are drawn as bumps, and following the
+// pipes recovers the Demazure product of every board (w for game boards).
+{
+  let layouts = 0;
+  let bouncing = 0;
+  for (const n of [5, 6]) {
+    const cells = [];
+    for (let row = 0; row < n - 1; row += 1) for (let col = 0; col + row < n - 1; col += 1) cells.push(row * n + col);
+    for (let mask = 0; mask < 1 << cells.length; mask += 1) {
+      const board = Array(n * n).fill(0);
+      cells.forEach((index, bit) => { if (mask & (1 << bit)) board[index] = 1; });
+      const pipes = engine.pipeLayout(board, n);
+      assert.equal(pipes.length, n);
+      const exits = pipes.map(pipe => pipe.exit.side === "top" ? pipe.exit.col + 1 : n);
+      assert.deepEqual(exits, engine.demazurePermutation(board, n), `pipe exits give the Demazure product for S${n} board ${mask}`);
+      assert(pipes.every(pipe => /^M[\d.]+ [\d.]+([LA][\d. ]+)+$/.test(pipe.d)), "pipe paths are well formed");
+      const visits = new Map();
+      const pairs = new Set();
+      for (const pipe of pipes) {
+        for (const index of pipe.crossings) {
+          const entry = visits.get(index) || {cross: [], bounce: []};
+          entry.cross.push(pipe.label);
+          visits.set(index, entry);
+        }
+        for (const index of pipe.bounces) {
+          const entry = visits.get(index) || {cross: [], bounce: []};
+          entry.bounce.push(pipe.label);
+          visits.set(index, entry);
+        }
+      }
+      assert.equal(visits.size, engine.countCells(board), "every filled square is met by pipes");
+      for (const [index, entry] of visits) {
+        assert(board[index], "only filled squares cross or bounce");
+        assert((entry.cross.length === 2 && !entry.bounce.length) || (entry.bounce.length === 2 && !entry.cross.length),
+          "a filled square is a crossing or a bounce of exactly two pipes");
+        const pair = entry.cross.concat(entry.bounce).sort((a, b) => a - b).join(",");
+        if (entry.cross.length) {
+          assert(!pairs.has(pair), "two pipes cross at most once");
+          pairs.add(pair);
+        }
+      }
+      for (const [, entry] of visits) {
+        if (entry.bounce.length) assert(pairs.has(entry.bounce.sort((a, b) => a - b).join(",")), "pipes bounce only after crossing");
+      }
+      const reduced = pairs.size === engine.countCells(board);
+      assert.equal(reduced, pipes.every(pipe => !pipe.bounces.length));
+      if (!reduced) bouncing += 1;
+      layouts += 1;
+    }
+  }
+  for (let k = 0; k < 720; k += 1) {
+    const w = engine.nthPermutation(6, k);
+    const exits = engine.pipeLayout(engine.bottomDream(w), 6).map(pipe => pipe.exit.side === "top" ? pipe.exit.col + 1 : 6);
+    assert.deepEqual(exits, w, "the bottom pipe dream's pipes realize w");
+    let board = engine.bottomDream(w);
+    for (const move of engine.maximalPath(w)) {
+      board = engine.applyMove(board, move, 6);
+      assert.deepEqual(engine.pipeLayout(board, 6).map(pipe => pipe.exit.side === "top" ? pipe.exit.col + 1 : 6), w,
+        "pipes on a maximal pipe dream still realize w");
+    }
+  }
+  assert.throws(() => engine.pipeLayout(Array(24).fill(0), 5), RangeError);
+  console.log(`Catalog slices and pipe layouts: S6 lexicographic order, chunked S8/S10 catalogs, and ${layouts} S5–S6 Demazure pipe layouts (${bouncing} with repeated meetings drawn as bumps) passed.`);
+}
+
 // Optional complete S7 audit, including boards the game does not happen to
 // visit. No sampling: every one of the 2^21 staircase subsets is inspected.
 if (process.argv.includes("--exhaustive-s7")) {

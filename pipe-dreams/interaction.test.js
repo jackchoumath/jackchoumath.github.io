@@ -7,6 +7,10 @@ const vm = require('node:vm');
 const E = require('./engine.js');
 const STORAGE_KEY = 'pipe-dreams-game-v1';
 const RULES_SEEN_KEY = 'pipe-dreams-rules-seen-v1';
+const SETTINGS_KEY = 'pipe-dreams-settings-v1';
+const META_KEY = 'pipe-dreams-meta-v1';
+const THEME_KEY = 'jack-chou-theme';
+const STORAGE_KEYS = [STORAGE_KEY, RULES_SEEN_KEY, SETTINGS_KEY, META_KEY, THEME_KEY];
 
 // Exercise the real event handlers and persisted game, with only the DOM and
 // storage replaced. No browser package or test-only app exports are required.
@@ -79,12 +83,12 @@ function start(saved, engine = E, options = {}) {
   if (saved != null) storage.set(STORAGE_KEY, JSON.stringify(saved));
   const localStorage = {
     getItem(key) {
-      assert([STORAGE_KEY, RULES_SEEN_KEY].includes(key));
+      assert(STORAGE_KEYS.includes(key));
       if (options.storageDenied) throw new Error('Storage unavailable');
       return storage.get(key) ?? null;
     },
     setItem(key, value) {
-      assert([STORAGE_KEY, RULES_SEEN_KEY].includes(key));
+      assert(STORAGE_KEYS.includes(key));
       if (options.storageDenied) throw new Error('Storage unavailable');
       storage.set(key, String(value));
       browserEvents.push({type: 'save', key});
@@ -133,6 +137,8 @@ function start(saved, engine = E, options = {}) {
     click: index => cellAt(index).emit('click'),
     button: id => elements.get(id).emit('click'),
     key: key => document.emit('keydown', {key}),
+    keyWith: (key, modifiers) => document.emit('keydown', {key, ...modifiers}),
+    keyUp: (key, onPrevent) => document.emit('keyup', {key, preventDefault: onPrevent}),
     state: () => JSON.parse(storage.get(STORAGE_KEY) ?? null),
     pendingAdvances: () => completionTimers.filter(timer => timer.active).length,
     async advance() {
@@ -531,7 +537,8 @@ async function automaticAdvanceChecks() {
   const permutation = simplePermutation(5);
   const won = savedGame(permutation, E.maximalPath(permutation), 3);
   let app = start(savedGame(permutation, [], 3));
-  assert.equal(app.get('next-button'), undefined, 'completion no longer requires a button');
+  assert.equal(app.get('next-button'), undefined, 'completion advances without a required button');
+  assert.equal(app.get('complete-banner').hidden, true, 'the completion banner waits for a finished board');
   assert.equal(app.pendingAdvances(), 0, 'an unfinished board cannot advance');
   await app.advance();
   assert.equal(app.state().stage, 3);
@@ -826,6 +833,365 @@ async function leaveGameChecks() {
   assert(!racing.get('board').children.some(cell => /selected|destination|hint-source/.test(cell.className)));
 }
 
+async function redoChecks() {
+  const permutation = [1, 4, 3, 2, 5, 6, 7];
+  const path = E.maximalPath(permutation);
+  let app = start(savedGame(permutation, [], 68));
+  for (const move of path.slice(0, 2)) {
+    await ladder(app, move.from, move.to);
+    if (move.type === 'k-ladder') await app.click(move.from);
+  }
+  const played = app.state();
+  assert.equal(played.history.length, 2);
+  assert.equal(app.get('redo-button').disabled, true, 'nothing to redo before an undo');
+  await app.button('undo-button');
+  assert.equal(app.state().redo.length, 1);
+  assert.equal(app.get('redo-button').disabled, false);
+  await app.button('redo-button');
+  assert.deepEqual(app.state().board, played.board, 'redo reapplies the undone move');
+  assert.deepEqual(app.state().history, played.history);
+  assert.deepEqual(app.state().redo, []);
+
+  await app.button('restart-button');
+  assert.deepEqual(app.state().board, E.bottomDream(permutation));
+  assert.equal(app.state().history.length, 0);
+  assert.equal(app.state().redo.length, 2, 'restart keeps the moves for redo');
+  await app.button('redo-button');
+  await app.button('redo-button');
+  assert.deepEqual(app.state().board, played.board, 'restart can be undone move by move');
+  assert.deepEqual(app.state().history, played.history);
+
+  await app.key('r');
+  assert.equal(app.state().history.length, 0, 'R restarts');
+  await app.keyWith('U', {shiftKey: true});
+  assert.equal(app.state().history.length, 1, 'Shift+U redoes');
+  await app.keyWith('y', {ctrlKey: true});
+  assert.equal(app.state().history.length, 2, 'Ctrl+Y redoes');
+  await app.keyWith('z', {ctrlKey: true});
+  assert.equal(app.state().history.length, 1, 'Ctrl+Z undoes');
+  await app.keyWith('z', {metaKey: true, shiftKey: true});
+  assert.equal(app.state().history.length, 2, 'Cmd+Shift+Z redoes');
+
+  await app.button('undo-button');
+  const withRedo = app.state();
+  app = start(withRedo);
+  assert.deepEqual(app.state().redo, withRedo.redo, 'the redo stack survives a reload');
+  assert.equal(app.get('redo-button').disabled, false);
+  const top = withRedo.redo.at(-1);
+  await ladder(app, top.from, top.to);
+  assert.deepEqual(app.state().redo, [], 'a new move clears the redo stack');
+
+  app = start({...withRedo, redo: [{from: 0, to: 1, type: 'ladder'}]});
+  assert.deepEqual(app.state().redo, [], 'an illegal saved redo stack is discarded');
+  assert.deepEqual(app.state().board, withRedo.board, 'discarding redo keeps the restored board');
+  assert.deepEqual(app.state().history, withRedo.history);
+  app = start({...withRedo, redo: 'not a list'});
+  assert.deepEqual(app.state().redo, []);
+  assert.deepEqual(app.state().board, withRedo.board);
+}
+
+async function completionChecks() {
+  const simple = simplePermutation(5);
+  const path = E.maximalPath(simple);
+  let app = start(savedGame(simple, path, 3));
+  assert.equal(app.get('complete-banner').hidden, false, 'a finished board shows its summary');
+  assert.equal(app.get('complete-title').textContent, 'Stage 3 complete');
+  assert.match(app.get('complete-stats').textContent, new RegExp(`^${path.length} moves? · \\d+:\\d\\d · no hints$`));
+  assert.equal(app.get('redo-button').disabled, true);
+  await app.button('next-stage-button');
+  assert.equal(app.state().stage, 4, 'Next starts the following stage immediately');
+  assert.equal(app.pendingAdvances(), 0);
+  await app.advance();
+  assert.equal(app.state().stage, 4, 'the skipped delay cannot advance a second time');
+  assert.equal(app.get('complete-banner').hidden, true);
+  assert.equal(app.cell(0).focused, true);
+  await app.button('next-stage-button');
+  assert.equal(app.state().stage, 4, 'Next does nothing on an unfinished board');
+  const meta = JSON.parse(app.storage.get(META_KEY));
+  assert.equal(meta.stats.cleared, 1, 'completions are counted');
+  assert.equal(meta.stats.bestStage, 3);
+  assert.equal(meta.stats.moves, path.length);
+  assert.deepEqual(meta.stats.recent.map(item => [item.stage, item.n, item.moves, item.hints]), [[3, 5, path.length, 0]]);
+  assert.equal(meta.current.id, `4:${app.state().permutation.join(',')}`, 'the stage clock starts afresh');
+  assert.equal(meta.current.hints, 0);
+
+  app = start(savedGame(simple, path, 3));
+  await app.key('n');
+  assert.equal(app.state().stage, 4, 'N continues to the next stage');
+
+  for (const [open, close, dialog] of [['settings-button', 'close-settings', 'settings-dialog']]) {
+    app = start(savedGame(simple, path, 3));
+    await app.button(open);
+    assert.equal(app.get(dialog).open, true);
+    assert.equal(app.pendingAdvances(), 0, `${dialog} pauses advancement`);
+    await app.advance();
+    assert.equal(app.state().stage, 3);
+    await app.key('n');
+    assert.equal(app.state().stage, 3, 'shortcuts wait behind the dialog');
+    await app.button(close);
+    assert.equal(app.pendingAdvances(), 1, `closing ${dialog} resumes advancement`);
+    await app.advance();
+    assert.equal(app.state().stage, 4);
+  }
+
+  // Hints are counted against the stage and reported when it is finished.
+  const permutation = [1, 4, 3, 2, 5, 6, 7];
+  app = start(savedGame(permutation, [], 68));
+  await app.button('hint-button');
+  assert.equal(JSON.parse(app.storage.get(META_KEY)).current.hints, 1, 'a shown hint is counted');
+  await app.key('Escape');
+  for (const move of E.maximalPath(permutation)) {
+    await ladder(app, move.from, move.to);
+    if (move.type === 'k-ladder') await app.click(move.from);
+  }
+  assert.match(app.get('complete-stats').textContent, /· 1 hint$/);
+  await app.advance();
+  assert.equal(JSON.parse(app.storage.get(META_KEY)).stats.hints, 1);
+}
+
+async function tutorialChecks() {
+  const simple = simplePermutation(5);
+  let app = start(savedGame(simple, [], 1));
+  const coached = () => app.get('board').children.filter(cell => cell.classList.contains('coach')).map(cell => Number(cell.dataset.index));
+  const first = E.maximalPath(simple)[0];
+  assert.deepEqual(coached(), [first.from], 'a new player is guided to the first move');
+  assert.match(app.get('status-line').className, /coach-line/);
+  await app.click(first.from);
+  assert.deepEqual(coached(), [first.to], 'the guide then points at the destination');
+  await app.button('undo-button');
+  for (let step = 0; step < 12 && E.countCells(app.state().board) < E.maximumCrossings(simple); step += 1) {
+    const [index] = coached();
+    assert(index !== undefined, 'every tutorial step highlights one cell');
+    await app.click(index);
+  }
+  assert.equal(E.countCells(app.state().board), E.maximumCrossings(simple), 'following the guide solves stage one');
+  assert.deepEqual(coached(), []);
+  await app.advance();
+  assert.equal(app.state().stage, 2);
+  assert.deepEqual(coached(), [], 'the guide ends after the first cleared stage');
+
+  app = start(savedGame([1, 4, 5, 2, 3], [], 1));
+  const [index] = coached();
+  assert(index !== undefined);
+  const blocked = app.get('board').children.find(cell => cell.classList.contains('occupied') && !cell.classList.contains('movable'));
+  await app.click(Number(blocked.dataset.index));
+  assert.match(app.get('status-line').className, /warn/, 'feedback about a blocked cell outranks the guide');
+  await app.key('Escape');
+  assert.deepEqual(coached(), [index]);
+
+  const veteran = new Map([[META_KEY, JSON.stringify({version: 1, stats: {cleared: 4}, current: {}})]]);
+  app = start(savedGame(simple, [], 1), E, {storage: veteran});
+  assert.deepEqual(coached(), [], 'players who cleared a stage before are not guided');
+  assert.doesNotMatch(app.get('status-line').className, /coach-line/);
+}
+
+async function feedbackChecks() {
+  let app = start(savedGame([1, 4, 3, 2, 5, 6, 7], [], 68));
+  await app.click(7);
+  assert.match(app.get('status-line').textContent, /square to its right is filled/);
+  assert.match(app.get('status-line').className, /warn/);
+  app = start(savedGame([2, 1, 4, 3, 5], [], 68));
+  await app.click(0);
+  assert.match(app.get('status-line').textContent, /top row/);
+  app = start(savedGame([1, 3, 2, 5, 4], [], 68));
+  await app.click(5);
+  assert.match(app.get('status-line').textContent, /outlined square/);
+  assert.match(app.get('board-overlay').innerHTML, /move-arrow/, 'the selected move is drawn as an arrow');
+  await app.key('Escape');
+  assert.doesNotMatch(app.get('board-overlay').innerHTML, /move-arrow/);
+
+  // Cells on the last diagonal can move (the square beyond the staircase
+  // counts as empty), so a blocked one is explained by the rows above it.
+  let diagonal = null;
+  for (let k = 0; k < 720 && !diagonal; k += 1) {
+    const w = E.nthPermutation(6, k);
+    if (E.isDominant(w)) continue;
+    const stack = [[E.bottomDream(w), []]];
+    const visited = new Set();
+    while (stack.length && !diagonal) {
+      const [board, history] = stack.pop();
+      if (visited.has(board.join(''))) continue;
+      visited.add(board.join(''));
+      for (let row = 1; row < 5 && !diagonal; row += 1) {
+        const index = row * 6 + 4 - row;
+        if (board[index] && !E.legalMoves(board, 6).some(move => move.from === index)) diagonal = {w, history, index};
+      }
+      for (const move of E.legalMoves(board, 6)) if (history.length < 6) stack.push([E.applyMove(board, move, 6), [...history, move]]);
+    }
+  }
+  assert(diagonal, 'fixture: a blocked cell on the last diagonal');
+  app = start(savedGame(diagonal.w, diagonal.history, 68));
+  await app.click(diagonal.index);
+  assert.match(app.get('status-line').textContent, /row \d+ has only one filled square|no empty pair/);
+  assert.doesNotMatch(app.get('status-line').textContent, /outside the staircase/);
+  let movableDiagonal = null;
+  for (let k = 0; k < 720 && !movableDiagonal; k += 1) {
+    const w = E.nthPermutation(6, k);
+    if (E.isDominant(w)) continue;
+    const move = E.legalMoves(E.bottomDream(w), 6).find(candidate => candidate.fromRow + candidate.fromCol === 4 && candidate.type === 'ladder');
+    if (move) movableDiagonal = {w, move};
+  }
+  app = start(savedGame(movableDiagonal.w, [], 68));
+  assert(app.cell(movableDiagonal.move.from).classList.contains('movable'), 'a last-diagonal cell can move');
+  await ladder(app, movableDiagonal.move.from, movableDiagonal.move.to);
+  assert.equal(app.state().history.length, 1);
+
+  // Find a K-ladder that leaves no forward moves below the maximum.
+  let found = null;
+  for (let k = 0; k < 720 && !found; k += 1) {
+    const w = E.nthPermutation(6, k);
+    if (E.isDominant(w)) continue;
+    const target = E.maximumCrossings(w);
+    const stack = [{board: E.bottomDream(w), history: []}];
+    const seen = new Set();
+    while (stack.length && !found) {
+      const {board, history} = stack.pop();
+      if (seen.has(board.join(''))) continue;
+      seen.add(board.join(''));
+      for (const move of E.legalMoves(board, 6)) {
+        const next = E.applyMove(board, move, 6);
+        if (move.type === 'k-ladder' && E.countCells(next) < target && !E.legalMoves(next, 6).length) {
+          found = {w, history: [...history, {...move, type: 'ladder'}], origin: move.from};
+          break;
+        }
+        stack.push({board: next, history: [...history, move]});
+      }
+    }
+  }
+  assert(found, 'fixture: a K-ladder can strand the board below its maximum');
+  app = start(savedGame(found.w, found.history, 68));
+  await app.click(found.origin);
+  assert.equal(app.get('notice').hidden, false, 'a stranded board is reported visibly');
+  assert.match(app.get('notice').textContent, /No moves left/);
+  assert.match(app.get('status-line').textContent, /No moves left/, 'the warning appears beneath the board');
+  assert.match(app.get('status-line').className, /warn/);
+  assert.match(app.get('status-message').textContent, /No forward moves remain/);
+  await app.button('undo-button');
+  assert.equal(app.get('notice').hidden, true);
+}
+
+async function viewChecks() {
+  const permutation = [1, 4, 3, 2, 5, 6, 7];
+  let app = start(savedGame(permutation, [], 68));
+  const pipes = () => (app.get('board-overlay').innerHTML.match(/class="pipe"/g) || []).length;
+  assert.equal(pipes(), 0, 'tiles are the default view');
+  assert.equal(app.get('board-size-label'), undefined, 'the header shows no board size');
+  app.get('style-pipes').checked = true;
+  await app.get('style-pipes').emit('change');
+  assert.equal(pipes(), 7, 'the pipes view draws one path per pipe');
+  assert(app.get('board').classList.contains('pipes'));
+  assert.equal(JSON.parse(app.storage.get(SETTINGS_KEY)).pipes, true);
+  const storage = app.storage;
+  app = start(undefined, E, {storage});
+  assert.equal(pipes(), 7, 'the view choice persists');
+  await app.button('settings-button');
+  assert.equal(app.get('style-pipes').checked, true, 'settings reflect the saved view');
+  assert.equal(app.get('theme-system').checked, true);
+  assert.equal(app.get('sound-toggle').checked, true, 'sound is on by default');
+  app.get('sound-toggle').checked = false;
+  await app.get('sound-toggle').emit('change');
+  assert.equal(JSON.parse(app.storage.get(SETTINGS_KEY)).sound, false);
+  app.get('style-tiles').checked = true;
+  await app.get('style-tiles').emit('change');
+  assert.equal(pipes(), 0);
+  await app.button('close-settings');
+
+  assert.equal(app.get('progress-button'), undefined, 'there is no Progress button');
+  assert.equal(app.get('progress-dialog'), undefined, 'there is no Progress dialog');
+  const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+  const rules = html.slice(html.indexOf('<dialog id="rules-dialog"'), html.indexOf('</dialog>', html.indexOf('<dialog id="rules-dialog"')));
+  assert.match(rules, /<p class="paper-credit">Based on Chen-An Chou and Tianyi Yu, <a href="https:\/\/www\.combinatorics\.org\/ojs\/index\.php\/eljc\/article\/view\/v31i3p15"[^>]*>Constructing Maximal Pipedreams of Double Grothendieck Polynomials<\/a>, Electron\. J\. Combin\. 31 \(2024\), P3\.15\.<\/p>\s*$/,
+    'the paper citation ends the rules');
+
+  await app.button('settings-button');
+  await app.button('reset-stage-button');
+  assert.equal(app.get('settings-dialog').open, false, 'starting over leaves settings for the confirmation');
+  assert.equal(app.get('reset-stage-dialog').open, true);
+  await app.button('reset-stage-no');
+  assert.equal(app.state().stage, 68);
+}
+
+async function spaceChecks() {
+  const multiple = [1, 4, 3, 2, 5, 6, 7];
+  let app = start(savedGame(multiple, [], 68));
+  const before = app.state();
+  await app.key(' ');
+  assert.deepEqual(app.state(), before, 'Space does nothing without a pending addition');
+  await ladder(app, 8, 2);
+  assert(app.cell(8).classList.contains('k-origin'));
+  let swallowed = false;
+  await app.key(' ');
+  assert.equal(app.state().history.length, 1, 'Space keeps the move count');
+  assert.equal(app.state().history[0].type, 'k-ladder', 'Space adds the cell at the green +');
+  assert.equal(app.state().board[8], 1);
+  assert.equal(E.countCells(app.state().board), E.countCells(before.board) + 1);
+  assert(!app.cell(8).classList.contains('k-origin'));
+  await app.keyUp(' ', () => { swallowed = true; });
+  assert.equal(swallowed, true, 'the keyup is swallowed so no focused button is pressed too');
+  swallowed = false;
+  await app.keyUp(' ', () => { swallowed = true; });
+  assert.equal(swallowed, false, 'only the Space that added a cell is swallowed');
+  await app.key(' ');
+  assert.equal(app.state().history.length, 1, 'a second Space has nothing to add');
+  await app.button('undo-button');
+  assert.deepEqual(app.state().board, before.board, 'Undo removes the move and the added cell together');
+
+  // Space works while another cell is selected, including when that cell's
+  // landing overlaps the origin (where a click would make the move instead).
+  const collision = [1, 2, 3, 5, 4, 6, 7];
+  app = start(savedGame(collision, [{from: 21, to: 15, type: 'k-ladder'}, {from: 15, to: 9, type: 'ladder'}]));
+  await app.click(21);
+  assert(app.cell(15).classList.contains('destination'));
+  assert(app.cell(15).classList.contains('k-origin'));
+  await app.key(' ');
+  assert.equal(app.state().history.length, 2, 'Space converts instead of moving');
+  assert.equal(app.state().history[1].type, 'k-ladder');
+  assert.equal(app.state().board[21], 1, 'the selected cell did not move');
+  assert(!app.get('board').children.some(cell => cell.classList.contains('selected')), 'adding clears the selection');
+
+  // Dialogs keep Space for their own controls.
+  app = start(savedGame(multiple, [{from: 8, to: 2, type: 'ladder'}], 68));
+  await app.button('rules-button');
+  await app.key(' ');
+  assert.equal(app.state().history[0].type, 'ladder', 'Space is inert behind a dialog');
+  await app.button('close-rules');
+  await app.key(' ');
+  assert.equal(app.state().history[0].type, 'k-ladder');
+
+  // Space finishes a stage when the addition reaches the maximum.
+  const simple = simplePermutation(5);
+  const path = E.maximalPath(simple);
+  const last = path.at(-1);
+  app = start(savedGame(simple, [...path.slice(0, -1), {...last, type: 'ladder'}], 3));
+  assert.equal(last.type, 'k-ladder');
+  await app.key(' ');
+  assert.equal(E.countCells(app.state().board), E.maximumCrossings(simple));
+  assert.equal(app.get('complete-banner').hidden, false);
+  assert.equal(app.pendingAdvances(), 1);
+  assert.match(app.cell(last.from).getAttribute('aria-label') || '', /filled/);
+  await app.keyWith(' ', {repeat: true});
+  assert.equal(app.state().stage, 3, 'a held Space does not skip the finished board');
+  await app.key(' ');
+  assert.equal(app.state().stage, 4, 'Space presses Next stage on a finished board');
+  assert.equal(app.pendingAdvances(), 0);
+  await app.advance();
+  assert.equal(app.state().stage, 4, 'the skipped countdown cannot advance again');
+  assert.equal(app.cell(0).focused, true);
+  let swallowedNext = false;
+  await app.keyUp(' ', () => { swallowedNext = true; });
+  assert.equal(swallowedNext, true, 'the keyup cannot also press a focused button');
+  await app.key(' ');
+  assert.equal(app.state().stage, 4, 'Space on an unfinished board without a + does not advance');
+
+  app = start(savedGame(simple, path, 3));
+  await app.button('settings-button');
+  await app.key(' ');
+  assert.equal(app.state().stage, 3, 'Space waits behind a dialog');
+  await app.button('close-settings');
+  await app.key(' ');
+  assert.equal(app.state().stage, 4);
+}
+
 async function main() {
   const simple = [1, 3, 2, 4, 5, 6, 7];
   let app = start(savedGame(simple));
@@ -947,7 +1313,13 @@ async function main() {
   await automaticAdvanceChecks();
   await fixedTeachingStageChecks();
   await leaveGameChecks();
-  console.log('Interaction checks passed: legal moves, persistent cell addition, overlapping landings, bounded hints, undo/reload, S5–S17 displayed on 4×4–16×16 grids, outer playable cells and keyboard boundaries, growth boundaries, legacy saves, size-18 save rejection, pattern-based difficulty restoration, first-visit rules, confirmed stage resets, confirmed tab closure with blocked-close recovery, and automatic advancement with cancellation and dialog pauses.');
+  await redoChecks();
+  await completionChecks();
+  await tutorialChecks();
+  await feedbackChecks();
+  await viewChecks();
+  await spaceChecks();
+  console.log('Interaction checks passed: the Space shortcut for adding cells and Next stage, redo and undoable restarts, completion summaries and Next, statistics, the first-stage tutorial, blocked-cell and stranded-board feedback, the pipes view, settings, and the citation at the end of the rules; legal moves, persistent cell addition, overlapping landings, bounded hints, undo/reload, S5–S17 displayed on 4×4–16×16 grids, outer playable cells and keyboard boundaries, growth boundaries, legacy saves, size-18 save rejection, pattern-based difficulty restoration, first-visit rules, confirmed stage resets, confirmed tab closure with blocked-close recovery, and automatic advancement with cancellation and dialog pauses.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; });
