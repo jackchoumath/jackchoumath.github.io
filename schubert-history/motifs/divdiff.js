@@ -23,7 +23,7 @@ MOTIF('divdiff', {
       fL: '\\partial_i f', fN: 'f' + SP + M + SP + 's_if', fD: 'x_i' + SP + M + SP + 'x_{i+1}',
     };
     const w = {}; for (const key in pieces) w[key] = meas(pieces[key], Z);
-    const slotA = w.var1 + Z * 0.02;                  // "x_1^2" slot: x with sub/sup sharing the advance
+    const slotA = w.var1;                             // "x_1^2" slot: x with sub/sup sharing the advance
     const wT2 = slotA + w.var2;
     const wN1 = w.T1 + w.mid + wT2, wN2 = w.N2a + w.N2b;
     const FW = Math.max(wN1, wN2, w.D) + Z * 0.3;      // fraction bar length
@@ -44,7 +44,7 @@ MOTIF('divdiff', {
     const yA = cy - rowH * S / 2 + z * 1.15;           // formula row: fraction bar
     const yB = yA + z * 2.75;                          // computation row: fraction bar
     const axis = z * 0.25;                             // math axis above the baseline
-    const numY = y => y - z * 0.42, denY = y => y + z * 0.98;
+    const numY = (y, zz = z) => y - zz * 0.42, denY = (y, zz = z) => y + zz * 0.72;
     const ink = a => rgba(C.ink, a);
 
     // ---- formula row  ∂_i f = (f − s_i f)/(x_i − x_{i+1}), aligned on its "=".
@@ -59,10 +59,10 @@ MOTIF('divdiff', {
     // numerator f − s_i f, with "s_i f" lit cyan while the swap happens
     const fnx = fbx + (fbW - w.fN * Sf) / 2;
     const wf = meas('f' + SP + M + SP, zf);
-    put(ctx, 'f' + SP + M + SP, fnx, numY(yAf) * 1 + (z - zf) * 0.3, zf, ink(0.8), aF);
-    put(ctx, 's_if', fnx + wf, numY(yAf) + (z - zf) * 0.3, zf, swapHi > 0.02 ? rgba(C.cyan, 0.8 + 0.2 * swapHi) : ink(0.8), aF);
-    if (swapHi > 0.02) put(hot, 's_if', fnx + wf, numY(yAf) + (z - zf) * 0.3, zf, rgba(C.cyan, 0.5 * swapHi), aF);
-    put(ctx, pieces.fD, fbx + (fbW - w.fD * Sf) / 2, yAf + zf * 0.98, zf, ink(0.8), aF);
+    put(ctx, 'f' + SP + M + SP, fnx, numY(yAf, zf), zf, ink(0.8), aF);
+    put(ctx, 's_if', fnx + wf, numY(yAf, zf), zf, swapHi > 0.02 ? rgba(C.cyan, 0.8 + 0.2 * swapHi) : ink(0.8), aF);
+    if (swapHi > 0.02) put(hot, 's_if', fnx + wf, numY(yAf, zf), zf, rgba(C.cyan, 0.5 * swapHi), aF);
+    put(ctx, pieces.fD, fbx + (fbW - w.fD * Sf) / 2, denY(yAf, zf), zf, ink(0.8), aF);
     ctx.globalAlpha = aF; U.drawOn(ctx, fbx, yAf, fbx + fbW, yAf, aF, ink(0.8), 2); ctx.globalAlpha = 1;
 
     // ---- computation row.
