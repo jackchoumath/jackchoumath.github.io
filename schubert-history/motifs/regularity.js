@@ -104,16 +104,17 @@ MOTIF('regularity', (() => {
           [0, 1, 2].forEach(r => { const ty = baseY - r * ROWGAP; if (yb <= ty + 0.5) U.line(g, ax - 7, ty, ax + 7, ty, rgba(C.amber, clamp(a)), lw); });
         }
       }
-      // deg G_w - l(w) = 2  ("deg" upright, the rest in math italic)
+      // reg = deg G_w - l(w) = 2  ("reg = deg" upright, the rest in math italic)
       const fq = seg(p, 0.22, 0.32, ease.out);
       if (fq > 0) {
-        const FZ = 36, fy = 104 + (1 - fq) * 10;
+        // reg(S/I_w) = deg G_w - l(w) (Pechenik-Speyer-Weigandt), spelled out for w = 1432.
+        const FZ = 31, fy = 104 + (1 - fq) * 10;
         ctx.font = `${FZ}px ${F.main}`;
-        const wd = ctx.measureText('deg ').width;
-        const wm = U.math(ctx, '\\G_w − \\ell(w) = ', -9999, -9999, FZ, 'rgba(0,0,0,0)');
+        const wd = ctx.measureText('reg = deg ').width;
+        const wm = U.math(ctx, '\\G_{1432} − \\ell(1432) = ', -9999, -9999, FZ, 'rgba(0,0,0,0)');
         const fx = VW / 2 - (wd + wm + FZ * 0.55) / 2;
-        U.text(ctx, 'deg', fx, fy, `${FZ}px ${F.main}`, rgba(C.ink, 1), 'left', 'alphabetic', fq);
-        U.math(ctx, '\\G_w − \\ell(w) = ', fx + wd, fy, FZ, rgba(C.ink, 1), 'left', fq);
+        U.text(ctx, 'reg = deg', fx, fy, `${FZ}px ${F.main}`, rgba(C.ink, 1), 'left', 'alphabetic', fq);
+        U.math(ctx, '\\G_{1432} − \\ell(1432) = ', fx + wd, fy, FZ, rgba(C.ink, 1), 'left', fq);
         const two = clamp((p - 0.28) / 0.07);
         if (two > 0) {
           const s2 = lerp(1.7, 1, ease.out(two)) * (1 + 0.05 * k), tx = fx + wd + wm + FZ * 0.3;

@@ -46,8 +46,8 @@ MOTIF('polytope', (() => {
     draw(ctx, hot, p, k, env, box) {
       const { C, U, rgba, clamp, lerp, ease, seg } = env;
       // yaw swings in during the build, then drifts from ~1.33 to 1.6. That stays clear of the
-      // mirror-symmetric views (phi = 1.05, 2.1: front and back dots coincide) and of the
-      // edge-on view (phi = 1.83: a face collapses to a line). Both repeat with period pi/3 up to mirroring.
+      // mirror-symmetric views (phi = 1.05 + k pi/3: front and back dots coincide) and of the
+      // edge-on views (phi = 0.28, 1.83, 2.38, ...: a face collapses to a line).
       const phi = 0.2 + 1.0 * ease.out(clamp(p / 0.4)) + 0.4 * p, el = 0.62;
       const cf = Math.cos(phi), sf = Math.sin(phi), ce = Math.cos(el), se = Math.sin(el);
       // the simplex projects into |x| <= 0.983, |y| <= 0.748 for every rotation (checked numerically)

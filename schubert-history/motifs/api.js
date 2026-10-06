@@ -81,7 +81,7 @@
         if (ch === '_' || ch === '^') { i++; toks.push({ s: read(), lvl: ch === '_' ? -1 : 1 }); }
         else toks.push({ s: read(), lvl: 0 });
       }
-      const glyph = s => ({ '\\sigma': 'σ', '\\lambda': 'λ', '\\mu': 'μ', '\\nu': 'ν', '\\partial': '∂', '\\geq': '≥', '\\cdot': '·', '\\to': '→',
+      const glyph = s => ({ '\\sigma': 'σ', '\\lambda': 'λ', '\\mu': 'μ', '\\nu': 'ν', '\\partial': '∂', '\\geq': '≥', '\\cdot': '\u22c5', '\\to': '→',
         '\\sum': '∑', '\\otimes': '⊗', '\\star': '⋆', '\\le': '≤', '\\ne': '≠', '\\infty': '∞', '\\pi': 'π', '\\ell': 'ℓ', '\\times': '×', '\\S': 'S', '\\G': 'G', '\\quad': '  ', '\\,': '\u2009', '\\;': '\u2005', '\\!': '', '\\cdots': '⋯', '\\ldots': '…', '\\neq': '≠', '\\in': '∈', '\\subset': '⊂', '\\mapsto': '↦', '\\leftrightarrow': '↔', '\\Rightarrow': '⇒', '\\#': '#' }[s] ?? s);
       const fontFor = (s, sz) => {
         if (s === '\\S' || s === '\\G') return `${sz}px ${F.frak}`;
