@@ -1,19 +1,19 @@
 // Hilbert's 15th problem (ICM Paris, 1900): "rigorous foundation of Schubert's
 // enumerative calculus".  A typographic seal: a big amber "15" inside a ring of small
-// text.  It slams in (scale 1.6 -> 1 with a damped overshoot and a small twist), a shock
+// text.  It slams in (scale 1.45 -> 1 with a damped overshoot and a small twist), a shock
 // ring and a burst of ticks fly out on impact, then the text ring keeps slowly turning.
 MOTIF('hilbert', {
   draw(ctx, hot, p, k, env, box) {
     const { C, F, U, rgba, clamp, lerp, ease } = env;
     const TXT = "RIGOROUS FOUNDATION OF SCHUBERT’S ENUMERATIVE CALCULUS · ";
     const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
-    const m = Math.min(box.w, box.h), R = m * 0.305;         // outer ring radius (x1.6 still fits)
+    const m = Math.min(box.w, box.h), R = m * 0.335;         // outer ring radius (x1.45 still fits)
     const maxR = m / 2 - 6;                                  // stay inside the box
 
     // --- slam: accelerate in, hit at P_HIT, damped overshoot ----------------------
     const P_HIT = 0.12;
     const q = clamp(p / P_HIT), dt = Math.max(0, p - P_HIT);
-    let sc = p < P_HIT ? lerp(1.6, 1, ease.in(q)) : 1 - 0.07 * Math.sin(dt * 38) * Math.exp(-dt * 16);
+    let sc = p < P_HIT ? lerp(1.45, 1, ease.in(q)) : 1 - 0.07 * Math.sin(dt * 38) * Math.exp(-dt * 16);
     if (p >= P_HIT) sc *= 1 + 0.02 * k;
     const alpha = clamp(q * 2.5);
     const twist = p < P_HIT ? -0.22 * (1 - ease.in(q)) : 0;
@@ -56,7 +56,7 @@ MOTIF('hilbert', {
     const nfont = `900 ${nz}px ${F.display}`;
     U.text(ctx, '15', 0, nz * 0.355, nfont, rgba(C.amber, 1), 'center', 'alphabetic');
     const flash = Math.exp(-dt * 22) * (p >= P_HIT ? 1 : 0);
-    U.text(hot, '15', 0, nz * 0.355, nfont, rgba(C.amber, alpha * (0.32 + 0.1 * k + 0.5 * flash)), 'center', 'alphabetic');
+    U.text(hot, '15', 0, nz * 0.355, nfont, rgba(C.amber, alpha * (0.13 + 0.06 * k + 0.55 * flash)), 'center', 'alphabetic');
     ctx.globalAlpha = 1;
     ctx.restore(); hot.restore();
 
@@ -66,7 +66,7 @@ MOTIF('hilbert', {
         const u = clamp((dt - delay) / 0.3);
         if (u <= 0 || u >= 1) return;
         const r = lerp(R * 1.02, maxR, ease.out(u)), a = (1 - u) * (j ? 0.6 : 1);
-        U.ring(ctx, cx, cy, r, rgba(C.amber, 0.55 * a), lerp(3, 1, u));
+        U.ring(ctx, cx, cy, r, rgba(C.amber, 0.55 * a), lerp(3, 1.5, u));
         U.ring(hot, cx, cy, r, rgba(C.amber, 0.8 * a), lerp(4, 1.5, u));
       });
       const u = clamp(dt / 0.2);

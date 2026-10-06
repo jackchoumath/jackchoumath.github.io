@@ -7,8 +7,8 @@
 //   spans 2 rows, sign (-1)^(k - rows) = +1, one q per hook  ->  + q sigma_1.
 // (Same answer from Bertram's quantum Pieri: lambda_1 = n-k, drop a 3-ribbon.)
 // Story: lambda = (2,2) fills the dashed 2x2 box, Pieri's new box lands OUTSIDE
-// it (amber), the 4-cell ribbon flashes red and is torn off in one piece,
-// leaving (1), and a big amber q stamps on.
+// it (amber), the 4-cell ribbon flashes violet and is torn off in one piece,
+// leaving (1), and a big amber q stamps on (on the second beat of a 2-beat slot).
 MOTIF('quantum', (() => {
   const LAM = [[0, 0], [0, 1], [1, 0], [1, 1]];          // (2,2)
   const NEW = [0, 2];                                     // the box outside the frame
@@ -25,8 +25,9 @@ MOTIF('quantum', (() => {
 
       // Timeline.
       const qNew = seg(p, 0.11, 0.21);                      // new box arrives
-      const qRed = seg(p, 0.23, 0.3);                       // ribbon turns red, snake traced
-      const qOff = seg(p, 0.32, 0.44, ease.in);             // ribbon torn off (rigid)
+      const qRed = seg(p, 0.23, 0.3);                       // ribbon turns violet, snake traced
+      const qOff = seg(p, 0.32, 0.45, ease.out);            // ribbon yanked off (rigid motion)
+      const qFade = seg(p, 0.35, 0.45);                     // ... and fades once it is clear
       const qQ = seg(p, 0.42, 0.52);                        // q stamps on
       const live = clamp((p - 0.52) / 0.48);                // afterglow
 
@@ -51,7 +52,7 @@ MOTIF('quantum', (() => {
       // --- ghost of the removed ribbon (stays after it is torn off) --------------
       if (qOff > 0) {
         ctx.save(); ctx.setLineDash([s * 0.06, s * 0.06]);
-        ctx.strokeStyle = rgba(C.red, 0.55 * clamp(qOff * 2) * (1 - 0.4 * live)); ctx.lineWidth = 1.5;
+        ctx.strokeStyle = rgba(C.violet, 0.6 * clamp(qOff * 2) * (1 - 0.4 * live)); ctx.lineWidth = 1.5;
         HOOK.forEach(([r, c]) => { const [x, y] = at(r, c); ctx.strokeRect(x - s / 2 + 6, y - s / 2 + 6, s - 12, s - 12); });
         ctx.restore();
       }
@@ -66,10 +67,10 @@ MOTIF('quantum', (() => {
       }
 
       // --- the other cells: lambda's three + the new box, then the rigid ribbon ---
-      const oa = 1 - qOff;                                  // ribbon opacity while torn off
+      const oa = 1 - qFade;                                 // ribbon opacity while torn off
       if (oa > 0.01) {
         const [rx, ry] = at(0.5, 1.2);                      // ribbon centroid (pivot)
-        const tx = qOff * s * 1.0, ty = -qOff * s * 1.1, sc = 1 - 0.45 * qOff, rot = 0.35 * qOff;
+        const tx = qOff * s * 0.75, ty = -qOff * s * 0.85, sc = 1 - 0.45 * qOff, rot = 0.35 * qOff;
         for (const g of [ctx, hot]) { g.save(); g.translate(rx + tx, ry + ty); g.rotate(rot); g.scale(sc, sc); g.translate(-rx, -ry); }
         HOOK.forEach(([r, c]) => {
           const isNew = r === NEW[0] && c === NEW[1];
@@ -84,14 +85,14 @@ MOTIF('quantum', (() => {
             if (isNew) square(hot, x, y, w, rgba(C.amber, 0.4 * a * (1 - red)), rgba(C.amber, 0.7 * a * (1 - red)), 2.4);
           }
           if (red > 0) {
-            square(ctx, x, y, w, rgba(C.red, 0.3 * a * red), rgba(C.red, a * red), 2.6);
-            square(hot, x, y, w, rgba(C.red, 0.22 * a * red), rgba(C.red, 0.7 * a * red), 2.6);
+            square(ctx, x, y, w, rgba(C.violet, 0.3 * a * red), rgba(C.violet, a * red), 2.6);
+            square(hot, x, y, w, rgba(C.violet, 0.22 * a * red), rgba(C.violet, 0.7 * a * red), 2.6);
           }
         });
         // the snake through the ribbon's cells, traced along the rim
         if (qRed > 0) {
           const pts = HOOK.map(([r, c]) => at(r, c)), tq = qRed * (pts.length - 1);
-          for (const [g, col, al, lw] of [[hot, C.red, 0.9, 7], [ctx, C.ink, 1, 3]]) {
+          for (const [g, col, al, lw] of [[hot, C.violet, 0.9, 5], [ctx, C.ink, 1, 3]]) {
             g.save(); g.lineJoin = 'round'; g.lineCap = 'round';
             g.strokeStyle = rgba(col, al * oa); g.lineWidth = lw; g.beginPath();
             pts.forEach(([x, y], j) => {

@@ -38,7 +38,10 @@ MOTIF('divdiff', {
     const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
     const drift = 1 + 0.025 * ease.soft(clamp((p - 0.3) / 0.7)) + 0.012 * k;
     ctx.save(); hot.save();
-    for (const c of [ctx, hot]) { c.translate(cx, cy); c.scale(drift, drift); c.translate(-cx, -cy); }
+    // Rows A+B sit centred in the box until row C arrives, then the block glides up
+    // to make room for the answer.
+    const oy = 0.5 * z * (1 - seg(p, 0.64, 0.8, ease.inOut));
+    for (const c of [ctx, hot]) { c.translate(cx, cy); c.scale(drift, drift); c.translate(-cx, -cy + oy); }
 
     const eqx = cx + (left - right) * S / 2;           // the shared "=" column
     const fx0 = eqx + (w.eq + g) * S;                  // fractions start here
@@ -90,16 +93,20 @@ MOTIF('divdiff', {
       // (clear of the exponent, which stays in slot A), arcs over, and lands in B;
       // x_2 slides underneath into slot A.
       const bez = t => {
-        const P = [[xa, yy], [xa - 1.4 * z, yy - 1.25 * z], [xb + 0.4 * z, yy - 1.8 * z], [xb, yy]], m = 1 - t;
+        const P = [[xa, yy], [xa - 1.6 * z, yy - 1.25 * z], [xb + 0.4 * z, yy - 1.8 * z], [xb, yy]], m = 1 - t;
         const c = [m * m * m, 3 * m * m * t, 3 * m * t * t, t * t * t];
         return [0, 1].map(d => c.reduce((acc, ci, i) => acc + ci * P[i][d], 0));
       };
       const [v1x, v1y] = bez(e), v2x = lerp(xb, xa, e);
       tint('^2', xa + w.x * S, yy);
-      tint('x_1', v1x, v1y); tint('x_2', v2x, yy);
+      // once clear of the exponent, the airborne x_1 swells so it reads as a moving
+      // object rather than as a superscript
+      const hz = z * (1 + 0.22 * hop * e);
+      put(ctx, 'x_1', v1x, v1y, hz, ink(1), a1 * (1 - lit)); put(ctx, 'x_1', v1x, v1y, hz, rgba(C.cyan, 1), a1 * lit);
+      tint('x_2', v2x, yy);
       const glow = 0.3 * lit + 0.45 * hop;
       if (glow > 0.02) {
-        put(hot, 'x_1', v1x, v1y, z, rgba(C.cyan, glow), a1);
+        put(hot, 'x_1', v1x, v1y, hz, rgba(C.cyan, glow), a1);
         put(hot, 'x_2', v2x, yy, z, rgba(C.cyan, glow), a1);
       }
     }
@@ -119,9 +126,13 @@ MOTIF('divdiff', {
     const aC = seg(p, 0.72, 0.8, ease.out), fly = seg(p, 0.72, 0.88, ease.out);
     put(ctx, '=', eqx, yC, z, ink(1), aC);
     if (fly > 0) {
+      // It falls through the bar along a gentle arc whose midpoint (at the height of
+      // the denominator) is centred in the gap between row B's "=" and the struck
+      // denominator, so it never collides with either.
       const rx = fx0, bulge = Math.sin(Math.PI * fly);
-      const X = lerp(n2x, rx, fly) - bulge * z * 0.9, Yf = lerp(ny, yC, fly);
-      const zz = z * (1 + 0.15 * bulge + 0.04 * k * (fly >= 1 ? 1 : 0));
+      const gapMid = ((eqx + w.eq * S) + (dx - w.N2a * S)) / 2;
+      const X = lerp(n2x, rx, fly) + bulge * (gapMid - lerp(n2x, rx, 0.5)), Yf = lerp(ny, yC, fly);
+      const zz = z * (1 + 0.04 * k * (fly >= 1 ? 1 : 0));
       const glow = 0.5 + 0.25 * k + 0.25 * (1 - seg(p, 0.88, 1));
       put(ctx, P.N2a, X, Yf, zz, rgba(C.amber, 1));
       put(hot, P.N2a, X, Yf, zz, rgba(C.amber, glow));

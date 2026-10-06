@@ -25,25 +25,37 @@ MOTIF('wiring', (() => {
     return Q;
   };
   const QS = WORDS.map(egQ);
+  // In a reduced word of w_0 every pair of wires crosses exactly once, so a word is
+  // determined by the slot x_ij where wires i < j cross. Morphing between words
+  // interpolates these x_ij: a commutation move slides two crossings past each
+  // other, and a braid move aba -> bab collapses its triangle through a triple point.
+  const crossX = word => {
+    const at = [1, 2, 3, 4], X = {};                 // at[level - 1] = wire label
+    word.forEach((a, t) => {
+      const i = at[a - 1], j = at[a];
+      X[Math.min(i, j) * 10 + Math.max(i, j)] = t + 0.5;
+      at[a - 1] = j; at[a] = i;
+    });
+    return X;
+  };
+  const XS = WORDS.map(crossX);
   const perm = w => { const p = [1, 2, 3, 4]; w.forEach(i => { [p[i - 1], p[i]] = [p[i], p[i - 1]]; }); return p.join(''); };
   if (WORDS.some(w => perm(w) !== '4321') || new Set(QS.map(q => JSON.stringify(q))).size !== 16 ||
-      QS.some(q => q.map(r => r.length).join() !== '3,2,1')) console.error('wiring: bad reduced words');
+      QS.some(q => q.map(r => r.length).join() !== '3,2,1') || XS.some(X => Object.keys(X).length !== 6))
+    console.error('wiring: bad reduced words');
 
-  // Level (1 = top) of the wire that starts at level l, as a function of x in slot units.
-  const smooth = t => t * t * (3 - 2 * t);
-  const levelAt = (word, l, X, hw) => {
+  // Level (1 = top) of wire l at x = X (slot units), given crossing positions xs:
+  // 1 + #wires above it, each crossing smoothed over a window of half-width hw.
+  const smooth = t => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+  const levelAt = (l, X, xs, hw) => {
     let lev = l;
-    for (let t = 0; t < word.length; t++) {
-      const a = word[t], c = t + 0.5;               // slot centre
-      if (lev !== a && lev !== a + 1) continue;
-      const to = lev === a ? a + 1 : a;
-      if (X <= c - hw) return lev;
-      if (X < c + hw) return lerpN(lev, to, smooth((X - (c - hw)) / (2 * hw)));
-      lev = to;
+    for (let j = 1; j <= 4; j++) {
+      if (j === l) continue;
+      const s = smooth((X - xs[Math.min(j, l) * 10 + Math.max(j, l)] + hw) / (2 * hw));
+      lev += j < l ? -s : s;
     }
     return lev;
   };
-  const lerpN = (a, b, t) => a + (b - a) * t;
 
   return {
     draw(ctx, hot, p, k, env, box) {
@@ -58,7 +70,7 @@ MOTIF('wiring', (() => {
       const shown = u >= 0.5 || cur === 0 ? cur : cur - 1;   // tableau / counter index
 
       // Layout: wiring diagram on top, Q tableau + counter below.
-      const dx = box.w * 0.9 / 7, g = Math.min(dx * 0.75, box.h * 0.13), cs = g * 0.86;
+      const dx = box.w * 0.86 / 7, g = Math.min(dx * 0.75, box.h * 0.13), cs = g * 0.86;
       const totalH = 3 * g + 0.75 * g + 3 * cs;
       const x0 = box.x + box.w / 2 - 3 * dx, y0 = box.y + (box.h - totalH) / 2;
       const xL = x0 - 0.5 * dx, xR = x0 + 6.5 * dx;
@@ -70,7 +82,8 @@ MOTIF('wiring', (() => {
       // ---- wires (draw on left -> right during the build)
       const reveal = seg(p, 0.0, 0.16, ease.out);
       const cols = [C.ink, C.cyan, C.violet, C.dim];
-      const A = WORDS[Math.max(0, cur - 1)], B = WORDS[cur], hw = 0.4;
+      const XA = XS[Math.max(0, cur - 1)], XB = XS[cur], hw = 0.4, xs = {};
+      for (const key in XB) xs[key] = lerp(XA[key], XB[key], u);
       const yOf = lev => y0 + (lev - 1) * g;
       for (let l = 1; l <= 4; l++) {
         ctx.save(); ctx.strokeStyle = rgba(cols[l - 1], 0.95); ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
@@ -80,7 +93,7 @@ MOTIF('wiring', (() => {
           const x = lerp(xL, xR, i / n);
           if (x > xEnd) break;
           const X = (x - x0) / dx;
-          const lev = lerp(levelAt(A, l, X, hw), levelAt(B, l, X, hw), u);
+          const lev = levelAt(l, X, xs, hw);
           i ? ctx.lineTo(x, yOf(lev)) : ctx.moveTo(x, yOf(lev));
         }
         ctx.stroke(); ctx.restore();
@@ -117,6 +130,8 @@ MOTIF('wiring', (() => {
       const col = done > 0 ? rgba(C.amber, 1) : rgba(C.ink, 0.9);
       U.text(ctx, cnt, nx, ny + fs * 0.05, font, col, 'center', 'middle', ca);
       if (done > 0) U.text(hot, cnt, nx, ny + fs * 0.05, font, rgba(C.amber, 0.55 + 0.25 * k), 'center', 'middle', 1);
+      // What the counter counts: reduced words of 4321 (= standard tableaux of the staircase).
+      U.text(ctx, '#Red(4321)', nx, ny + fs * 0.95, `${Math.round(cs * 0.42)}px ${F.main}`, rgba(C.ink, 0.75), 'center', 'alphabetic', ca);
       ctx.restore(); hot.restore();
     },
   };

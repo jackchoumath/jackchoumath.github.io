@@ -32,7 +32,7 @@ MOTIF('rothe', (() => {
 
       // Faint grid.
       const ga = seg(p, 0, 0.08, ease.out);
-      ctx.save(); ctx.strokeStyle = rgba(C.faint, 0.95 * ga); ctx.lineWidth = 1.2; ctx.beginPath();
+      ctx.save(); ctx.strokeStyle = rgba(C.faint, 0.95 * ga); ctx.lineWidth = 1.5; ctx.beginPath();
       for (let t = 0; t <= n; t++) {
         ctx.moveTo(gx + t * s, gy); ctx.lineTo(gx + t * s, gy + n * s);
         ctx.moveTo(gx, gy + t * s); ctx.lineTo(gx + n * s, gy + t * s);

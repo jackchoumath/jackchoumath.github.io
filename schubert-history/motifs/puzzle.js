@@ -347,7 +347,9 @@
       if (la > 0 && s >= 45) {
         const lx = box.x + box.w * 0.035 - (1 - la) * box.w * 0.03, ly = box.y + box.h * 0.035 + fs * 0.95;
         const wm = U.math(ctx, 'c_{λμ}^{ν}', lx, ly, fs, rgba(ink, 1), 'left', la);
-        U.text(ctx, '= #PUZZLES', lx + wm + fs * 0.22, ly, `800 ${Math.round(fs * 0.78)}px ${F.display}`, rgba(ink, 0.85), 'left', 'alphabetic', la);
+        // Two lines, so the count never runs into the triangle's boundary labels.
+        U.text(ctx, '=', lx + wm + fs * 0.22, ly, `800 ${Math.round(fs * 0.78)}px ${F.display}`, rgba(ink, 0.85), 'left', 'alphabetic', la);
+        U.text(ctx, '#PUZZLES', lx, ly + fs * 0.95, `800 ${Math.round(fs * 0.78)}px ${F.display}`, rgba(ink, 0.85), 'left', 'alphabetic', la);
       }
       // tally: one lit triangle per puzzle found (under the "= 2")
       const big = s * 1.05, by = box.y + box.h * 0.035 + big * 0.72;

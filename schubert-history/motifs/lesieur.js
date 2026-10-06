@@ -91,7 +91,7 @@ MOTIF('lesieur', (() => {
         if (q <= 0 || q >= 1) { if (q >= 1) flash = Math.max(flash, 1 - seg(p, T[j][1] + 0.02, T[j][1] + 0.08)); continue; }
         const x = q * half, len = 0.7 * s * (1 - 0.6 * q);
         for (const g of [ctx, hot]) {
-          g.save(); g.strokeStyle = rgba(C.amber, g === hot ? 0.8 : 1); g.lineWidth = 3.5;
+          g.save(); g.strokeStyle = rgba(C.amber, g === hot ? 0.8 : 1); g.lineWidth = 3;
           g.beginPath(); g.moveTo(cx - x, ay); g.lineTo(cx - x + len, ay); g.moveTo(cx + x, ay); g.lineTo(cx + x - len, ay); g.stroke();
           g.restore();
         }

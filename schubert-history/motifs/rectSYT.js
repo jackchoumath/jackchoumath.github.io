@@ -21,7 +21,7 @@ MOTIF('rectSYT', {
 
     // Timeline (fractions of p).
     const FILL0 = 0.07, FILL1 = 0.26;             // numbers 1..6 enter
-    const FLIPS = [0.40, 0.50, 0.60, 0.70];       // tableau #2..#5 land on the pile
+    const FLIPS = [0.36, 0.45, 0.54, 0.63];       // tableau #2..#5 land on the pile (final 5 amber by p=0.70)
     const DF = 0.07;                              // flip duration
     const flipQ = i => clamp((p - FLIPS[i]) / DF); // progress of flip i (-> tableau i+1)
 
@@ -33,10 +33,10 @@ MOTIF('rectSYT', {
     // Layout: pile on the left, counter on the right. The framing follows the
     // group as it grows (tableau alone -> + counter -> + buried cards).
     const s = Math.min(box.w / 6.4, box.h / 3.7) * (1 + 0.02 * k);
-    const sp = s * 0.13 * (1 + 0.15 * ease.soft(clamp((p - 0.74) / 0.26))); // pile offset, slowly fans out
+    const sp = s * 0.13 * (1 + 0.15 * ease.soft(clamp((p - 0.7) / 0.3))); // pile offset, slowly fans out
     const cs = s * 1.55;                          // counter font size
     const gap = s * 0.75, cw = cs * 0.55;
-    const A = ease.inOut(clamp((p - 0.22) / 0.16)), D = depth(0) * sp;
+    const A = ease.inOut(clamp((p - 0.2) / 0.15)), D = depth(0) * sp;
     const x0 = box.x + box.w / 2 - (3 * s + A * (gap + cw) - D) / 2; // front card top-left
     const y0 = box.y + box.h / 2 - (2 * s - D) / 2 - s * 0.04;
 
@@ -54,13 +54,16 @@ MOTIF('rectSYT', {
       ctx.globalAlpha = a; ctx.strokeStyle = rgba(C.ink, 0.92); ctx.lineWidth = lw;
       ctx.strokeRect(px + 1.5, py + 1.5, w - 3, w - 3); ctx.globalAlpha = 1;
       if (!lab) return;
+      // Flash: tinted cell + glowing digit. The hot fill stays low so it never
+      // washes out the digit drawn underneath it.
       if (fl > 0) {
         ctx.fillStyle = rgba(C.amber, 0.16 * fl * a); ctx.fillRect(px + 4, py + 4, w - 8, w - 8);
-        hot.fillStyle = rgba(C.amber, 0.38 * fl * a); hot.fillRect(px + 6, py + 6, w - 12, w - 12);
+        hot.fillStyle = rgba(C.amber, 0.12 * fl * a); hot.fillRect(px + 6, py + 6, w - 12, w - 12);
       }
       const col = rgba(C.ink.map((v, i) => Math.round(lerp(v, C.amber[i], fl))), 1);
-      const sz = w * 0.5 * lab.sc;
-      U.text(ctx, lab.t, px + w / 2, py + w / 2 + sz * 0.36, `${sz}px ${F.main}`, col, 'center', 'alphabetic', a * lab.a);
+      const sz = w * 0.5 * lab.sc, tx = px + w / 2, ty = py + w / 2 + sz * 0.36, fnt = `${sz}px ${F.main}`;
+      U.text(ctx, lab.t, tx, ty, fnt, col, 'center', 'alphabetic', a * lab.a);
+      if (fl > 0) U.text(hot, lab.t, tx, ty, fnt, rgba(C.amber, 0.3 * fl), 'center', 'alphabetic', a * lab.a);
     };
     const card = (c, a, lw, label, flash) => {
       const w = s * c.sc;
@@ -104,7 +107,7 @@ MOTIF('rectSYT', {
 
     // ---- odometer counter -----------------------------------------------------
     const ccx = x0 + 3 * s + gap + cw / 2, base = y0 + s + cs * 0.34;
-    const appear = ease.out(clamp((p - FILL1 - 0.05) / 0.07)); // count starts once 6 has landed
+    const appear = ease.out(clamp((p - FILL1 - 0.03) / 0.06)); // count starts once 6 has landed
     if (appear > 0) {
       let val = 1, roll = 1;
       FLIPS.forEach((f, i) => { if (p >= f) { val = i + 2; roll = ease.out(clamp((p - f) / (DF * 0.9))); } });
@@ -117,12 +120,13 @@ MOTIF('rectSYT', {
         g.beginPath(); g.rect(ccx - cw, base - cs * 0.9, cw * 2, cs * 0.97); g.clip();
         g.translate(ccx, base - cs * 0.34); g.scale(pulse, pulse); g.translate(-ccx, -(base - cs * 0.34));
         if (g === ctx && roll < 1) U.text(g, String(val - 1), ccx, base - roll * hgt, font, rgba(C.ink, 1), 'center', 'alphabetic', Math.pow(1 - roll, 1.5) * appear);
-        const col = g === hot ? rgba(C.amber, 0.55 * amb) : rgba(C.ink.map((v, i) => Math.round(lerp(v, C.amber[i], amb))), 1);
+        // hot copy kept low: a strong one clips the bloom from amber to lemon yellow
+        const col = g === hot ? rgba(C.amber, 0.24 * amb) : rgba(C.ink.map((v, i) => Math.round(lerp(v, C.amber[i], amb))), 1);
         U.text(g, String(val), ccx, base + (1 - roll) * hgt + (1 - appear) * hgt * 0.4, font, col, 'center', 'alphabetic', appear);
         g.restore();
       });
       // label under the counter
-      const ls = Math.max(16, s * 0.26);
+      const ls = Math.max(11, s * 0.26); // no big floor: a 16 px label overflows the small finale-wall tiles
       U.text(ctx, 'deg Gr(2,5)', ccx, base + ls * 2.1, `${ls}px ${F.main}`, rgba(C.ink, 0.62), 'center', 'alphabetic', appear);
     }
   },

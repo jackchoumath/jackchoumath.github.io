@@ -84,7 +84,9 @@ MOTIF('pieri', {
 
     // --- label in the empty lower-right corner of the grid -------------------------
     const fs = s * 0.42, la = clamp((p - 0.05) / 0.1);
-    U.math(ctx, '\\sigma_2\\cdot\\sigma_{31}', gx + 5 * s - s * 0.08, gy + 2.5 * s + fs * 0.32, fs, rgba(C.ink, 0.92), 'right', la);
+    // U+22C5 (KaTeX_Main 'dotmath', on the math axis); the API's '\cdot' maps to U+00B7,
+    // which KaTeX_Main lacks, so it falls back to a system font and sits too high.
+    U.math(ctx, '\\sigma_2\\,⋅\\,\\sigma_{31}', gx + 5 * s - s * 0.08, gy + 2.5 * s + fs * 0.32, fs, rgba(C.ink, 0.92), 'right', la);
 
     // --- the sum  mu_1 + mu_2 + ... + mu_5 , term by term ---------------------------
     const plusW = s * 0.42, ps = s * 0.36;
@@ -106,7 +108,7 @@ MOTIF('pieri', {
           fill: (r, c) => (isAdd(r, c) ? rgba(C.amber, 0.95 * on) : null),
         });
         ctx.restore();
-        if (i === cur) add.forEach(([r, c]) => { hot.fillStyle = rgba(C.amber, 0.55 * q); hot.fillRect(x + c * t + 1.5, ry + r * t + 1.5, t - 3, t - 3); });
+        if (i === cur) add.forEach(([r, c]) => { hot.fillStyle = rgba(C.amber, 0.28 * q); hot.fillRect(x + c * t + 1.5, ry + r * t + 1.5, t - 3, t - 3); });
       }
       x += thW[i] + plusW;
     });

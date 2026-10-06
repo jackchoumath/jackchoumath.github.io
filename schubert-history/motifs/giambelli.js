@@ -52,7 +52,7 @@ MOTIF('giambelli', {
     });
 
     // --- soft amber band along the diagonal (hot layer only) ------------------------
-    const dq = ease.out(clamp((p - 0.29) / 0.12));
+    const dq = ease.out(clamp((p - 0.24) / 0.12));
     if (dq > 0) {
       const ax = mx + cp * 0.5, ay = my + rp * 0.5, bx = mx + cp * 2.5, by = my + rp * 2.5;
       hot.save(); hot.lineCap = 'round';
@@ -62,18 +62,19 @@ MOTIF('giambelli', {
 
     // --- entries pop in row by row; diagonal turns amber ---------------------------
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
-      const t0 = 0.12 + 0.065 * i + 0.022 * j, q = clamp((p - t0) / 0.07);
+      const t0 = 0.11 + 0.055 * i + 0.02 * j, q = clamp((p - t0) / 0.07);
       if (q <= 0) continue;
       const ex = mx + cp * (j + 0.5), ey = my + rp * (i + 0.5), base = ey + fs * 0.24;
       const sc = lerp(1.5, 1, ease.back(q)), a = clamp(q * 2.5);
       const s = ent(i, j), diag = i === j;
-      const am = diag ? ease.out(clamp((p - 0.3 - 0.035 * i) / 0.08)) : 0;
+      const am = diag ? ease.out(clamp((p - 0.25 - 0.03 * i) / 0.07)) : 0;
       const col = am > 0 ? rgba(C.ink.map((v, c) => Math.round(lerp(v, C.amber[c], am))), 1)
         : rgba(C.ink, /^[01]$/.test(s) ? 0.72 : 1);
       [ctx, hot].forEach(g => {
         if (g === hot && am <= 0) return;
         g.save(); g.translate(ex, ey); g.scale(sc, sc); g.translate(-ex, -ey);
-        const ga = g === hot ? (0.45 + 0.5 * bump(i) + 0.15 * k) * am : 1;
+        // hot copy kept low (a strong one clips the bloom to lemon yellow); the glint lifts it
+        const ga = g === hot ? (0.2 + 0.4 * bump(i) + 0.08 * k) * am : 1;
         U.math(g, s, ex, base, fs, g === hot ? rgba(C.amber, 1) : col, 'center', a * ga);
         g.restore();
       });

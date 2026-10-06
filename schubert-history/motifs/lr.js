@@ -106,19 +106,24 @@ MOTIF('lr', (() => {
         }
       });
 
-      // c^nu_{lambda mu} = (number of tableaux seen so far)
+      // Running count, true at every frame: after the first tableau the label
+      // reads c >= 1; when the last tableau lands it turns into c = COUNT.
       if (lab > 0.01) {
-        const n = cur + 1, bump = n === COUNT ? U.pop(seg(p, flipStart + (COUNT - 2) * flipLen + flipLen * 0.4, flipStart + (COUNT - 2) * flipLen + flipLen * 0.9)) : 1;
+        const n = cur + 1, done = n === COUNT;
+        const t1 = flipStart + (COUNT - 2) * flipLen;
+        const bump = done ? U.pop(seg(p, t1 + flipLen * 0.4, t1 + flipLen * 0.9)) : 1;
         const ly = y0 + 3 * s + s * 1.05, sz = Math.round(s * 0.66);
         ctx.save(); ctx.globalAlpha = lab; ctx.translate(0, (1 - lab) * s * 0.3);
-        const wl = U.math(ctx, 'c^{ν}_{λμ} = ', -9999, ly, sz, rgba(C.ink, 0), 'left');
-        ctx.font = `${sz}px ${F.main}`; const wn = ctx.measureText(String(n)).width;
-        const lx = cx - (wl + wn) / 2;
-        U.math(ctx, 'c^{ν}_{λμ} = ', lx, ly, sz, rgba(C.ink, 0.95), 'left');
-        const nx = lx + wl + wn / 2, ny = ly - sz * 0.35;
-        for (const g of (n === COUNT ? [ctx, hot] : [ctx])) {
-          g.save(); g.translate(nx, ny); g.scale(lerp(1, bump, 1), lerp(1, bump, 1));
-          U.text(g, String(n), 0, sz * 0.35, `${sz}px ${F.main}`, n === COUNT ? rgba(C.amber, g === hot ? 0.6 : 1) : rgba(C.ink, 0.95), 'center');
+        const wl = U.math(ctx, 'c^{ν}_{λμ}', -9999, ly, sz, rgba(C.ink, 0), 'left');
+        ctx.font = `${sz}px ${F.main}`;
+        const gap = sz * 0.3, wr = ctx.measureText('=').width, wn = ctx.measureText(String(COUNT)).width;
+        const lx = cx - (wl + gap + wr + gap + wn) / 2, rx = lx + wl + gap + wr / 2;
+        U.math(ctx, 'c^{ν}_{λμ}', lx, ly, sz, rgba(C.ink, 0.95), 'left');
+        U.text(ctx, done ? '=' : '\u2265', rx, ly, `${sz}px ${F.main}`, rgba(C.ink, 0.95), 'center');
+        const nx = lx + wl + 2 * gap + wr + wn / 2, ny = ly - sz * 0.35;
+        for (const g of (done ? [ctx, hot] : [ctx])) {
+          g.save(); g.translate(nx, ny); g.scale(bump, bump);
+          U.text(g, String(n), 0, sz * 0.35, `${sz}px ${F.main}`, done ? rgba(C.amber, g === hot ? 0.6 : 1) : rgba(C.ink, 0.95), 'center');
           g.restore();
         }
         ctx.restore();
