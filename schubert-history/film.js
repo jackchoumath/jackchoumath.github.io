@@ -18,10 +18,13 @@
     const i = Math.floor(b);
     return lerp(BT[i], BT[i + 1], b - i);
   }
+  // Cuts snap to 60 fps frame boundaries (at most 8 ms off the beat), so with the renderer's
+  // shutter opening at the frame time every frame belongs to exactly one shot.
+  const snap = x => Math.round(x * 60) / 60;
   const S = BM.sections;
-  const DROP = S.drop, FINAL = S.final, END = S.end;
-  const GAP = (BM.gaps && BM.gaps[0]) || [DROP - BEAT, DROP];
-  const STOP = [FINAL - BEAT, FINAL];
+  const DROP = snap(S.drop), FINAL = snap(S.final), END = S.end;
+  const GAP = ((BM.gaps && BM.gaps[0]) || [DROP - BEAT, DROP]).map(snap);
+  const STOP = [snap(FINAL - BEAT), FINAL];
   const pulse = (list, t, tau, lead = 0) => {
     let v = 0;
     for (const x of list || []) {
@@ -30,7 +33,7 @@
     }
     return v;
   };
-  ENTRIES.forEach((e, i) => { e.i = i; e.t0 = bt(e.b); e.t1 = bt(e.b + e.len); e.kind = e.kind || (e.len <= 1 ? 'flash' : 'card'); });
+  ENTRIES.forEach((e, i) => { e.i = i; e.t0 = snap(bt(e.b)); e.t1 = snap(bt(e.b + e.len)); e.kind = e.kind || (e.len <= 1 ? 'flash' : 'card'); });
   const entryAt = t => { let cur = null; for (const e of ENTRIES) if (t >= e.t0 && t < e.t1) cur = e; return cur; };
   const lastEntryBefore = t => { let cur = null; for (const e of ENTRIES) if (e.t0 <= t) cur = e; return cur; };
 

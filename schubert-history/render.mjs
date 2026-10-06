@@ -7,7 +7,8 @@
 //                   [--out out/schubert-calculus.mp4]
 //   node render.mjs --stills 1.2,4.5        (PNGs into out/stills)
 //
-// --blur N renders N sub-frames per frame across a 180-degree shutter and
+// --blur N renders N sub-frames per frame across a 180-degree shutter (opening at the
+// frame time) and
 // averages them (real motion blur). Grain is added by ffmpeg after the
 // average so it stays crisp; the page is loaded with ?nograin.
 import { createRequire } from 'node:module';
@@ -79,8 +80,9 @@ const nFrames = Math.round((to - from) * fps);
 const jobs = [];
 for (let f = 0; f < nFrames; f++) {
   for (let s = 0; s < blur; s++) {
-    // 180-degree shutter centred on the frame time.
-    const off = blur === 1 ? 0 : ((s + 0.5) / blur - 0.5) * 0.5 / fps;
+    // 180-degree shutter opening at the frame time. The film snaps every cut to a frame
+    // boundary, so no frame's exposure straddles a cut (no double-exposed cut frames).
+    const off = blur === 1 ? 0 : ((s + 0.5) / blur) * 0.5 / fps;
     jobs.push(Math.max(0, from + f / fps + off));
   }
 }
