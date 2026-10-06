@@ -21,7 +21,8 @@
   const layer = makeCanvas(), ctx = layer.getContext('2d'), hotC = makeCanvas(), hot = hotC.getContext('2d');
   const C = MOTIF_C;
   const stage = q.get('stage');
-  const FULL = stage === 'hero' ? { x: 250, y: 110, w: 1420, h: 700 } : stage ? { x: 330, y: 125, w: 1260, h: 670 } : { x: 560, y: 220, w: 800, h: 600 };
+  const BOX = q.get('box') ? q.get('box').split(',').map(Number) : null;   // &box=x,y,w,h overrides
+  const FULL = BOX ? { x: BOX[0], y: BOX[1], w: BOX[2], h: BOX[3] } : stage === 'hero' ? { x: 250, y: 110, w: 1420, h: 700 } : stage ? { x: 330, y: 125, w: 1260, h: 670 } : { x: 560, y: 220, w: 800, h: 600 };
   function panel(p, box) {
     const t = p * dur;
     const k = Math.exp(-((t % BEAT) / 0.12));
@@ -45,9 +46,11 @@
       });
     } else {
       const box = FULL;
-      if (stage) { main.fillStyle = 'rgba(255,255,255,0.035)'; main.fillRect(0, 812, W, H - 812); }
-      main.strokeStyle = 'rgba(255,255,255,0.08)'; main.strokeRect(box.x, box.y, box.w, box.h);
-      main.fillStyle = 'rgba(255,255,255,0.5)'; main.font = '18px "JetBrains Mono"'; main.fillText(`${id}  p=${t.toFixed(2)}  box ${box.w}x${box.h}  dur ${dur}s`, box.x, box.y - 14);
+      if (!q.has('clean')) {           // &clean=1: just the motif (for stills and the thumbnail)
+        if (stage) { main.fillStyle = 'rgba(255,255,255,0.035)'; main.fillRect(0, 812, W, H - 812); }
+        main.strokeStyle = 'rgba(255,255,255,0.08)'; main.strokeRect(box.x, box.y, box.w, box.h);
+        main.fillStyle = 'rgba(255,255,255,0.5)'; main.font = '18px "JetBrains Mono"'; main.fillText(`${id}  p=${t.toFixed(2)}  box ${box.w}x${box.h}  dur ${dur}s`, box.x, box.y - 14);
+      }
       panel(Math.min(1, t), box);
     }
     main.drawImage(layer, 0, 0);
