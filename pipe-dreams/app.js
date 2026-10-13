@@ -470,7 +470,7 @@
   function renderOverlay(choice) {
     const overlay = $('board-overlay');
     const n = size();
-    const side = n - 1;
+    const side = settings.pipes ? n : n - 1;
     let markup = '';
     if (settings.pipes) {
       const pipes = E.pipeLayout(game.board, n);
@@ -765,7 +765,7 @@
     const n = size();
     const tier = E.patternDifficulty(game.permutation).tier;
     announce(`Stage ${game.stage}. Reach ${target()} cells.`, '',
-      n > previous.n ? `New ${n - 1}×${n - 1} board! Reach ${target()} cells.`
+      n > previous.n ? `New ${settings.pipes ? n : n - 1}×${settings.pipes ? n : n - 1} board! Reach ${target()} cells.`
         : tier > previous.tier ? `Difficulty ${tier} begins. Reach ${target()} cells.`
           : `Stage ${game.stage}: reach ${target()} cells.`);
     cells.get(0).focus({preventScroll: true});
@@ -917,14 +917,40 @@
 
   function rebuildBoard() {
     const n = size();
-    const side = n - 1;
-    if (cells.size === side * side) return;
+    const side = settings.pipes ? n : n - 1;
+    const board = $('board');
+    const north = $('north-labels');
+    const west = $('west-labels');
+    $('board-shell').classList.toggle('pipe-grid', settings.pipes);
+    north.hidden = west.hidden = !settings.pipes;
+    if (settings.pipes) {
+      const key = game.permutation.join(',');
+      if (west.dataset.key !== key) {
+        west.dataset.key = key;
+        north.style.gridTemplateColumns = `repeat(${n}, minmax(0, 1fr))`;
+        west.style.gridTemplateRows = `repeat(${n}, minmax(0, 1fr))`;
+        const labels = values => values.map(value => {
+          const label = document.createElement('span');
+          label.textContent = value;
+          return label;
+        });
+        north.replaceChildren(...labels(Array.from({length: n}, (_, i) => i + 1)));
+        west.replaceChildren(...labels(game.permutation));
+      }
+      board.setAttribute('aria-label', `${n} by ${n} pipe dream board. North labels 1 through ${n}. West labels: ${game.permutation.join(', ')}.`);
+    } else {
+      board.setAttribute('aria-label', `${side} by ${side} pipe dream board`);
+    }
+    // A mode/size change can keep the displayed side length but change the
+    // engine's index stride (for example, S6 Pipes to S7 Tiles).
+    if (board.dataset.side === String(side) && board.dataset.stride === String(n)) return;
     cells.clear();
     previewIndex = null;
-    $('board').replaceChildren();
-    $('board').style.gridTemplateColumns = `repeat(${side}, minmax(0, 1fr))`;
-    $('board').style.gridTemplateRows = `repeat(${side}, minmax(0, 1fr))`;
-    $('board').setAttribute('aria-label', `${side} by ${side} pipe dream board`);
+    board.replaceChildren();
+    board.dataset.side = String(side);
+    board.dataset.stride = String(n);
+    board.style.gridTemplateColumns = `repeat(${side}, minmax(0, 1fr))`;
+    board.style.gridTemplateRows = `repeat(${side}, minmax(0, 1fr))`;
     for (let row = 0; row < side; row += 1) {
       for (let col = 0; col < side; col += 1) {
         // Keep the engine's n-wide indices so existing moves and saves still match.
@@ -943,7 +969,7 @@
           if (!handled) selectCell(index);
         });
         cell.addEventListener('keydown', event => moveFocus(event, index));
-        $('board').append(cell);
+        board.append(cell);
         cells.set(index, cell);
       }
     }

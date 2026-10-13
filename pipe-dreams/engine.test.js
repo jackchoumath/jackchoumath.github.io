@@ -743,7 +743,9 @@ console.log(`500 seeded S7 stages and arbitrary-state solver paths passed. Total
       cells.forEach((index, bit) => { if (mask & (1 << bit)) board[index] = 1; });
       const pipes = engine.pipeLayout(board, n);
       assert.equal(pipes.length, n);
-      const exits = pipes.map(pipe => pipe.exit.side === "top" ? pipe.exit.col + 1 : n);
+      assert(pipes.every(pipe => pipe.exit.side === "top"), "all n pipes leave through the north edge");
+      assert(pipes.every(pipe => pipe.d.startsWith(`M0 ${pipe.label - 0.5}`)), "all n pipes enter from their west-side row");
+      const exits = pipes.map(pipe => pipe.exit.col + 1);
       assert.deepEqual(exits, engine.demazurePermutation(board, n), `pipe exits give the Demazure product for S${n} board ${mask}`);
       assert(pipes.every(pipe => /^M[\d.]+ [\d.]+([LA][\d. ]+)+$/.test(pipe.d)), "pipe paths are well formed");
       const visits = new Map();
@@ -782,12 +784,12 @@ console.log(`500 seeded S7 stages and arbitrary-state solver paths passed. Total
   }
   for (let k = 0; k < 720; k += 1) {
     const w = engine.nthPermutation(6, k);
-    const exits = engine.pipeLayout(engine.bottomDream(w), 6).map(pipe => pipe.exit.side === "top" ? pipe.exit.col + 1 : 6);
+    const exits = engine.pipeLayout(engine.bottomDream(w), 6).map(pipe => pipe.exit.col + 1);
     assert.deepEqual(exits, w, "the bottom pipe dream's pipes realize w");
     let board = engine.bottomDream(w);
     for (const move of engine.maximalPath(w)) {
       board = engine.applyMove(board, move, 6);
-      assert.deepEqual(engine.pipeLayout(board, 6).map(pipe => pipe.exit.side === "top" ? pipe.exit.col + 1 : 6), w,
+      assert.deepEqual(engine.pipeLayout(board, 6).map(pipe => pipe.exit.col + 1), w,
         "pipes on a maximal pipe dream still realize w");
     }
   }

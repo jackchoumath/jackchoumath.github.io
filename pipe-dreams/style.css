@@ -102,8 +102,28 @@ a { color: var(--sage); }
 
 /* Board */
 .board-area { --status-h: 56px; grid-area: board; min-height: 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; container-type: size; }
-.board-frame { --side: min(calc(100vw - 32px), calc(var(--viewport-height) - 200px)); position: relative; flex: none; width: var(--side); height: var(--side); }
-@supports (width: 1cqw) { .board-frame { --side: min(100cqw, calc(100cqh - var(--status-h))); } }
+.board-shell {
+  --axis-space: 0px;
+  --side: min(calc(100vw - 32px - 2 * var(--axis-space)), calc(var(--viewport-height) - 200px - var(--axis-space)));
+  display: grid;
+  grid-template-columns: var(--axis-space) var(--side) var(--axis-space);
+  grid-template-rows: var(--axis-space) var(--side);
+  grid-template-areas: ". north ." "west board .";
+  flex: none;
+  width: calc(var(--side) + 2 * var(--axis-space));
+  height: calc(var(--side) + var(--axis-space));
+}
+/* Reserve both side margins so the square itself stays centered. */
+.board-shell.pipe-grid { --axis-space: clamp(24px, 3vmin, 30px); }
+.board-frame { grid-area: board; position: relative; width: var(--side); height: var(--side); }
+@supports (width: 1cqw) {
+  .board-shell { --side: min(calc(100cqw - 2 * var(--axis-space)), calc(100cqh - var(--status-h) - var(--axis-space))); }
+}
+.pipe-axis { color: var(--muted); font-size: clamp(10px, 1.7vmin, 12px); font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; user-select: none; }
+.pipe-axis-north { grid-area: north; display: grid; align-items: end; padding-bottom: 7px; }
+.pipe-axis-west { grid-area: west; display: grid; justify-items: end; padding-right: 7px; }
+.pipe-axis span { display: grid; place-items: center; min-width: 0; min-height: 0; }
+.pipe-grid .board-overlay { overflow: hidden; }
 .board { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; width: 100%; height: 100%; display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; box-shadow: 0 1px 0 #ffffff40 inset; }
 .board-overlay { position: absolute; inset: 1px; z-index: 4; width: calc(100% - 2px); height: calc(100% - 2px); pointer-events: none; overflow: visible; }
 .cell { position: relative; min-width: 0; min-height: 0; background: var(--cell); padding: 0; border: 0; display: flex; align-items: center; justify-content: center; isolation: isolate; container-type: size; transition: background-color .15s ease; }

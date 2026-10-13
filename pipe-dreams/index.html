@@ -16,10 +16,10 @@
       if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
     })();
   </script>
-  <link rel="stylesheet" href="style.css?v=20261013-ipad-viewport">
+  <link rel="stylesheet" href="style.css?v=20261013-pipe-labels">
   <script src="viewport.js?v=20261013-ipad-viewport" defer></script>
-  <script src="engine.js?v=20261013-ipad-viewport" defer></script>
-  <script src="app.js?v=20261013-ipad-viewport" defer></script>
+  <script src="engine.js?v=20261013-pipe-labels" defer></script>
+  <script src="app.js?v=20261013-pipe-labels" defer></script>
 </head>
 <body>
   <main class="game">
@@ -71,9 +71,13 @@
     </div>
 
     <section class="board-area" aria-label="Puzzle">
-      <div id="board-frame" class="board-frame">
-        <div id="board" class="board" role="group" aria-label="Pipe dream board"></div>
-        <svg id="board-overlay" class="board-overlay" aria-hidden="true" focusable="false"></svg>
+      <div id="board-shell" class="board-shell">
+        <div id="north-labels" class="pipe-axis pipe-axis-north" aria-hidden="true" hidden></div>
+        <div id="west-labels" class="pipe-axis pipe-axis-west" aria-hidden="true" hidden></div>
+        <div id="board-frame" class="board-frame">
+          <div id="board" class="board" role="group" aria-label="Pipe dream board"></div>
+          <svg id="board-overlay" class="board-overlay" aria-hidden="true" focusable="false"></svg>
+        </div>
       </div>
       <div class="status-area">
         <p id="status-line" class="status-line" aria-hidden="true"></p>
@@ -135,7 +139,7 @@
         <label><input id="style-tiles" type="radio" name="board-style" value="tiles"><span><i class="style-swatch tiles-swatch" aria-hidden="true"></i>Tiles</span></label>
         <label><input id="style-pipes" type="radio" name="board-style" value="pipes"><span><i class="style-swatch pipes-swatch" aria-hidden="true"></i>Pipes</span></label>
       </div>
-      <p class="setting-help">Pipes draws the actual pipe dream: empty cells have elbows and filled cells have a crossing shape. Two pipes cross at most once; where they meet again, the shape stays the same and the colors turn at the center, so pipe <i>i</i> leaves through column <i>w</i>(<i>i</i>).</p>
+      <p class="setting-help">Pipes draws the actual pipe dream on an <i>n</i> × <i>n</i> board, with 1, …, <i>n</i> across the top and <i>w</i> in one-line notation down the left. Each pipe joins equal numbers on these two sides. Empty cells have elbows and filled cells have a crossing shape. Two pipes cross at most once; where they meet again, the shape stays the same and the colors turn at the center.</p>
     </fieldset>
     <fieldset class="setting">
       <legend>Feedback</legend>

@@ -167,10 +167,10 @@ async function ladder(app, from, to) {
   await app.click(to);
 }
 
-function assertBoardSize(app, n) {
+function assertBoardSize(app, n, pipes = false) {
   assert.equal(app.state().permutation.length, n);
   assert.equal(app.state().board.length, n * n, 'saved boards retain the engine index stride');
-  const side = n - 1;
+  const side = pipes ? n : n - 1;
   assert.equal(app.get('board').children.length, side * side, `render all ${side} × ${side} cells for S${n}`);
   assert.equal(app.get('board').style.gridTemplateColumns, `repeat(${side}, minmax(0, 1fr))`);
   assert.equal(app.get('board').style.gridTemplateRows, `repeat(${side}, minmax(0, 1fr))`);
@@ -180,10 +180,12 @@ function assertBoardSize(app, n) {
       assert.equal(Number(cell.dataset.index), row * n + col, 'displayed positions map to unchanged engine indices');
       assert.match(cell.getAttribute('aria-label'), new RegExp(`Row ${row + 1}, column ${col + 1}:`));
     }
-    assert.equal(app.cell(row * n + n - 1), undefined, 'the unused final column is not rendered');
-    assert.equal(app.cell((n - 1) * n + row), undefined, 'the unused final row is not rendered');
+    if (!pipes) {
+      assert.equal(app.cell(row * n + n - 1), undefined, 'Tiles omits the final boundary column');
+      assert.equal(app.cell((n - 1) * n + row), undefined, 'Tiles omits the final boundary row');
+    }
   }
-  assert.equal(app.cell(n * n - 1), undefined);
+  assert.equal(Boolean(app.cell(n * n - 1)), pipes);
 }
 
 function simplePermutation(n) {
@@ -1116,6 +1118,67 @@ async function viewChecks() {
   assert.equal(app.state().stage, 68);
 }
 
+async function pipeBoardChecks() {
+  const setPipes = async (app, pipes) => {
+    const input = app.get(pipes ? 'style-pipes' : 'style-tiles');
+    input.checked = true;
+    await input.emit('change');
+  };
+  for (const n of [5, 7, 17]) {
+    // Use a non-involution so confusing w with its inverse fails this check.
+    const permutation = [1, 3, 5, 2, 4, ...Array.from({length: n - 5}, (_, i) => i + 6)];
+    let app = start(savedGame(permutation, [], 68));
+    const move = E.legalMoves(app.state().board, n).find(move => move.type === 'ladder');
+    await ladder(app, move.from, move.to);
+    const before = app.state();
+    await setPipes(app, true);
+    assertBoardSize(app, n, true);
+    assert.deepEqual(app.state(), before, 'switching to Pipes preserves progress and pending additions');
+    assert.equal(app.get('board-overlay').getAttribute('viewBox'), `0 0 ${n} ${n}`);
+    assert.deepEqual(app.get('north-labels').children.map(label => label.textContent),
+      Array.from({length: n}, (_, i) => String(i + 1)));
+    assert.deepEqual(app.get('west-labels').children.map(label => label.textContent), permutation.map(String));
+    assert.equal(app.get('north-labels').hidden, false);
+    assert.equal(app.get('west-labels').hidden, false);
+    assert(app.get('board-shell').classList.contains('pipe-grid'));
+    assert(app.get('board').getAttribute('aria-label').includes(`West labels: ${permutation.join(', ')}.`));
+    for (const index of [n - 1, (n - 1) * n, n * n - 1]) {
+      assert.equal(app.cell(index).disabled, true, 'extra boundary cells cannot be played');
+      await app.click(index);
+      assert.deepEqual(app.state(), before, 'even a synthetic boundary click cannot change the board');
+    }
+    const lastPlayableRow = (n - 2) * n;
+    await app.cell(lastPlayableRow).emit('keydown', {key: 'ArrowDown'});
+    assert.equal(app.cell(lastPlayableRow).tabIndex, 0, 'keyboard navigation stops before the new boundary row');
+    const pipes = E.pipeLayout(app.state().board, n);
+    assert(pipes.every(pipe => pipe.exit.side === 'top'));
+    assert.deepEqual(pipes.map(pipe => pipe.exit.col + 1), permutation, 'equal labels connect on both sides');
+    app = start(undefined, E, {storage: app.storage});
+    assertBoardSize(app, n, true);
+    assert.deepEqual(app.get('west-labels').children.map(label => label.textContent), permutation.map(String));
+    assert(app.cell(move.from).classList.contains('k-origin'), 'reloading Pipes preserves the green addition');
+    await app.click(move.from);
+    assert.equal(E.countCells(app.state().board), E.countCells(before.board) + 1, 'adding cells works in the full grid');
+    const after = app.state();
+    await setPipes(app, false);
+    assertBoardSize(app, n);
+    assert.equal(app.get('board-overlay').getAttribute('viewBox'), `0 0 ${n - 1} ${n - 1}`);
+    assert.equal(app.get('north-labels').hidden, true);
+    assert.equal(app.get('west-labels').hidden, true);
+    assert.deepEqual(app.state(), after, 'returning to Tiles preserves the same puzzle');
+  }
+  const permutation = simplePermutation(5);
+  const app = start(savedGame(permutation, E.maximalPath(permutation), 1));
+  await setPipes(app, true);
+  const previousLabels = app.get('west-labels').children.map(label => label.textContent);
+  await app.advance();
+  assert.equal(app.state().stage, 2);
+  assertBoardSize(app, 5, true);
+  assert.notDeepEqual(app.get('west-labels').children.map(label => label.textContent), previousLabels);
+  assert.deepEqual(app.get('west-labels').children.map(label => label.textContent), app.state().permutation.map(String),
+    'new stages update w even when n stays the same');
+}
+
 async function persistentAdditionChecks() {
   const permutation = [1, 3, 2, 5, 4];
   const first = {from: 5, to: 1, type: 'ladder'};
@@ -1494,6 +1557,7 @@ async function main() {
   await tutorialChecks();
   await feedbackChecks();
   await viewChecks();
+  await pipeBoardChecks();
   await persistentAdditionChecks();
   await spaceChecks();
   console.log('Interaction checks passed: the Space shortcut for adding cells and Next stage, redo and undoable restarts, completion summaries and Next, statistics, the first-stage tutorial, blocked-cell and stranded-board feedback, the pipes view, settings, and the citation at the end of the rules; legal moves, persistent cell addition, overlapping landings, bounded hints, undo/reload, S5–S17 displayed on 4×4–16×16 grids, outer playable cells and keyboard boundaries, growth boundaries, legacy saves, size-18 save rejection, pattern-based difficulty restoration, first-visit rules, confirmed stage resets, confirmed tab closure with blocked-close recovery, and automatic advancement with cancellation and dialog pauses.');

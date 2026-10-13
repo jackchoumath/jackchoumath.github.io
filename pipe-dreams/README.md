@@ -45,7 +45,9 @@ The rules end with the citation of the paper the game is based on.
 Settings offers System/Light/Dark appearance (shared with the homepage through
 `jack-chou-theme`), a Tiles or Pipes board style, sounds and vibration, and
 "Start over from stage 1" behind a Yes/No confirmation. The Pipes style draws
-the actual pipe dream, each pipe in its own color: empty cells are pairs of
+the actual pipe dream on a full n × n square. North labels are 1, …, n;
+west labels are w(1), …, w(n), so each pipe connects equal numbers on these
+two sides. Each pipe has its own color: empty cells are pairs of
 elbows and filled cells have a crossing shape. Two pipes cross at most once.
 Where they meet again at a filled cell, the outline is identical to an active
 crossing: four straight arms and a solid center. The center square is split
@@ -80,8 +82,9 @@ Dark mode, reduced motion, and keyboard focus are supported throughout.
 
 ## Mathematical conventions
 
-- For a permutation in S_n, the board displays a full (n−1) × (n−1) square grid. Cells outside the staircase
-  `r + c < n - 1` in zero-based coordinates stay empty.
+- For a permutation in S_n, Tiles displays an (n−1) × (n−1) square and Pipes
+  displays the full n × n square, including the boundary elbows. Cells outside
+  the staircase `r + c < n - 1` in zero-based coordinates stay empty and cannot be played.
 - Stages sample non-dominant permutations from S_n within increasing difficulty
   bands, with no repeated permutations before Difficulty 12. Trailing fixed points
   do not distinguish stages: 12543 and 125436 count as the same permutation.
@@ -114,7 +117,7 @@ Dark mode, reduced motion, and keyboard focus are supported throughout.
 
 `engine.js` contains independent mathematics and exports to both browser and
 CommonJS environments. `pipeLayout(board, n)` traces every pipe through the
-displayed square for the Pipes style, resolving squares from the bottom row up
+full n × n square for the Pipes style, resolving squares from the bottom row up
 so that a filled square whose two pipes already crossed uses a normal crossing
 outline with its colors turning at the center. Puzzle catalogs are built in resumable
 steps: the interface calls `prepareStageCatalog(n, budgetMs)` during idle time
@@ -155,25 +158,27 @@ Difficulty 1 permutation in S_5, with no exception to the pattern-based classifi
 The first stage has a known two-move solution requiring one additional cell.
 Stage 4 is fixed to 14523, starting with four cells and a target of six.
 Stage 7 is fixed to 125436 at Difficulty 2, starting with three cells and a
-target of seven. Stage 4 uses a 4 × 4 grid; stage 7 uses a 5 × 5 grid. Each fixed
+target of seven. In Tiles, stage 4 uses a 4 × 4 grid and stage 7 uses a 5 × 5
+grid; Pipes adds one boundary row and column to each. Each fixed
 puzzle is reserved out of earlier stages, including its embeddings in larger
 symmetric groups. If an older saved run already played an equivalent fixed
 puzzle, its fixed stage draws a different unplayed puzzle instead. Other
 stages keep their random selection. Saved puzzles retain their progress, and
 difficulty is recalculated from the actual permutation.
 
-The first three board sizes last five stages each: 4 × 4 for stages 1–5,
-5 × 5 for stages 6–10, and 6 × 6 for stages 11–15. Starting at n=8, each size
-lasts ten stages: 7 × 7 for stages 16–25, 8 × 8 for stages 26–35, and so on.
+The first three permutation sizes last five stages each: S_5 for stages 1–5,
+S_6 for stages 6–10, and S_7 for stages 11–15. Starting at n=8, each size
+lasts ten stages: S_8 for stages 16–25, S_9 for stages 26–35, and so on.
 Difficulty still increases every five stages, reaching Difficulty 12 at stage 56
-on an 11 × 11 grid (n=12). The displayed side reaches its 16 × 16 cap at stage 106,
+at n=12. Tiles reaches its 16 × 16 cap and Pipes its 17 × 17 cap at stage 106,
 with permutations in S_17. Permutation sizes through eight
 use complete catalogs; larger sizes use bounded, reproducible samples to keep
 puzzle generation fast. Existing saved puzzles retain their permutation and
 progress until completion, then adopt the current stage's scheduled size.
 All moves, targets, hints, keyboard
 navigation, and saved histories still use the actual permutation size; the
-engine's n-wide board indices are preserved while rendering only n−1 rows and columns.
+engine's n-wide board indices are preserved in both views. Tiles omits the last
+boundary row and column; Pipes displays them and the boundary numbers.
 
 The board is the largest square fitting between a compact toolbar and the
 status line, centered with side margins when needed. Cell counts, a row of

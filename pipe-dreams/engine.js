@@ -3,7 +3,7 @@
  * Rules and the canonical construction follow Chou–Yu (2024), pp. 2–6:
  * https://www.combinatorics.org/ojs/index.php/eljc/article/view/v31i3p15
  * Coordinates here are zero-based. Crossings lie in r + c < n - 1;
- * the displayed board is nevertheless a full n × n array.
+ * the backing board is nevertheless a full n × n array.
  */
 (function (root, factory) {
   "use strict";
@@ -496,7 +496,7 @@
 
   function isStageCatalogReady(n) { return stageCatalogs.has(n); }
 
-  // Trace every pipe through the displayed (n-1) × (n-1) square. Empty
+  // Trace every pipe through the displayed n × n square. Empty
   // staircase squares are bumps (two elbows) and squares on the antidiagonal
   // r + c = n - 1 hold a single elbow. A filled square is a crossing unless its
   // two pipes have already crossed: two pipes cross at most once, and every
@@ -506,10 +506,10 @@
   // Pipe i always leaves
   // through column w(i). Coordinates are in cell units with
   // (0, 0) at the top-left corner of the displayed board. Pipe k (1-based)
-  // enters row k from the left; pipe n enters from below.
+  // enters row k from the left and every pipe leaves through the top.
   function pipeLayout(board, n) {
     validateBoard(board, n);
-    var side = n - 1;
+    var side = n;
     // Resolve tiles from the bottom row up, left to right, so both incoming
     // pipes of a square are known before deciding whether they cross there.
     var crosses = Array(n * n).fill(false);
@@ -538,8 +538,7 @@
     function fmt(value) { return String(Math.round(value * 1000) / 1000); }
     for (var label = 1; label <= n; label += 1) {
       var row, col, fromLeft, d;
-      if (label < n) { row = label - 1; col = 0; fromLeft = true; d = "M0 " + fmt(row + 0.5); }
-      else { row = n - 2; col = 0; fromLeft = false; d = "M0.5 " + fmt(side); }
+      row = label - 1; col = 0; fromLeft = true; d = "M0 " + fmt(row + 0.5);
       var crossings = [];
       var bounces = [];
       var bounceTurns = [];
@@ -573,7 +572,7 @@
       pipes.push({
         label: label,
         d: d,
-        // Exits through the top edge in a column, or the right edge of row 1.
+        // Every path exits through the north edge at column w(label).
         exit: row < 0 ? { side: "top", col: col } : { side: "right", row: row },
         crossings: crossings,
         // Filled squares where this pipe meets one it already crossed.
