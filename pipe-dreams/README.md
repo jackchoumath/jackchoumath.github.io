@@ -47,10 +47,10 @@ Settings offers System/Light/Dark appearance (shared with the homepage through
 "Start over from stage 1" behind a Yes/No confirmation. The Pipes style draws
 the actual pipe dream, each pipe in its own color: empty cells are pairs of
 elbows and filled cells have a crossing shape. Two pipes cross at most once.
-Where they meet again at a filled cell, four straight arms meet tight, separated
-turns near the center. The colors turn without crossing (the Demazure product
-convention), so pipe i always leaves through column w(i). These inactive
-crossings remain visually distinct from empty tiles' wide elbows.
+Where they meet again at a filled cell, the outline is identical to an active
+crossing: four straight arms and a solid center. The center square is split
+diagonally into the two pipe colors, connecting left to top and bottom to right
+(the Demazure product convention), so pipe i always leaves through column w(i).
 Pipes mode has no filled-tile shading or movable-cell dots. Its 17-color palette
 separates adjacent pipe labels by hue and varies lightness, with brighter colors
 in dark mode; each pipe label keeps its color across board sizes.
@@ -115,8 +115,8 @@ Dark mode, reduced motion, and keyboard focus are supported throughout.
 `engine.js` contains independent mathematics and exports to both browser and
 CommonJS environments. `pipeLayout(board, n)` traces every pipe through the
 displayed square for the Pipes style, resolving squares from the bottom row up
-so that a filled square whose two pipes already crossed uses tight noncrossing
-turns inside a crossing-shaped tile. Puzzle catalogs are built in resumable
+so that a filled square whose two pipes already crossed uses a normal crossing
+outline with its colors turning at the center. Puzzle catalogs are built in resumable
 steps: the interface calls `prepareStageCatalog(n, budgetMs)` during idle time
 for the next stage's board size, so reaching a larger board never pauses the
 page (the S8 catalog alone takes most of a second to build). `app.js` handles interaction, saved progress, and stage

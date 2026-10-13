@@ -147,7 +147,7 @@ a { color: var(--sage); }
 .board.pipes.solved .occupied .piece { background: transparent; }
 .board.pipes .destination:after, .board.pipes .destination.k-origin:after { content: ''; }
 .board.pipes .k-origin:after { position: absolute; top: 4%; right: 8%; font-size: max(12px, 30cqmin); }
-.pipe { fill: none; stroke-width: .13; stroke-linecap: round; stroke-linejoin: round; transition: stroke-width .2s ease; }
+.pipe { fill: none; stroke-width: .13; stroke-linecap: round; stroke-linejoin: miter; transition: stroke-width .2s ease; }
 .pipe-shadow { fill: none; stroke: var(--cell); stroke-width: .26; stroke-linecap: round; opacity: .9; }
 .pipe-label { font: 600 .26px var(--sans); fill: var(--muted); text-anchor: middle; dominant-baseline: central; }
 .move-arrow { fill: none; stroke: var(--coral-dark); stroke-width: .045; stroke-dasharray: .1 .09; stroke-linecap: round; opacity: .85; animation: dash 1s linear infinite; }

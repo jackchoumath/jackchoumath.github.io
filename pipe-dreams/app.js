@@ -473,8 +473,25 @@
     const side = n - 1;
     let markup = '';
     if (settings.pipes) {
-      markup += E.pipeLayout(game.board, n).map(pipe =>
+      const pipes = E.pipeLayout(game.board, n);
+      markup += pipes.map(pipe =>
         `<path class="pipe" d="${pipe.d}" style="stroke: ${pipeColor(pipe.label)}"/>`).join('');
+      // Each inactive crossing has the same solid + outline as an active
+      // crossing. Split its center square into two colors along a diagonal:
+      // left connects to top, and bottom connects to right, without a gap.
+      const halfWidth = 0.065; // Half of the .pipe stroke width, in cell units.
+      const f = value => value.toFixed(3);
+      markup += pipes.flatMap(pipe => pipe.bounceTurns.map(turn => {
+        const x = turn.index % n + 0.5;
+        const y = Math.floor(turn.index / n) + 0.5;
+        const topLeft = `${f(x - halfWidth)},${f(y - halfWidth)}`;
+        const topRight = `${f(x + halfWidth)},${f(y - halfWidth)}`;
+        const bottomLeft = `${f(x - halfWidth)},${f(y + halfWidth)}`;
+        const bottomRight = `${f(x + halfWidth)},${f(y + halfWidth)}`;
+        const points = turn.fromLeft ? `${topLeft} ${topRight} ${bottomLeft}`
+          : `${topRight} ${bottomRight} ${bottomLeft}`;
+        return `<polygon class="pipe-turn" points="${points}" style="fill: ${pipeColor(pipe.label)}"/>`;
+      })).join('');
     }
     if (choice) {
       const x1 = choice.fromCol + 0.5;
