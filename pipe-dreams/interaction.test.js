@@ -353,7 +353,7 @@ async function boundedHintChecks() {
     }};
     const app = start(saved, engine);
     await app.button('hint-button');
-    assert.equal(attemptedBoards.length, 2, 'an unknown addition route still allows checking the current board');
+    assert.equal(attemptedBoards.length, 2, `an unknown addition route still allows checking the current board: ${app.get('status-message').textContent}; ${app.get('notice').textContent}`);
     assert.equal(E.countCells(attemptedBoards[0]), E.countCells(saved.board) + 1);
     assert.deepEqual(attemptedBoards[1], saved.board);
     assert.deepEqual(app.state().board, saved.board, 'hints do not make moves');
@@ -1036,7 +1036,8 @@ async function feedbackChecks() {
   await ladder(app, movableDiagonal.move.from, movableDiagonal.move.to);
   assert.equal(app.state().history.length, 1);
 
-  // Find a K-ladder that leaves no forward moves below the maximum.
+  // Find a K-ladder that leaves neither forward moves nor retained additions
+  // below the maximum. A board with an older legal + is not stranded.
   let found = null;
   for (let k = 0; k < 720 && !found; k += 1) {
     const w = E.nthPermutation(6, k);
@@ -1051,6 +1052,8 @@ async function feedbackChecks() {
       for (const move of E.legalMoves(board, 6)) {
         const next = E.applyMove(board, move, 6);
         if (move.type === 'k-ladder' && E.countCells(next) < target && !E.legalMoves(next, 6).length) {
+          const after = start(savedGame(w, [...history, move], 68));
+          if (after.get('board').children.some(cell => cell.classList.contains('k-origin'))) continue;
           found = {w, history: [...history, {...move, type: 'ladder'}], origin: move.from};
           break;
         }
@@ -1100,6 +1103,8 @@ async function viewChecks() {
   assert.equal(app.get('progress-dialog'), undefined, 'there is no Progress dialog');
   const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
   const rules = html.slice(html.indexOf('<dialog id="rules-dialog"'), html.indexOf('</dialog>', html.indexOf('<dialog id="rules-dialog"')));
+  assert.match(rules, /Cells that can be moved have a small circle at the top right\./);
+  assert(!rules.includes('A small circle at the top right of a cell means it can be moved.'));
   assert.match(rules, /<p class="paper-credit">Based on Chen-An Chou and Tianyi Yu, <a href="https:\/\/www\.combinatorics\.org\/ojs\/index\.php\/eljc\/article\/view\/v31i3p15"[^>]*>Constructing Maximal Pipedreams of Double Grothendieck Polynomials<\/a>, Electron\. J\. Combin\. 31 \(2024\), P3\.15\.<\/p>\s*$/,
     'the paper citation ends the rules');
 
@@ -1109,6 +1114,177 @@ async function viewChecks() {
   assert.equal(app.get('reset-stage-dialog').open, true);
   await app.button('reset-stage-no');
   assert.equal(app.state().stage, 68);
+}
+
+async function persistentAdditionChecks() {
+  const permutation = [1, 3, 2, 5, 4];
+  const first = {from: 5, to: 1, type: 'ladder'};
+  const second = {from: 15, to: 11, type: 'ladder'};
+  const origins = app => app.get('board').children
+    .filter(cell => cell.classList.contains('k-origin')).map(cell => Number(cell.dataset.index));
+  let app = start(savedGame(permutation, [], 68));
+  await ladder(app, first.from, first.to);
+  await ladder(app, second.from, second.to);
+  assert.deepEqual(origins(app), [5, 15], 'independent moves keep both legal additions available');
+  const both = app.state();
+  app = start(both);
+  assert.deepEqual(origins(app), [5, 15], 'a reload reconstructs every surviving addition');
+  await app.click(5);
+  const added = app.state();
+  assert.equal(E.countCells(added.board), E.countCells(both.board) + 1);
+  assert.deepEqual(E.demazurePermutation(added.board, 5), permutation, 'the delayed addition preserves the permutation');
+  assert.deepEqual(added.history, [...both.history, {from: 5, to: 1, type: 'add-cell'}],
+    'an older addition is a separate undoable action');
+  assert.deepEqual(origins(app), [15], 'adding at one origin preserves another legal option');
+  app = start(added);
+  assert.deepEqual(app.state().board, added.board, 'a delayed addition survives save validation');
+  assert.deepEqual(origins(app), [15]);
+  await app.button('undo-button');
+  assert.deepEqual(app.state().board, both.board, 'Undo removes just the delayed added cell');
+  assert.deepEqual(app.state().history, both.history, 'Undo preserves the two preceding moves');
+  assert.deepEqual(origins(app), [5, 15]);
+  app = start(app.state());
+  assert.equal(app.get('redo-button').disabled, false, 'delayed additions survive in the saved redo stack');
+  await app.button('redo-button');
+  assert.deepEqual(app.state().board, added.board);
+  assert.deepEqual(app.state().history, added.history);
+  assert.deepEqual(origins(app), [15]);
+  await app.button('restart-button');
+  assert.deepEqual(app.state().board, E.bottomDream(permutation));
+  assert.deepEqual(origins(app), [], 'restart clears all pending additions');
+  app = start(app.state());
+  for (let index = 0; index < 3; index += 1) await app.button('redo-button');
+  assert.deepEqual(app.state().board, added.board, 'all actions, including a delayed addition, can be redone after restart');
+  assert.deepEqual(app.state().history, added.history);
+  assert.deepEqual(origins(app), [15]);
+  await app.click(15);
+  assert.deepEqual(app.state().history.at(-1), {from: 15, to: 11, type: 'add-cell'},
+    'an addition remains usable after another delayed addition');
+  assert.deepEqual(E.demazurePermutation(app.state().board, 5), permutation);
+
+  const forged = {...both, board: both.board.slice(), history: [...both.history, {from: 0, to: 1, type: 'add-cell'}]};
+  forged.board[0] = 1;
+  const rejected = start(forged);
+  assert.equal(rejected.state().stage, 1, 'saved additions without an offered origin are rejected');
+  assert.equal(rejected.state().history.length, 0);
+  app = start({...both, redo: [{from: 0, to: 1, type: 'add-cell'}]});
+  assert.deepEqual(app.state().board, both.board, 'invalid saved redo additions preserve the current game');
+  assert.deepEqual(app.state().redo, []);
+
+  app = start(both);
+  await app.key(' ');
+  assert.equal(app.state().board[15], 1, 'Space defaults to the newest available origin');
+  assert.equal(app.state().board[5], 0);
+  assert.equal(app.state().history.at(-1).type, 'k-ladder', 'the newest move still upgrades to one K-ladder action');
+  app = start(both);
+  await app.cell(0).emit('keydown', {key: 'ArrowDown'});
+  await app.key(' ');
+  assert.equal(app.state().board[5], 1, 'Space adds at an older origin reached with the keyboard');
+  assert.equal(app.state().board[15], 0);
+
+  const attempted = [];
+  const olderBoard = both.board.slice();
+  olderBoard[5] = 1;
+  const newerBoard = both.board.slice();
+  newerBoard[15] = 1;
+  assert.equal(E.findWinningPath(olderBoard, E.maximumCrossings(permutation), 5), null);
+  assert.equal(E.findWinningPath(newerBoard, E.maximumCrossings(permutation), 5), null);
+  const hintEngine = {...E, findWinningPath(board, target, n, options) {
+    attempted.push([...board]);
+    return E.findWinningPath(board, target, n, options);
+  }};
+  app = start(both, hintEngine);
+  await app.button('hint-button');
+  assert(app.cell(15).classList.contains('hint-source'), 'hints find routes that require several retained additions');
+  assert(attempted.some(board => board[5] === 1), 'hint search considers the older candidate');
+  assert(attempted.some(board => board[5] === 1 && board[15] === 1), 'hint search also considers both additions together');
+  assert.deepEqual(app.state().board, both.board, 'a hint does not add the cell itself');
+  await app.key(' ');
+  assert.equal(app.state().board[15], 1, 'Space follows the highlighted addition');
+  assert.equal(app.state().board[5], 0);
+  app = start(both, hintEngine);
+  await app.button('hint-button');
+  await app.cell(0).emit('keydown', {key: 'ArrowDown'});
+  await app.key(' ');
+  assert.equal(app.state().board[5], 1, 'moving keyboard focus to another + overrides an earlier hint');
+  assert.equal(app.state().board[15], 0);
+
+  const olderWins = savedGame([1, 5, 3, 4, 2], [
+    {from: 7, to: 3, type: 'ladder'}, {from: 10, to: 1, type: 'ladder'}
+  ], 68);
+  const newestLoses = olderWins.board.slice();
+  newestLoses[10] = 1;
+  assert.equal(E.findWinningPath(newestLoses, E.maximumCrossings(olderWins.permutation), 5), null,
+    'adding at the newest origin would make this fixture unsolvable');
+  app = start(olderWins);
+  assert.deepEqual(origins(app), [7, 10]);
+  await app.button('hint-button');
+  assert(app.cell(7).classList.contains('hint-source'), 'hints prefer an older solvable addition over a newer dead end');
+  await app.key(' ');
+  assert.equal(app.state().board[7], 1, 'Space follows a hint to an older origin');
+  assert.equal(app.state().board[10], 0);
+  assert(E.findWinningPath(app.state().board, E.maximumCrossings(olderWins.permutation), 5) !== null);
+
+  const expiryCases = [
+    {
+      reason: 'the original landing is moved away', permutation: [1, 2, 3, 4, 6, 5],
+      history: [{from: 24, to: 19, type: 'ladder'}], origin: 24, landing: 19, from: 19, to: 14
+    },
+    {
+      reason: 'the square right of the origin is filled', permutation: [1, 2, 3, 5, 6, 4],
+      history: [{from: 18, to: 13, type: 'ladder'}], origin: 18, landing: 13, from: 24, to: 19
+    },
+    {
+      reason: 'the square left of the landing is filled', permutation: [1, 2, 3, 6, 4, 5],
+      history: [{from: 19, to: 14, type: 'ladder'}], origin: 19, landing: 14, from: 18, to: 13
+    },
+    {
+      reason: 'the origin is occupied by another move', permutation: [1, 2, 3, 4, 6, 5],
+      history: [{from: 24, to: 19, type: 'k-ladder'}, {from: 19, to: 14, type: 'ladder'}],
+      origin: 19, landing: 14, from: 24, to: 19
+    },
+    {
+      reason: 'a jumped row loses one of its two cells', permutation: [1, 2, 3, 6, 5, 4],
+      history: [{from: 19, to: 14, type: 'k-ladder'}, {from: 24, to: 13, type: 'ladder'}],
+      origin: 24, landing: 13, from: 19, to: 8
+    }
+  ];
+  for (const fixture of expiryCases) {
+    app = start(savedGame(fixture.permutation, fixture.history, 68));
+    assert(app.cell(fixture.origin).classList.contains('k-origin'), `fixture offers addition before ${fixture.reason}`);
+    await ladder(app, fixture.from, fixture.to);
+    assert(!app.cell(fixture.origin).classList.contains('k-origin'), `addition expires when ${fixture.reason}`);
+    const expired = app.state();
+    app = start(expired);
+    assert(!app.cell(fixture.origin).classList.contains('k-origin'), `reload retains expiry when ${fixture.reason}`);
+    await app.click(fixture.origin);
+    assert.deepEqual(app.state().board, expired.board, 'an expired origin cannot be filled by clicking it');
+    await app.button('undo-button');
+    assert(app.cell(fixture.origin).classList.contains('k-origin'), `Undo restores the option before ${fixture.reason}`);
+    await app.button('redo-button');
+    assert(!app.cell(fixture.origin).classList.contains('k-origin'), `Redo expires the option again when ${fixture.reason}`);
+    const forgedExpired = {...expired, board: expired.board.slice(), history: [...expired.history,
+      {from: fixture.origin, to: fixture.landing, type: 'add-cell'}]};
+    forgedExpired.board[fixture.origin] = 1;
+    assert.equal(start(forgedExpired).state().stage, 1, 'save validation rejects an addition after its option expires');
+  }
+
+  // The second move first empties the landing of the older candidate, then
+  // its immediate addition fills that landing again. Replaying the combined
+  // K-ladder must preserve the expiration that happened between those steps.
+  const single = [1, 2, 3, 4, 6, 5];
+  app = start(savedGame(single, [{from: 24, to: 19, type: 'ladder'}], 68));
+  await ladder(app, 19, 14);
+  assert(!app.cell(24).classList.contains('k-origin'));
+  await app.click(19);
+  assert.equal(app.state().history.at(-1).type, 'k-ladder');
+  assert(!app.cell(24).classList.contains('k-origin'), 'refilling the original landing does not resurrect an expired option');
+  app = start(app.state());
+  assert(!app.cell(24).classList.contains('k-origin'), 'replaying a saved K-ladder includes its intermediate expiration');
+  await app.button('undo-button');
+  assert(app.cell(24).classList.contains('k-origin'), 'Undo may restore an expired option by reversing the move');
+  await app.button('redo-button');
+  assert(!app.cell(24).classList.contains('k-origin'), 'redoing the combined K-ladder cannot resurrect the old option');
 }
 
 async function spaceChecks() {
@@ -1265,7 +1441,7 @@ async function main() {
   assert.deepEqual(E.demazurePermutation(app.state().board), multiple);
   app = start(pendingMultiple);
   await ladder(app, 7, 1);
-  assert(!app.cell(8).classList.contains('k-origin'), 'another move expires the previous origin');
+  assert(!app.cell(8).classList.contains('k-origin'), 'filling the square left of the old landing expires its addition');
   assert(app.cell(7).classList.contains('k-origin'));
   const afterTwoMoves = app.state().board;
   await app.click(8);
@@ -1318,6 +1494,7 @@ async function main() {
   await tutorialChecks();
   await feedbackChecks();
   await viewChecks();
+  await persistentAdditionChecks();
   await spaceChecks();
   console.log('Interaction checks passed: the Space shortcut for adding cells and Next stage, redo and undoable restarts, completion summaries and Next, statistics, the first-stage tutorial, blocked-cell and stranded-board feedback, the pipes view, settings, and the citation at the end of the rules; legal moves, persistent cell addition, overlapping landings, bounded hints, undo/reload, S5–S17 displayed on 4×4–16×16 grids, outer playable cells and keyboard boundaries, growth boundaries, legacy saves, size-18 save rejection, pattern-based difficulty restoration, first-visit rules, confirmed stage resets, confirmed tab closure with blocked-close recovery, and automatic advancement with cancellation and dialog pauses.');
 }

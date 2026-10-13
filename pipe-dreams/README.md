@@ -15,11 +15,14 @@ destination to move it; or drag the cell onto its destination (a drop counts
 as soon as the dragged square touches the destination square anywhere). A dashed arrow
 shows where the selected cell will land, and hovering a movable cell with a
 mouse previews its destination. The original position then shows a green +:
-click it to add a cell there. Selecting other cells or clicking invalid
-positions keeps that option available. Completing another valid ladder leaves
-the previous origin empty and replaces the highlight. If a selected move lands
-on the previous origin, the landing takes precedence; clear the selection to
-use the K-ladder option instead. Both clicks of a K-ladder count as one move.
+click it to add a cell there. Every green + stays available across later moves
+until that addition is no longer legal, so several options can appear at once.
+If a selected move lands on a green +, the landing takes precedence; clear the
+selection to add there instead. An immediate move and addition count as one
+K-ladder for Undo. A delayed addition is a separate action: Undo removes that
+added cell while preserving the intervening moves. Redo and saved games restore
+the same available options; an expired option returns only when Undo restores
+an earlier position where it was still available.
 
 A status line beneath the board says what to do next and, when a cell cannot
 move, exactly why (the square to its right is filled or outside the staircase,
@@ -47,13 +50,14 @@ elbows and filled cells are crossings, except that two pipes cross at most
 once. Where two pipes that already crossed meet again at a filled cell, that
 cell acts as a bump (the Demazure product convention), so pipe i always leaves
 through column w(i).
+Filled tiles have no background shading in Pipes mode.
 
 The top-right X button asks “Leave game?”; Yes saves progress and closes the
 game tab, while No or Escape keeps playing. If the browser blocks closing a
 directly opened tab, the dialog explains how to close it manually.
 
 Keyboard: arrows navigate the board; Enter or Space selects a cell, except
-that Space adds the cell at the green + whenever one is offered and presses
+that Space uses the hinted or focused green +, otherwise the newest option, and presses
 Next stage on a finished board; U or
 Ctrl/Cmd+Z undoes; Shift+U, Ctrl+Y, or Ctrl/Cmd+Shift+Z redoes; R restarts; H
 shows a hint; N continues after a finished stage; Escape clears a selection or
@@ -61,6 +65,8 @@ closes a dialog. Progress, completion records, and settings are saved in this
 browser when local storage is available (`pipe-dreams-game-v1`,
 `pipe-dreams-meta-v1`, `pipe-dreams-settings-v1`). The game save keeps the original format, with an
 added `redo` list that is replayed and validated on load like the history.
+Delayed additions are stored as `add-cell` actions with their original ladder's
+endpoints, validated against the surviving options reconstructed from history.
 
 On phones held upright the controls move to a labelled bar at the bottom of the
 screen; phones turned sideways and tablets keep a compact top bar. The board
@@ -96,9 +102,12 @@ Dark mode, reduced motion, and keyboard focus are supported throughout.
   paper's distinguished maximal arrangement are not imposed as win conditions.
 - All move applications are checked by the engine. Saved progress is replayed
   from the bottom pipe dream and discarded if its move history is invalid.
-- Restoring a highlighted origin replaces the last ladder with its K-ladder
-  counterpart, checked against the board before that ladder. It never adds an
-  arbitrary cell, and only the latest ladder is eligible for conversion.
+- Each highlighted origin is checked against the current board: reversing its
+  original ladder and applying the corresponding K-ladder must still be legal.
+  This preserves the permutation and checks the source, landing, neighboring
+  squares, and every intervening row. Options are removed as soon as this check
+  fails. Replaying a K-ladder also checks its intermediate regular-ladder board,
+  so a saved game cannot revive an option that expired before the addition.
 
 `engine.js` contains independent mathematics and exports to both browser and
 CommonJS environments. `pipeLayout(board, n)` traces every pipe through the

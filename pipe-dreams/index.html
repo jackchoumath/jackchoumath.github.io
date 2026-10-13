@@ -16,9 +16,9 @@
       if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
     })();
   </script>
-  <link rel="stylesheet" href="style.css?v=20261006-drag-fix">
+  <link rel="stylesheet" href="style.css?v=20261013-persistent-additions">
   <script src="engine.js?v=20261006-v2" defer></script>
-  <script src="app.js?v=20261006-drag-fix" defer></script>
+  <script src="app.js?v=20261013-persistent-additions" defer></script>
 </head>
 <body>
   <main class="game">
@@ -166,7 +166,7 @@
         <div class="move-diagram jump-diagram" role="img" aria-label="After a move over filled pairs, you can also add a cell at the highlighted original square. The filled pairs remain in place."><span class="mini-board jump-board"><i></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="origin"></i><i></i></span><span class="diagram-arrow">→</span><span class="mini-board jump-board"><i></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled added"></i><i></i></span></div>
       </div>
     </div>
-    <p>Choose a cell with an empty square immediately to its right. Look upward through these two columns, skipping rows where both squares are filled. If the first remaining row has both squares empty, move the cell into its right square. A row with only one filled square blocks the move. After moving a cell, you can choose to create a cell in its original position. A small circle at the top right of a cell means it can be moved.</p>
+    <p>Choose a cell with an empty square immediately to its right. Look upward through these two columns, skipping rows where both squares are filled. If the first remaining row has both squares empty, move the cell into its right square. A row with only one filled square blocks the move. After moving a cell, you can choose to create a cell in its original position. The green + stays available until adding a cell there is no longer legal. Cells that can be moved have a small circle at the top right.</p>
     <section class="rules-illegal" aria-labelledby="illegal-title">
       <h3 id="illegal-title">Not allowed</h3>
       <div class="illegal-examples">
@@ -192,7 +192,7 @@
       <h3 id="controls-title">Controls</h3>
       <dl class="shortcut-list">
         <div><dt>Tap or click</dt><dd>Select a cell, then tap its outlined destination. Or drag the cell there.</dd></div>
-        <div><dt><kbd>Space</kbd></dt><dd>Add the cell at the green +, or go to the next stage</dd></div>
+        <div><dt><kbd>Space</kbd></dt><dd>Use the hinted or focused green +, otherwise the newest one; or go to the next stage</dd></div>
         <div><dt><kbd>U</kbd> / <kbd>Ctrl</kbd><kbd>Z</kbd></dt><dd>Undo</dd></div>
         <div><dt><kbd>Shift</kbd><kbd>U</kbd> / <kbd>Ctrl</kbd><kbd>Y</kbd></dt><dd>Redo</dd></div>
         <div><dt><kbd>R</kbd></dt><dd>Restart the stage (Redo replays your moves)</dd></div>

@@ -141,10 +141,10 @@ a { color: var(--sage); }
 .board.celebrate .occupied .piece { animation: wave .7s ease-out both; animation-delay: calc(var(--wave, 0) * 55ms); }
 
 /* Pipes view */
-.board.pipes .occupied .piece { background: color-mix(in srgb, var(--coral) 17%, transparent); box-shadow: none; inset: 6%; transform: none; }
+.board.pipes .occupied .piece { background: transparent; box-shadow: none; inset: 6%; transform: none; }
 .board.pipes .movable .piece:after { opacity: 1; background: var(--coral); box-shadow: none; width: max(5px, 13cqmin); height: max(5px, 13cqmin); top: 6%; right: 6%; }
-.board.pipes .selected .piece { background: color-mix(in srgb, var(--coral) 34%, transparent); }
-.board.pipes.solved .occupied .piece { background: color-mix(in srgb, var(--sage) 22%, transparent); }
+.board.pipes .selected .piece { background: transparent; }
+.board.pipes.solved .occupied .piece { background: transparent; }
 .board.pipes .destination:after, .board.pipes .destination.k-origin:after { content: ''; }
 .board.pipes .k-origin:after { position: absolute; top: 4%; right: 8%; font-size: max(12px, 30cqmin); }
 .pipe { fill: none; stroke-width: .13; stroke-linecap: round; stroke-linejoin: round; transition: stroke-width .2s ease; }

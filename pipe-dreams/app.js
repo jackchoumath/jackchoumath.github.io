@@ -40,6 +40,7 @@
   let tapHandled = null;
   let spaceHandled = false;
   let lastTick = null;
+  let availableAdditions = [];
   let game;
 
   function readJSON(key) {
@@ -202,22 +203,23 @@
       // bounded by this staircase sum even on the largest boards.
       const longest = n * (n - 1) * (n + 1) / 6;
       if (saved.history.length > longest) return null;
-      let board = E.bottomDream(saved.permutation);
       // Validate the complete saved path, not just the number of cells.
-      for (const move of saved.history) board = E.applyMove(board, move, saved.permutation.length);
+      const restored = replayHistory(saved.permutation, saved.history);
+      const board = restored.board;
       if (!Array.isArray(saved.board) || board.join('') !== saved.board.join('')) return null;
       // Redo moves must also replay legally from the restored board.
       let redo = [];
       if (Array.isArray(saved.redo) && saved.history.length + saved.redo.length <= longest) {
         try {
-          let ahead = board;
-          for (let i = saved.redo.length - 1; i >= 0; i -= 1) ahead = E.applyMove(ahead, saved.redo[i], n);
+          let ahead = restored;
+          for (let i = saved.redo.length - 1; i >= 0; i -= 1) ahead = advanceHistory(ahead, saved.redo[i], n);
           redo = saved.redo;
         } catch { redo = []; }
       }
       const seen = Array.isArray(saved.seen) ? saved.seen.filter(s => typeof s === 'string').slice(-100) : [];
       const currentKey = saved.permutation.join(',');
       if (!seen.includes(currentKey)) seen.push(currentKey);
+      availableAdditions = restored.pending;
       return {
         version: 1, stage: saved.stage, permutation: saved.permutation, board,
         history: saved.history, redo,
@@ -263,17 +265,57 @@
     return moves.find(move => move.from === selected && move.type === 'ladder');
   }
 
-  function pendingConversion() {
-    const last = game.history[game.history.length - 1];
-    if (solved() || !last || last.type !== 'ladder' || game.board[last.from] || !game.board[last.to]) return null;
-    // A conversion replaces the last mathematical move. Validate the K-ladder
-    // against the board BEFORE that move, not as an arbitrary new placement.
-    const before = game.board.slice();
-    before[last.from] = 1;
-    before[last.to] = 0;
-    const move = {...last, type: 'k-ladder'};
-    try { return {move, board: E.applyMove(before, move, size())}; }
+  function conversionOn(board, original, n) {
+    if (!original || board[original.from] || !board[original.to]) return null;
+    // Reverse the original ladder on the CURRENT board, then validate its K
+    // counterpart. This checks the whole rectangle, not merely an empty origin.
+    const before = board.slice();
+    before[original.from] = 1;
+    before[original.to] = 0;
+    const move = {...original, type: 'k-ladder'};
+    try { return {move, board: E.applyMove(before, move, n)}; }
     catch { return null; }
+  }
+
+  function advanceHistory(state, move, n) {
+    const retain = (pending, board) => pending.filter(original => conversionOn(board, original, n));
+    if (move && move.type === 'add-cell') {
+      const original = state.pending.find(candidate => candidate.from === move.from && candidate.to === move.to);
+      const conversion = conversionOn(state.board, original, n);
+      if (!conversion) throw new RangeError('This cell addition is no longer legal.');
+      return {board: conversion.board, pending: retain(state.pending, conversion.board)};
+    }
+    const board = E.applyMove(state.board, move, n);
+    let pending = state.pending;
+    if (move.type === 'k-ladder') {
+      // An immediate move-and-add is saved as one K-ladder. Still check the
+      // intermediate position so reload and redo cannot revive expired options.
+      pending = retain(pending, E.applyMove(state.board, {...move, type: 'ladder'}, n));
+    }
+    pending = retain(pending, board);
+    if (move.type === 'ladder') pending = [...pending, move];
+    return {board, pending};
+  }
+
+  function replayHistory(permutation, history) {
+    return history.reduce((state, move) => advanceHistory(state, move, permutation.length),
+      {board: E.bottomDream(permutation), pending: []});
+  }
+
+  function applyHistoryMove(move) {
+    const next = advanceHistory({board: game.board, pending: availableAdditions}, move, size());
+    game.board = next.board;
+    availableAdditions = next.pending;
+  }
+
+  function pendingConversions() {
+    return solved() ? [] : availableAdditions.slice().reverse()
+      .map(original => conversionOn(game.board, original, size())).filter(Boolean);
+  }
+
+  function pendingConversion(index) {
+    const conversions = pendingConversions();
+    return (index === undefined ? conversions[0] : conversions.find(option => option.move.from === index)) || null;
   }
 
   // Explain exactly why a filled cell has no move.
@@ -331,8 +373,9 @@
     const landings = new Set([...ladderBySource.values()].map(move => move.to));
     if (previewIndex !== null && !landings.has(previewIndex)) previewIndex = null;
     const choice = chosenMove(moves);
-    const conversion = pendingConversion();
-    coachState = coachStep(conversion);
+    const conversions = pendingConversions();
+    const origins = new Set(conversions.map(option => option.move.from));
+    coachState = coachStep(conversions[0]);
     const sameGame = lastRender && lastRender.game === game;
     if (won && sameGame && !lastRender.won) {
       celebrating = true;
@@ -367,7 +410,7 @@
       const occupied = Boolean(game.board[index]);
       const movable = ladderBySource.has(index);
       const destination = Boolean(choice && choice.to === index);
-      const origin = Boolean(conversion && conversion.move.from === index);
+      const origin = origins.has(index);
       const preview = previewIndex === index && selected === null;
       cell.className = ['cell', outside && 'outside', occupied && 'occupied',
         movable && 'movable', selected === index && 'selected',
@@ -521,7 +564,7 @@
   function clearSelection() { selected = null; hintSource = null; justAdded = null; }
 
   function performMove(move, fromRect = rectOf(move.from)) {
-    game.board = E.applyMove(game.board, move, size());
+    applyHistoryMove(move);
     game.history.push(move);
     game.redo = [];
     clearSelection();
@@ -539,11 +582,16 @@
     return !solved() && !legalMoves().length && !pendingConversion();
   }
 
-  // Add a cell at the last move's origin: the ladder becomes a K-ladder.
+  // Immediate additions remain one K-ladder for Undo. A delayed addition is
+  // its own action so undoing it never rewrites the intervening moves.
   function addAtOrigin(conversion) {
     const index = conversion.move.from;
-    game.board = conversion.board;
-    game.history[game.history.length - 1] = conversion.move;
+    const last = game.history[game.history.length - 1];
+    const addition = {type: 'add-cell', from: index, to: conversion.move.to};
+    applyHistoryMove(addition);
+    if (last && last.type === 'ladder' && last.from === index && last.to === conversion.move.to) {
+      game.history[game.history.length - 1] = conversion.move;
+    } else game.history.push(addition);
     game.redo = [];
     clearSelection();
     justAdded = index;
@@ -573,8 +621,8 @@
       performMove(move);
       return;
     }
-    const conversion = pendingConversion();
-    if (conversion && conversion.move.from === index) {
+    const conversion = pendingConversion(index);
+    if (conversion) {
       addAtOrigin(conversion);
       return;
     }
@@ -607,9 +655,9 @@
     tick();
     const move = game.history.pop();
     const fromRect = move.type === 'ladder' ? rectOf(move.to) : null;
-    game.board = game.board.slice();
-    game.board[move.to] = 0;
-    game.board[move.from] = 1;
+    const previous = replayHistory(game.permutation, game.history);
+    game.board = previous.board;
+    availableAdditions = previous.pending;
     game.redo.push(move);
     clearSelection();
     focusIndex = move.from;
@@ -624,8 +672,7 @@
     if (!game.redo.length || solved() || dialogOpen()) return;
     tick();
     const move = game.redo[game.redo.length - 1];
-    let board;
-    try { board = E.applyMove(game.board, move, size()); }
+    try { applyHistoryMove(move); }
     catch {
       game.redo = [];
       save();
@@ -634,16 +681,16 @@
     }
     const fromRect = rectOf(move.from);
     game.redo.pop();
-    game.board = board;
     game.history.push(move);
     clearSelection();
-    focusIndex = move.to;
-    pendingEffect = {type: 'slide', index: move.to, fromRect};
-    if (move.type === 'k-ladder') justAdded = move.from;
-    if (!solved()) sound(move.type === 'k-ladder' ? 'add' : 'move');
+    focusIndex = move.type === 'add-cell' ? move.from : move.to;
+    if (move.type !== 'add-cell') pendingEffect = {type: 'slide', index: move.to, fromRect};
+    if (move.type !== 'ladder') justAdded = move.from;
+    if (!solved()) sound(move.type !== 'ladder' ? 'add' : 'move');
     save();
     render();
-    announce(`Redid the move from ${coordinate(move.from)} to ${coordinate(move.to)}${move.type === 'k-ladder' ? ', adding a cell' : ''}.`,
+    announce(move.type === 'add-cell' ? `Redid the addition at ${coordinate(move.from)}.`
+      : `Redid the move from ${coordinate(move.from)} to ${coordinate(move.to)}${move.type === 'k-ladder' ? ', adding a cell' : ''}.`,
       '', `Move redone${game.redo.length ? ` · ${plural(game.redo.length, 'more move')} to redo` : ''}.`);
   }
 
@@ -654,6 +701,7 @@
     game.redo = game.redo.concat(game.history.slice().reverse());
     game.board = E.bottomDream(game.permutation);
     game.history = [];
+    availableAdditions = [];
     clearSelection();
     sound('undo');
     save();
@@ -680,6 +728,7 @@
     const next = freshGame(game.stage + 1, game.seen);
     recordCompletion();
     game = next;
+    availableAdditions = [];
     clearSelection();
     focusIndex = 0;
     startStageClock();
@@ -700,6 +749,7 @@
   function resetStage() {
     if (!$('reset-stage-dialog').open) return;
     game = freshGame(1);
+    availableAdditions = [];
     clearSelection();
     focusIndex = 0;
     startStageClock();
@@ -743,21 +793,46 @@
       return;
     }
     try {
-      const options = {permutation: game.permutation, maxStates: 25000, timeLimitMs: 250};
-      const route = board => E.findWinningPath(board, target(), size(), options);
-      const conversion = pendingConversion();
-      let conversionPath = null;
+      const deadline = Date.now() + 250;
+      const options = {permutation: game.permutation, maxStates: 25000};
+      const route = (board, remainingAttempts = 1) => E.findWinningPath(board, target(), size(), {
+        ...options, timeLimitMs: Math.max(1, Math.floor((deadline - Date.now()) / remainingAttempts))
+      });
+      const conversions = pendingConversions();
+      let conversion = null;
       let conversionLimited = false;
-      // The last origin is still an option even when no ordinary ladders
-      // remain. A hint must consider completing this K-ladder first.
-      if (conversion) {
-        try { conversionPath = route(conversion.board); }
-        catch (error) {
-          if (error.code !== 'SEARCH_LIMIT') throw error;
-          conversionLimited = true;
+      // Try surviving origins, including combinations of additions. Some
+      // boards need several old + options even though no ladders remain.
+      const queue = [{board: game.board, pending: availableAdditions, first: null}];
+      const visited = new Set();
+      for (let head = 0; head < queue.length && !conversion; head += 1) {
+        const state = queue[head];
+        for (const original of state.pending.slice().reverse()) {
+          if (Date.now() >= deadline || visited.size >= 25000) {
+            conversionLimited = true;
+            break;
+          }
+          const candidate = conversionOn(state.board, original, size());
+          if (!candidate) continue;
+          const next = advanceHistory(state, {...original, type: 'add-cell'}, size());
+          const key = candidate.board.join('') + ':' + next.pending.map(move => `${move.from},${move.to}`).join(';');
+          if (visited.has(key)) continue;
+          visited.add(key);
+          const first = state.first || candidate;
+          try {
+            if (route(candidate.board, conversions.length + 1) !== null) {
+              conversion = first;
+              break;
+            }
+          } catch (error) {
+            if (error.code !== 'SEARCH_LIMIT') throw error;
+            conversionLimited = true;
+          }
+          queue.push({...next, first});
         }
+        if (Date.now() >= deadline || visited.size >= 25000) break;
       }
-      if (conversionPath !== null) {
+      if (conversion) {
         selected = null;
         hintSource = conversion.move.from;
         focusIndex = conversion.move.from;
@@ -778,7 +853,7 @@
         announce(`Move ${coordinate(move.from)} to ${coordinate(move.to)}.${move.type === 'k-ladder' ? ` Then click the + at ${coordinate(move.from)} to add a cell.` : ' Leave the original cell empty and continue.'}`,
           '', move.type === 'k-ladder' ? 'Hint: move the highlighted cell to the outlined square, then tap + to add a cell.'
             : 'Hint: move the highlighted cell to the outlined square, and leave its old square empty.');
-      } else if (conversionLimited) {
+      } else if (conversionLimited || conversions.length) {
         announce('The hint search has not found a route yet. You can keep playing.', 'No hint found yet. You can keep playing.');
       } else {
         announce('This position cannot reach the maximum with forward moves. Undo a move, or restart this stage and try a different route.',
@@ -1069,7 +1144,7 @@
       return;
     }
     if (event.key === ' ') {
-      const conversion = pendingConversion();
+      const conversion = pendingConversion(focusIndex) || pendingConversion(hintSource) || pendingConversion();
       if (conversion) {
         event.preventDefault();
         spaceHandled = true;
