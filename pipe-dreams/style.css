@@ -48,8 +48,11 @@
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html, body { height: 100%; }
-body { margin: 0; color: var(--ink); background: var(--paper); font-family: var(--sans); overflow-x: hidden; overflow-y: auto; transition: background-color .2s ease, color .2s ease; }
+html { --viewport-height: 100vh; --viewport-top: 0px; }
+@supports (height: 100dvh) { html { --viewport-height: 100dvh; } }
+/* The game fits on one screen; only dialogs should scroll. */
+html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+body { margin: 0; color: var(--ink); background: var(--paper); font-family: var(--sans); transition: background-color .2s ease, color .2s ease; }
 button, a, label { -webkit-tap-highlight-color: transparent; }
 button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
 button:disabled { cursor: default; }
@@ -59,13 +62,14 @@ a { color: var(--sage); }
 
 /* Layout: a full-height grid whose middle row holds the largest square board. */
 .game {
-  height: 100vh; height: 100dvh; min-height: 300px;
+  position: fixed; top: var(--viewport-top); left: 0; right: 0;
+  height: var(--viewport-height); min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   grid-template-rows: 68px minmax(0, 1fr);
   grid-template-areas: "meta score actions" "board board board";
   column-gap: 16px;
-  padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) 4px max(16px, env(safe-area-inset-left));
+  padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 }
 .board-meta { grid-area: meta; align-self: center; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .stage { font-size: 18px; white-space: nowrap; color: var(--muted); }
@@ -98,7 +102,7 @@ a { color: var(--sage); }
 
 /* Board */
 .board-area { --status-h: 56px; grid-area: board; min-height: 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; container-type: size; }
-.board-frame { --side: min(calc(100vw - 32px), calc(100vh - 200px)); position: relative; flex: none; width: var(--side); height: var(--side); }
+.board-frame { --side: min(calc(100vw - 32px), calc(var(--viewport-height) - 200px)); position: relative; flex: none; width: var(--side); height: var(--side); }
 @supports (width: 1cqw) { .board-frame { --side: min(100cqw, calc(100cqh - var(--status-h))); } }
 .board { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; width: 100%; height: 100%; display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; box-shadow: 0 1px 0 #ffffff40 inset; }
 .board-overlay { position: absolute; inset: 1px; z-index: 4; width: calc(100% - 2px); height: calc(100% - 2px); pointer-events: none; overflow: visible; }
@@ -172,7 +176,7 @@ a { color: var(--sage); }
 .notice { display: none !important; position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); max-width: calc(100% - 48px); margin: 0; padding: 11px 18px; border: 1px solid var(--line); border-radius: 10px; background: var(--cell); box-shadow: 0 6px 24px #00000022; color: var(--ink); font-size: 13.5px; line-height: 1.5; text-align: center; z-index: 4; pointer-events: none; animation: rise .25s ease-out; }
 
 /* Dialogs */
-.rules-dialog { width: min(640px, calc(100% - 32px)); max-height: calc(100dvh - 32px); padding: 24px; color: var(--ink); background: var(--cell); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--dialog-shadow); }
+.rules-dialog { position: fixed; top: var(--viewport-top); bottom: calc(100% - var(--viewport-top) - var(--viewport-height)); width: min(640px, calc(100% - 32px)); max-height: calc(var(--viewport-height) - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; padding: 24px; color: var(--ink); background: var(--cell); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--dialog-shadow); }
 .rules-dialog[open] { animation: dialog-in .2s ease-out; }
 .rules-dialog::backdrop { background: var(--backdrop); backdrop-filter: blur(3px); }
 .dialog-heading { position: sticky; top: -24px; z-index: 1; display: flex; align-items: center; justify-content: space-between; margin: -24px -24px 8px; padding: 18px 18px 6px 24px; background: var(--cell); }

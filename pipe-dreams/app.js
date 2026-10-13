@@ -768,7 +768,7 @@
       n > previous.n ? `New ${n - 1}×${n - 1} board! Reach ${target()} cells.`
         : tier > previous.tier ? `Difficulty ${tier} begins. Reach ${target()} cells.`
           : `Stage ${game.stage}: reach ${target()} cells.`);
-    cells.get(0).focus();
+    cells.get(0).focus({preventScroll: true});
     prepareNextCatalog();
   }
 
@@ -782,7 +782,7 @@
     save();
     render();
     $('reset-stage-dialog').close();
-    cells.get(0).focus();
+    cells.get(0).focus({preventScroll: true});
     announce(`Stage reset to 1. Reach ${target()} cells.`);
   }
 
@@ -912,7 +912,7 @@
     event.preventDefault();
     focusIndex = destination;
     cells.forEach((cell, i) => { cell.tabIndex = i === destination ? 0 : -1; });
-    cells.get(destination).focus();
+    cells.get(destination).focus({preventScroll: true});
   }
 
   function rebuildBoard() {
