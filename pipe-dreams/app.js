@@ -453,8 +453,17 @@
       : `<span class="bar"><b style="width:${(100 * done / needed).toFixed(1)}%"></b></span>`;
   }
 
-  function pipeColor(label, n) {
-    return `hsl(${Math.round(((label - 1) * 360) / n + 8)} var(--pipe-s) var(--pipe-l))`;
+  // Space neighboring labels around the color wheel and vary lightness on
+  // larger boards. Each label keeps its color as board size changes.
+  const pipePalette = [
+    [210, 88, 0], [22, 95, 0], [150, 78, -8], [280, 74, 1], [46, 100, -8],
+    [330, 86, 2], [185, 96, -9], [250, 86, 12], [88, 75, -12], [0, 86, -1],
+    [223, 61, -13], [128, 63, 7], [312, 66, -7], [34, 64, -15],
+    [169, 67, 9], [267, 48, -11], [62, 78, -17]
+  ];
+  function pipeColor(label) {
+    const [hue, saturation, lightness] = pipePalette[label - 1];
+    return `hsl(${hue} ${saturation}% calc(var(--pipe-l) + ${lightness}%))`;
   }
 
   // Pipes (optional view) and an arrow for the selected move share one SVG.
@@ -465,7 +474,7 @@
     let markup = '';
     if (settings.pipes) {
       markup += E.pipeLayout(game.board, n).map(pipe =>
-        `<path class="pipe" d="${pipe.d}" style="stroke: ${pipeColor(pipe.label, n)}"/>`).join('');
+        `<path class="pipe" d="${pipe.d}" style="stroke: ${pipeColor(pipe.label)}"/>`).join('');
     }
     if (choice) {
       const x1 = choice.fromCol + 0.5;

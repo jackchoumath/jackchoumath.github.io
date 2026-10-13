@@ -16,9 +16,9 @@
       if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
     })();
   </script>
-  <link rel="stylesheet" href="style.css?v=20261013-persistent-additions">
-  <script src="engine.js?v=20261006-v2" defer></script>
-  <script src="app.js?v=20261013-persistent-additions" defer></script>
+  <link rel="stylesheet" href="style.css?v=20261013-pipe-crossings">
+  <script src="engine.js?v=20261013-pipe-crossings" defer></script>
+  <script src="app.js?v=20261013-pipe-crossings" defer></script>
 </head>
 <body>
   <main class="game">
@@ -134,7 +134,7 @@
         <label><input id="style-tiles" type="radio" name="board-style" value="tiles"><span><i class="style-swatch tiles-swatch" aria-hidden="true"></i>Tiles</span></label>
         <label><input id="style-pipes" type="radio" name="board-style" value="pipes"><span><i class="style-swatch pipes-swatch" aria-hidden="true"></i>Pipes</span></label>
       </div>
-      <p class="setting-help">Pipes draws the actual pipe dream: each empty cell is a pair of elbows and each filled cell is a crossing. Two pipes cross at most once; where they meet again, the filled cell acts as elbows, so pipe <i>i</i> leaves through column <i>w</i>(<i>i</i>).</p>
+      <p class="setting-help">Pipes draws the actual pipe dream: empty cells have wide elbows and filled cells have a crossing shape. Two pipes cross at most once; where they meet again, the colors turn near the center without crossing, so pipe <i>i</i> leaves through column <i>w</i>(<i>i</i>).</p>
     </fieldset>
     <fieldset class="setting">
       <legend>Feedback</legend>

@@ -500,8 +500,10 @@
   // staircase squares are bumps (two elbows) and squares on the antidiagonal
   // r + c = n - 1 hold a single elbow. A filled square is a crossing unless its
   // two pipes have already crossed: two pipes cross at most once, and every
-  // later meeting acts as a bump (the Demazure product convention), so pipe i
-  // always leaves through column w(i). Coordinates are in cell units with
+  // later meeting turns without crossing (the Demazure product convention).
+  // Inactive crossings keep four straight arms with tight, separated turns
+  // at the center; empty tiles use the wider elbows. Pipe i always leaves
+  // through column w(i). Coordinates are in cell units with
   // (0, 0) at the top-left corner of the displayed board. Pipe k (1-based)
   // enters row k from the left; pipe n enters from below.
   function pipeLayout(board, n) {
@@ -546,6 +548,21 @@
           crossings.push(at);
           if (fromLeft) { d += "L" + fmt(col + 1) + " " + fmt(row + 0.5); col += 1; }
           else { d += "L" + fmt(col + 0.5) + " " + fmt(row); row -= 1; }
+        } else if (board[at]) {
+          // Keep the crossing-tile silhouette, but connect left to top and
+          // bottom to right. The two radius-.24 bends leave a visible gap
+          // between the .13-wide colored pipes rather than crossing again.
+          if (fromLeft) {
+            d += "L" + fmt(col + 0.26) + " " + fmt(row + 0.5) +
+              "A0.24 0.24 0 0 0 " + fmt(col + 0.5) + " " + fmt(row + 0.26) +
+              "L" + fmt(col + 0.5) + " " + fmt(row);
+            row -= 1; fromLeft = false;
+          } else {
+            d += "L" + fmt(col + 0.5) + " " + fmt(row + 0.74) +
+              "A0.24 0.24 0 0 1 " + fmt(col + 0.74) + " " + fmt(row + 0.5) +
+              "L" + fmt(col + 1) + " " + fmt(row + 0.5);
+            col += 1; fromLeft = true;
+          }
         } else if (fromLeft) {
           d += "A0.5 0.5 0 0 0 " + fmt(col + 0.5) + " " + fmt(row);
           row -= 1; fromLeft = false;
