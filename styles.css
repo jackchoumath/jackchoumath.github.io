@@ -488,6 +488,10 @@ h3 {
   color: var(--ink);
 }
 
+:root[data-theme="dark"] .talk-list a:hover {
+  color: var(--link);
+}
+
 .talk-list li {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
