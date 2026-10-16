@@ -484,6 +484,10 @@ h3 {
   list-style: none;
 }
 
+:root[data-theme="dark"] .talk-list a {
+  color: var(--ink);
+}
+
 .talk-list li {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
