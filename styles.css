@@ -78,6 +78,14 @@ a:hover {
   text-decoration: none;
 }
 
+:root[data-theme="dark"] a {
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] a:hover {
+  color: var(--link);
+}
+
 a:focus-visible,
 button:focus-visible,
 [tabindex]:focus-visible {

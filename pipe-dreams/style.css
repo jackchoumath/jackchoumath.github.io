@@ -3,6 +3,7 @@
   --line: #d6d8cb; --line-strong: #c3c7b6; --hover: #e7e6dc;
   --coral: #c9664e; --coral-dark: #a54e3b; --coral-soft: #f3e2d6; --coral-softer: #f7ebe2;
   --sage: #5f8572; --sage-light: #e1e9dd; --sage-mid: #cddfc8; --gold: #c9973a;
+  --link: var(--sage); --link-hover: var(--sage);
   --piece-hi: #da8670; --piece-lo: #b65a43; --dot: #fbeee6;
   --pipe-l: 45%;
   --on-coral: #ffffff; --on-sage: #ffffff;
@@ -20,6 +21,7 @@
   --line: #2f332c; --line-strong: #41463d; --hover: #2b2f28;
   --coral: #d2715a; --coral-dark: #e88b72; --coral-soft: #3b2b24; --coral-softer: #2e2420;
   --sage: #86ad98; --sage-light: #243129; --sage-mid: #2f4337; --gold: #e0b45c;
+  --link: #eeeeef; --link-hover: #8db9e2;
   --piece-hi: #df8a73; --piece-lo: #b85c45; --dot: #fff3ec;
   --pipe-l: 64%;
   --on-coral: #1d0f0a; --on-sage: #0f1612;
@@ -35,6 +37,7 @@
     --line: #2f332c; --line-strong: #41463d; --hover: #2b2f28;
     --coral: #d2715a; --coral-dark: #e88b72; --coral-soft: #3b2b24; --coral-softer: #2e2420;
     --sage: #86ad98; --sage-light: #243129; --sage-mid: #2f4337; --gold: #e0b45c;
+    --link: #eeeeef; --link-hover: #8db9e2;
     --piece-hi: #df8a73; --piece-lo: #b85c45; --dot: #fff3ec;
     --pipe-l: 64%;
   --on-coral: #1d0f0a; --on-sage: #0f1612;
@@ -57,7 +60,8 @@ button, a, label { -webkit-tap-highlight-color: transparent; }
 button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
 button:disabled { cursor: default; }
 button:focus-visible, a:focus-visible, input:focus-visible + span, input:focus-visible + i { outline: 2px solid var(--sage); outline-offset: 3px; }
-a { color: var(--sage); }
+a { color: var(--link); }
+a:hover { color: var(--link-hover); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 
 /* Layout: a full-height grid whose middle row holds the largest square board. */

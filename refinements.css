@@ -7,6 +7,8 @@
 .home-game p { flex: 1; min-width: 0; margin: 0; font-size: .95rem; line-height: 1.6; }
 .home-game-play { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: 96px; min-height: 44px; padding: .65rem 1.5rem; border: 1px solid var(--blue); border-radius: 6px; background: var(--blue); color: var(--background); font-size: .95rem; font-weight: 600; line-height: 1.2; text-decoration: none; }
 .home-game-play:hover { border-color: var(--link); background: var(--link); color: var(--background); }
+:root[data-theme="dark"] .home-game-play { border-color: var(--line); background: var(--wash); color: var(--ink); }
+:root[data-theme="dark"] .home-game-play:hover { border-color: var(--link); background: var(--wash); color: var(--link); }
 .talk-group + .talk-group { margin-top: 3rem; }
 @media (max-width: 760px) {
   .background { grid-template-columns: 1fr; gap: 1.15rem; padding-top: 2rem; }
