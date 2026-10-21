@@ -488,6 +488,10 @@ h3 {
   color: var(--ink);
 }
 
+:root[data-theme="dark"] .talk-resources a {
+  color: var(--muted);
+}
+
 :root[data-theme="dark"] .talk-list a:hover {
   color: var(--link);
 }
