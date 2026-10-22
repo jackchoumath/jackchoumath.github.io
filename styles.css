@@ -530,7 +530,7 @@ h3 {
   flex-direction: column;
   align-items: flex-start;
   justify-self: start;
-  gap: 0.1rem;
+  gap: 0.3rem;
   font-size: 0.92rem;
   line-height: 1.15;
 }
