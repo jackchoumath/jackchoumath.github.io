@@ -719,6 +719,11 @@ h3 {
   .talk-list li > span:first-child {
     grid-column: 1 / -1;
   }
+
+  .talk-resources {
+    flex-direction: row;
+    gap: 0.5rem;
+  }
 }
 
 @media (max-width: 430px) {
