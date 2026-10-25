@@ -109,8 +109,8 @@ class Setup(Narrated):
             self.play(LaggedStart(*[Create(a) for a in arrows[3:]], lag_ratio=0.3), run_time=1.6)
         one = MathTex(r"w = [\,1,\ -1,\ 0,\ 3,\ 4,\ 2\,]", font_size=50).move_to(2.1 * UP)
         sub = Tex(r"(one-line notation on positions $-1, 0, 1, 2, 3, 4$)", font_size=28, color=LABEL).next_to(one, DOWN, buff=0.2)
-        with self.say("In one-line notation, w is one, negative one, zero, three, four, two. Since it moves negative "
-                      "numbers too, it doesn't live in any S n.") as c:
+        with self.say("In one-line notation, w is one, negative one, zero, three, four, two. It moves negative "
+                      "numbers too, so it doesn't live in any S n.") as c:
             self.play(Write(one), FadeIn(sub), run_time=1.6)
         self.play(FadeOut(VGroup(axis, dots, nums, arrows)), VGroup(one, sub).animate.scale(0.7).to_corner(UR, buff=0.45),
                   run_time=1.0)

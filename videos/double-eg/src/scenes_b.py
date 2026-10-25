@@ -119,8 +119,8 @@ class HorizonCut(Narrated):
 
         fill = fill_positive(P1["phi"], WIN)
         pos_labels = {c: MathTex(str(k), font_size=28, color=PIPE).move_to(sec[WIN.index(c)]) for c, k in fill.items()}
-        with self.say("The cut defines a permutation, sigma. Each pipe i, at most zero, goes to the column where it "
-                      "crosses.") as c:
+        with self.say("The cut defines a permutation, sigma. Each pipe with label at most zero goes to the column "
+                      "where it crosses.") as c:
             self.play(Indicate(sec[WIN.index(1)], color=WHITE), Indicate(sec[WIN.index(0)], color=WHITE), run_time=1.4)
         with self.say("The positive numbers one, two, three, and so on fill the empty columns, in order.") as c:
             self.play(LaggedStart(*[ReplacementTransform(sec[WIN.index(col)], pos_labels[col]) for col in sorted(fill)],
@@ -391,7 +391,7 @@ class Flip(Narrated):
             self.play(Write(rows_[0]), run_time=1.6)
             self.play(Write(rows_[1]), run_time=1.0)
         msg = Tex(r"Left to do: rewrite the bottom piece of $\sigma_1$ positively.", font_size=36, color=HL).move_to(1.5 * DOWN)
-        with self.say("The culprit is y three minus y two, in the bottom piece of sigma one. Steps three to five "
+        with self.say("The culprit is y three minus y two, in the bottom piece of sigma one. The next three steps "
                       "rewrite bottom pieces positively.") as c:
             self.play(Circumscribe(bot1[1], color=NEG), run_time=1.2)
             self.play(FadeIn(msg), run_time=0.8)

@@ -201,8 +201,7 @@ class Chains(Narrated):
             self.play(FadeIn(Ul), FadeIn(Wl), run_time=0.6)
         vlabs = VGroup(*[MathTex(f"x_{v}", font_size=26, color=LABEL).move_to(
             np.array([B.grid.get_left()[0] - 0.75, B.grid.squares[(v, TA)].get_center()[1], 0])) for v in F0["table"]["vars"]])
-        with self.say("The step across row i uses the variable x i. The blue circles are the same for every "
-                      "trapezoid.") as c:
+        with self.say("Crossing row i comes with the variable x i. The blue circles are the same for every trapezoid.") as c:
             self.play(FadeOut(rl), FadeIn(vlabs), run_time=0.6)
             self.play(Create(blue(tab)), run_time=1.2)
         with self.say("The one green circle is the blank tile. The value two stays put in the step for x three, "
