@@ -45,7 +45,10 @@ LONGEST_GAP = 0.5              # seconds of silence inside a phrase that make a 
 LETTERS = "wxijsurknz"
 WORDS = {"Sottile's": "Sotteel's", "Edelman-Greene": "Edelman Greene",
          "Lam, Lee and Shimozono": "Lam Lee and Shimozono"}
-UNSPELLABLE = ("Sotteel's",)   # Whisper cannot spell these, so they match any word
+UNSPELLABLE = ("Sotteel's", "Molev's", "Bruhat", "Shimozono", "Schur", "Pieri")   # Whisper cannot spell
+                                                                                   # these: they match any word
+LINE_TRIES = 3                 # whole lines are also checked in context, and remade if they fail
+LINE_OK = 0.05
 LETTER_NAMES = {"why": "y", "ex": "x", "eye": "i", "jay": "j", "ess": "s", "kay": "k", "zee": "z"}
 CONTRACTIONS = {"here's": "here is", "there's": "there is", "that's": "that is", "it's": "it is", "let's": "let us",
                 "we'll": "we will", "doesn't": "does not", "can't": "can not", "don't": "do not"}
@@ -133,13 +136,14 @@ def words(text):
     t = t.replace("-", " ").replace("'s", "s").replace("greene", "green").replace("shur", "schur")
     t = re.sub(r"\b(piri|peri|pierre)\b", "pieri", t)    # Whisper's spellings of Pieri
     t = t.replace("non negative", "nonnegative").replace("double you", "w").replace("double u", "w")
+    t = t.replace("backstable", "back stable")
     out = []
     for w in re.findall(r"[a-z']+", t):
         if re.fullmatch(r"[a-z]sub", w):
             out += [w[0], "sub"]
         elif w in LETTER_NAMES:
             out.append(LETTER_NAMES[w])
-        elif len(w) == 2 and all(c in LETTERS for c in w) and w not in ("us", "is", "in"):
+        elif len(w) == 2 and all(c in LETTERS + "y" for c in w) and w not in ("us", "is", "in"):
             out += list(w)                       # Whisper writes "x i" as "xi"
         else:
             out.append(w)
@@ -280,33 +284,43 @@ def main(pocket_dir, whisper_dir):
         wav = os.path.join(OUT, f"{key}.wav")
         if meta.get(key, {}).get("sig") == sig and os.path.exists(wav):
             continue
-        chunks = []
-        todo = tts_input(line)
-        while todo:
-            said, pause = todo.pop(0)
-            best, good = None, []
-            for attempt in range(TRIES):
-                a = trim(np.array(tts.generate(said, gen).samples, dtype=np.float32))
-                heard = hear(a)
-                e = check(said, heard)
-                if best is None or e < best[0]:
-                    best = (e, a, heard)
-                if e <= GOOD_ENOUGH and longest_gap(a) <= LONGEST_GAP:
-                    good.append(a)
-                    if len(good) == TAKES:
-                        break
-            if good:
-                best = (0.0, most_typical(good), "")
-            elif re.search(r",\s", said[:-1]):
-                # read it in two halves instead (e.g. repetitive phrasing makes the model stutter)
-                parts = re.split(r"(?<=,)\s+", said)
-                h = len(parts) // 2
-                todo[:0] = [(" ".join(parts[:h]), PAUSE[","]), (" ".join(parts[h:]), pause)]
-                continue
-            else:
-                doubtful.append((round(best[0], 2), said, best[2]))
-            chunks += [best[1], np.zeros(int(pause * SR), dtype=np.float32)]
-        audio = level(np.concatenate(chunks[:-1]))
+        best_line = None
+        for line_try in range(LINE_TRIES):
+            chunks = []
+            todo = tts_input(line)
+            while todo:
+                said, pause = todo.pop(0)
+                best, good = None, []
+                for attempt in range(TRIES):
+                    a = trim(np.array(tts.generate(said, gen).samples, dtype=np.float32))
+                    heard = hear(a)
+                    e = check(said, heard)
+                    if best is None or e < best[0]:
+                        best = (e, a, heard)
+                    if e <= GOOD_ENOUGH and longest_gap(a) <= LONGEST_GAP:
+                        good.append(a)
+                        if len(good) == TAKES:
+                            break
+                if good:
+                    best = (0.0, most_typical(good), "")
+                elif re.search(r",\s", said[:-1]):
+                    # read it in two halves instead (e.g. repetitive phrasing makes the model stutter)
+                    parts = re.split(r"(?<=,)\s+", said)
+                    h = len(parts) // 2
+                    todo[:0] = [(" ".join(parts[:h]), PAUSE[","]), (" ".join(parts[h:]), pause)]
+                    continue
+                else:
+                    doubtful.append((round(best[0], 2), said, best[2]))
+                chunks += [best[1], np.zeros(int(pause * SR), dtype=np.float32)]
+            audio = level(np.concatenate(chunks[:-1]))
+            e = check(" ".join(p for p, _ in tts_input(line)), hear(audio)) if len(audio) < 29 * SR else 0.0
+            if best_line is None or e < best_line[0]:
+                best_line = (e, audio)
+            if e <= LINE_OK:
+                break
+        e, audio = best_line
+        if e > LINE_OK:
+            doubtful.append((round(e, 2), line, "(whole line, best of tries)"))
         sf.write(wav, audio, SR)
         meta[key] = {"sig": sig, "duration": round(len(audio) / SR, 3)}
         print(f"{key}  {meta[key]['duration']:5.2f}s  {line[:70]}", flush=True)
