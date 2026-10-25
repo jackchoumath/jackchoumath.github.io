@@ -5,9 +5,8 @@ A 3Blue1Brown-style explainer (about 12½ minutes) of the paper
 by Jack Chen-An Chou and Tianyi Yu ([arXiv:2512.12185](https://arxiv.org/abs/2512.12185)).
 
 - `double-eg.mp4`: the video (1080p60, chapter markers embedded). It is narrated by
-  a synthesized voice (Kokoro, voice `af_heart`; no human voice was recorded), the
-  captions in the picture follow the narration, and light piano music plays well
-  below the voice.
+  a synthesized voice (Kokoro, voice `af_heart`; no human voice was recorded), and
+  the captions in the picture follow the narration. There is no music.
 
 The whole video is one worked example in $S_\mathbb{Z}$, taken from the paper:
 the coefficient of $s_{21}$ for $w = [1, -1, 0, 3, 4, 2]$ (on positions $-1, \ldots, 4$),
@@ -42,11 +41,10 @@ Everything is in `src/`:
 | `common.py`, `scenes_*.py` | the manim scenes, drawn from `sz_data.json`; each caption plays its narration and stays up until it is spoken |
 | `narration.py` | what the narrator says for each caption, with the math read aloud |
 | `tts.py` | synthesizes the narration with [Kokoro](https://github.com/thewh1teagle/kokoro-onnx) (voice `af_heart`, phonemes from [misaki](https://github.com/hexgrad/misaki)) into `audio/` |
-| `bgm.py` | generates the background music as MIDI (calm piano over a pad, C major) |
-| `render.sh`, `assemble.py` | render all scenes in parallel, then join them, mix the narration with the music (rendered with FluidSynth, ducked under the voice) and add chapters |
+| `render.sh`, `assemble.py` | render all scenes in parallel, then join them with the narration at a standard loudness and add chapters |
 
 ```sh
-pip install -r src/requirements.txt   # also needs LaTeX, dvisvgm, ffmpeg, fluidsynth, fluid-soundfont-gm, espeak-ng
+pip install -r src/requirements.txt   # also needs LaTeX, dvisvgm, ffmpeg, espeak-ng
 cd src
 python sz_example.py                  # verify the math, regenerate sz_data.json
 /path/to/py3.12-env/bin/python tts.py /path/to/kokoro-model-dir   # see requirements-tts.txt
@@ -56,4 +54,4 @@ python assemble.py /tmp/media ..
 
 The model directory needs `kokoro-v1.0.onnx` and `voices-v1.0.bin` from the
 [kokoro-onnx releases](https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0).
-Without `audio/` (skip `tts.py`) the same scenes render with captions and music only.
+Without `audio/` (skip `tts.py`) the same scenes render as a silent, captioned video.
