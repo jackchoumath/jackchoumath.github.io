@@ -46,7 +46,7 @@ def cross_section(phi, cols, x_of, y, size=30, color=HL):
     return g
 
 
-class HorizonCut(Captioned):
+class HorizonCut(Narrated):
     def construct(self):
         title = heading(r"Step 1: the horizon cut")
         cell = 0.52
@@ -60,13 +60,15 @@ class HorizonCut(Captioned):
         y_cut = B.grid.squares[(0, -3)].get_bottom()[1]
         x0, x1 = B.grid.get_left()[0] - 0.35, B.grid.get_right()[0] + 0.55
         hor = Line(np.array([x0, y_cut, 0]), np.array([x1, y_cut, 0]), color=CUT, stroke_width=4)
-        with self.cap(r"Step 1. Cut each pipedream of $w$ along the \emph{horizon}, the line between rows $0$ and $1$.") as c:
+        with self.say("Step one. Cut each bumpless pipe dream of w along the horizon: the line between row zero and "
+                      "row one.") as c:
             self.play(FadeIn(title), FadeIn(B), FadeIn(rl), FadeIn(ct), run_time=1.2)
             self.play(Create(hor), run_time=1.0)
 
         # pipes 0 and -1 are the ones that matter near the cut
         p0, pm1 = B.pipes[Wf(0)], B.pipes[Wf(-1)]
-        with self.cap(r"Pipes $0$ and $-1$ cross it in columns $0$ and $1$. Pipes $-2, -3, \ldots$ go straight down their own columns.") as c:
+        with self.say("Pipes zero and minus one cross it in columns zero and one. Pipes minus two, minus three, and "
+                      "so on, go straight down their own columns.") as c:
             for p in (p0, pm1):
                 self.play(p.animate.set_stroke(color=HL, width=7), run_time=0.8)
             self.play(Indicate(B.pipes[-2], color=HL, scale_factor=1.0), Indicate(B.pipes[-3], color=HL, scale_factor=1.0), run_time=1.2)
@@ -86,7 +88,7 @@ class HorizonCut(Captioned):
         gap = 0.45
         x_of = lambda col: B.grid.squares[(0, col)].get_center()[0]
         sec = cross_section(P1["phi"], WIN, x_of, y_cut, size=28)
-        with self.cap(r"Cut there, every pipedream falls into a top piece and a bottom piece.") as c:
+        with self.say("Cut there, and every bumpless pipe dream falls apart into a top piece and a bottom piece.") as c:
             self.play(VGroup(top, rl_top, ct).animate.shift(gap * UP), VGroup(bot, rl_bot).animate.shift(gap * DOWN),
                       FadeOut(hor), run_time=1.4)
             self.play(LaggedStart(*[FadeIn(s, shift=0.1 * DOWN) for s in sec], lag_ratio=0.08), run_time=1.2)
@@ -94,13 +96,13 @@ class HorizonCut(Captioned):
         s1 = perm_tex(r"\sigma_1", [1, 0, -1], size=42)
         s1n = Tex(r"on positions $-1, 0, 1$", font_size=26, color=LABEL)
         G1 = VGroup(s1, s1n).arrange(DOWN, buff=0.15).move_to(np.array([3.3, 2.1, 0]))
-        with self.cap(r"The cut defines a permutation $\sigma$: pipe $i \le 0$ goes to the column where it crosses, "
-                      r"and $1, 2, 3, \ldots$ fill the empty columns in order.", extra=1.0) as c:
+        with self.say("The cut defines a permutation, sigma. Each pipe i, at most zero, goes to the column where it "
+                      "crosses, and one, two, three, and so on fill the empty columns in order.", extra=1.0) as c:
             self.play(Indicate(sec[WIN.index(1)], color=WHITE), Indicate(sec[WIN.index(0)], color=WHITE), run_time=1.2)
             self.play(Write(s1), run_time=1.2)
             self.play(Indicate(sec[WIN.index(-1)], color=WHITE, scale_factor=1.6), FadeIn(s1n), run_time=1.2)
         sm = MathTex(r"\sigma_1 \in S_- :\ \text{all descents} \le 0", font_size=32).next_to(G1, DOWN, buff=0.35)
-        with self.cap(r"Its descents are all at $\le 0$. Write $S_-$ for the set of such permutations.") as c:
+        with self.say("All its descents are at most zero. We write S minus for the set of such permutations.") as c:
             self.play(FadeIn(sm, shift=0.1 * UP), run_time=1.0)
 
         lt = MathTex(r"\text{top pieces: }", r"\overleftarrow{\mathfrak S}_{\sigma}", font_size=34)
@@ -108,18 +110,20 @@ class HorizonCut(Captioned):
         lt.move_to(np.array([3.0, top.get_center()[1] - 0.2, 0])).align_to(G1, LEFT)
         lb.move_to(np.array([3.0, bot.get_center()[1], 0])).align_to(G1, LEFT)
         lt.shift(0.2 * DOWN)
-        with self.cap(r"The top pieces are exactly the pipedreams of $\sigma$; their total is $\overleftarrow{\mathfrak S}_\sigma$.") as c:
+        with self.say("The top pieces are exactly the bumpless pipe dreams of sigma, so together they give the back "
+                      "stable Schubert function of sigma.") as c:
             self.play(FadeOut(sm), FadeIn(lt[0]), run_time=0.7)
             self.play(Write(lt[1]), Indicate(top.grid, color=PIPE, scale_factor=1.0), run_time=1.3)
-        with self.cap(r"The bottom pieces run from $\sigma$ at the top to $w$ at the bottom. Their total is the "
-                      r"\emph{lower Schubert polynomial} $\mathfrak S^\downarrow_{\sigma,w}$.") as c:
+        with self.say("The bottom pieces run from sigma at the top to w at the bottom. Together they give the lower "
+                      "Schubert polynomial of sigma and w.") as c:
             self.play(FadeIn(lb[0]), run_time=0.7)
             self.play(Write(lb[1]), Indicate(bot.grid, color=PIPE, scale_factor=1.0), run_time=1.3)
 
         f = MathTex(r"\overleftarrow{\mathfrak S}_w", "=", r"\sum_{\sigma \in S_-}", r"\overleftarrow{\mathfrak S}_{\sigma}",
                     r"\cdot", r"\mathfrak S^{\downarrow}_{\sigma, w}", font_size=44)
         f.move_to(np.array([3.4, 0.35, 0]))
-        with self.cap(r"Every pipedream of $w$ splits in a unique way, so $\overleftarrow{\mathfrak S}_w$ is a sum over $\sigma$ of top times bottom.") as c:
+        with self.say("Every bumpless pipe dream of w splits in exactly one way. So the back stable Schubert function"
+                      " of w is a sum over sigma, of top times bottom.") as c:
             self.play(FadeOut(VGroup(G1)), lt.animate.shift(0.5 * UP), lb.animate.shift(0.4 * DOWN), run_time=0.8)
             self.play(Write(f[:3]), run_time=1.0)
             self.play(TransformFromCopy(lt[1], f[3]), FadeIn(f[4]), TransformFromCopy(lb[1], f[5]), run_time=1.4)
@@ -128,13 +132,12 @@ class HorizonCut(Captioned):
 
         jf = MathTex(r"j^w_\lambda", "=", r"\sum_{\sigma}", r"j^{\sigma}_\lambda", r"\cdot", r"\mathfrak S^{\downarrow}_{\sigma, w}(y;y)",
                      font_size=40).next_to(f, DOWN, buff=0.75)
-        with self.cap(r"The bottom piece only involves $x_1, x_2, \ldots$, so it is part of the coefficient. "
-                      r"The top piece still needs expanding in double Schur functions.", extra=1.0) as c:
+        with self.say("The bottom piece only involves x one, x two, and so on, so it's part of the coefficient. The "
+                      "top piece still needs to be expanded in double Schur functions.", extra=1.0) as c:
             self.play(FadeOut(VGroup(lt, lb)), run_time=0.5)
             self.play(Indicate(f[5], color=HL), run_time=1.0)
             self.play(Write(jf), run_time=1.8)
             self.play(Indicate(jf[3], color=HL), run_time=1.0)
-        self.clear_caption()
         self.play(FadeOut(VGroup(top, bot, rl, ct, sec, f, fr)), jf.animate.to_edge(UP, buff=1.0), run_time=1.0)
 
         # ---- all horizon sections of w
@@ -158,16 +161,15 @@ class HorizonCut(Captioned):
             ol.next_to(boxes, RIGHT, buff=0.35)
             pos = Tex(rf"positions ${lo}..{hi}$".replace("..", r"\ldots "), font_size=22, color=DIM).next_to(ol, RIGHT, buff=0.3)
             strips.add(VGroup(nm, boxes, labs, ol, pos))
-        with self.cap(r"For our $w$, exactly five permutations $\sigma$ occur as horizon cuts.") as c:
+        with self.say("For our w, exactly five permutations sigma show up as horizon cuts.") as c:
             self.play(FadeIn(hdr), run_time=0.5)
             self.play(LaggedStart(*[FadeIn(s, shift=0.15 * RIGHT) for s in strips], lag_ratio=0.25), run_time=2.4)
-        with self.cap(r"For $\lambda = (2,1)$ only $\sigma_1$ and $\sigma_2$ matter: the top pieces of the other three "
-                      r"contain no $s_{21}$, so $j^{\sigma}_{21} = 0$.") as c:
+        with self.say("For lambda equal to two one, only sigma one and sigma two matter. The top pieces of the other "
+                      "three contain no s two one, so their coefficient is zero.") as c:
             zero = VGroup(*[MathTex(r"j^{\sigma}_{21} = 0", font_size=28, color=DIM).next_to(strips[r], RIGHT, buff=0.4)
                             for r in (2, 3, 4)])
             self.play(*[strips[r].animate.fade(0.7) for r in (2, 3, 4)], FadeIn(zero), run_time=1.2)
             self.play(*[Indicate(strips[r][0], color=HL) for r in (0, 1)], run_time=1.0)
-        self.clear_caption()
         self.play(FadeOut(VGroup(jf, hdr, strips, zero)), FadeOut(title), run_time=0.8)
 
 
@@ -178,7 +180,7 @@ def flip_bpd(F, cell=0.44):
     return B, rows, cols
 
 
-class Flip(Captioned):
+class Flip(Narrated):
     def construct(self):
         title = heading(r"Step 2: flip the top piece")
         rows, cols = list(range(-3, 1)), WIN
@@ -194,10 +196,11 @@ class Flip(Captioned):
         need = MathTex(r"\overleftarrow{\mathfrak S}_{\sigma_1}", r"=", r"\cdots", r"+", r"j^{\sigma_1}_{21}", r"\,s_{21}", r"+", r"\cdots",
                        font_size=42).move_to(np.array([3.2, 1.0, 0]))
         need[4].set_color(HL)
-        with self.cap(r"Step 2. A top piece of $\sigma_1$: its pipes can cross, so it mixes many double Schur functions.") as c:
+        with self.say("Step two. Here's a top piece of sigma one. Its pipes can cross, so it mixes many double Schur "
+                      "functions together.") as c:
             self.play(FadeIn(title), FadeIn(U), Create(hor), FadeIn(sec), run_time=1.4)
             self.play(Create(cross), run_time=0.8)
-        with self.cap(r"We need the coefficient $j^{\sigma_1}_{21}$ of $s_{21}$ in it.") as c:
+        with self.say("We need the coefficient of s two one in it.") as c:
             self.play(Write(need), run_time=1.6)
 
         # the reflection i -> 1 - i of the integer line: sigma_1 above, its image below
@@ -214,7 +217,7 @@ class Flip(Captioned):
                           CurvedArrow(pb, pa, angle=-TAU / 5, color=color, stroke_width=4, tip_length=0.16))
         arr1 = swap_arrows(-1, 1, yt, PIPE)
         lab1 = MathTex(r"\sigma_1", font_size=34, color=PIPE).next_to(VGroup(*top_n.values()), LEFT, buff=0.5)
-        with self.cap(r"Lam, Lee and Shimozono found a symmetry: reflect the integers by $i \mapsto 1 - i$.") as c:
+        with self.say("Lam, Lee and Shimozono found a symmetry: reflect the integers, sending i to one minus i.") as c:
             self.play(FadeOut(VGroup(U, hor, sec, cross)), need.animate.scale(0.8).to_corner(UR, buff=0.5), run_time=0.9)
             self.play(LaggedStart(*[FadeIn(m) for m in top_n.values()], lag_ratio=0.1), Create(mirror), FadeIn(half), run_time=1.2)
             self.play(Create(arr1), FadeIn(lab1), run_time=1.0)
@@ -222,15 +225,15 @@ class Flip(Captioned):
                       run_time=2.0)
         arr2 = swap_arrows(0, 2, yb, HL)
         lab2 = MathTex(r"\neg\sigma_1", font_size=34, color=HL).next_to(VGroup(*bot_n.values()), LEFT, buff=0.5)
-        with self.cap(r"It turns $\sigma$ into $\neg\sigma(i) = 1 - \sigma(1-i)$. Here $\sigma_1$ swaps $-1$ and $1$, "
-                      r"so $\neg\sigma_1$ swaps $2$ and $0$.") as c:
+        with self.say("This turns sigma into not sigma, where not sigma of i is one minus sigma of one minus i. Here,"
+                      " sigma one swaps minus one and one, so not sigma one swaps two and zero.") as c:
             self.play(TransformFromCopy(arr1, arr2, path_arc=-PI / 2), TransformFromCopy(lab1, lab2), run_time=1.8)
         nums = VGroup(*top_n.values(), *bot_n.values())
         arr1 = VGroup(arr1, arr2)
         lab1 = VGroup(lab1, lab2)
         n1 = MathTex(r"\neg\sigma_1 = [\,2,\ 1,\ 0\,]", font_size=36).move_to(np.array([-3.6, -1.45, 0]))
         n1s = Tex(r"(positions $0, 1, 2$): descents at $0, 1 \ge 0$", font_size=26, color=LABEL).next_to(n1, DOWN, buff=0.15)
-        with self.cap(r"Its descents are now all at $\ge 0$.") as c:
+        with self.say("Now its descents are all at least zero.") as c:
             self.play(FadeIn(n1), FadeIn(n1s), run_time=1.0)
         # conjugate partition and omega_1
         s0 = 0.36
@@ -239,36 +242,36 @@ class Flip(Captioned):
         yd.move_to(np.array([1.4, -1.45, 0]))
         lamc = MathTex(r"\lambda' = \lambda = (2,1)", font_size=32).next_to(yd, RIGHT, buff=0.3)
         om = MathTex(r"\omega_1 :\ y_i \mapsto -y_{1-i}", font_size=34).move_to(np.array([3.3, -2.0, 0]))
-        with self.cap(r"Partitions get transposed, $\lambda \mapsto \lambda'$ (our $(2,1)$ is its own transpose), and the "
-                      r"variables change by $\omega_1 : y_i \mapsto -y_{1-i}$.") as c:
+        with self.say("Partitions get transposed, so lambda goes to lambda prime, and our two one is its own "
+                      "transpose. The variables change by omega one, which sends y i to minus y sub one minus i.") as c:
             self.play(FadeIn(yd), run_time=0.6)
             self.play(Rotate(yd, PI, axis=np.array([1, -1, 0]), about_point=yd[0].get_corner(UL)), run_time=1.2)
             self.play(FadeIn(lamc), run_time=0.6)
             self.play(Write(om), run_time=1.0)
         sym = MathTex(r"j^{\sigma}_{\lambda}", "=", r"\omega_1\big(", r"j^{\neg\sigma}_{\lambda'}", r"\big)", font_size=46)
         sym.move_to(np.array([0, -1.6, 0]))
-        with self.cap(r"So the coefficient we want equals a coefficient for $\neg\sigma$, after substituting.") as c:
+        with self.say("So the coefficient we want equals a coefficient for not sigma, after this substitution.") as c:
             self.play(FadeOut(VGroup(n1, n1s, yd, lamc)), om.animate.move_to(np.array([3.6, -2.15, 0])).scale(0.85), run_time=0.7)
             self.play(Write(sym), run_time=1.4)
-        self.clear_caption()
         self.play(FadeOut(VGroup(nums, mirror, half, arr1, lab1)), sym.animate.move_to(np.array([-3.4, 2.0, 0])).scale(0.85),
                   om.animate.move_to(np.array([-3.4, 1.2, 0])), run_time=0.9)
 
         # why the flip helps
         lem = MathTex(r"\mathrm{Des}(v) \subset \mathbb Z_{\ge 0}", r"\ \Longrightarrow\ ", r"j^{v}_{\mu} = \mathfrak S^{\downarrow}_{w_\mu, v}(y;y)",
                       font_size=40).move_to(np.array([1.6, 0.1, 0]))
-        with self.cap(r"Why this helps: when all descents are $\ge 0$, the top pieces at the horizon can never cross.") as c:
+        with self.say("Why does this help? When all descents are at least zero, the pipes in the top pieces can never"
+                      " cross.") as c:
             self.play(Write(lem[0]), run_time=1.2)
-        with self.cap(r"Each top piece is then a double Schur function $s_\mu$, and its coefficient is a single bottom piece (Lemma 3.8).") as c:
+        with self.say("So each top piece is just a double Schur function, s mu, and its coefficient is a single "
+                      "bottom piece.") as c:
             self.play(Write(lem[1:]), run_time=1.6)
         cor = MathTex(r"j^w_\lambda(y)", "=", r"\sum_{\sigma\in S_-}", r"\omega_1\Big(\mathfrak S^{\downarrow}_{w_{\lambda'}, \neg\sigma}(y;y)\Big)",
                       r"\cdot", r"\mathfrak S^{\downarrow}_{\sigma, w}(y;y)", font_size=42)
         cor.move_to(np.array([0, -1.45, 0]))
         cfr = SurroundingRectangle(cor, color=PIPE, buff=0.2, corner_radius=0.1)
-        with self.cap(r"Putting it together (Corollary 3.9): both factors are bottom pieces, i.e.\ lower Schubert polynomials.") as c:
+        with self.say("Putting it together: both factors are bottom pieces, that is, lower Schubert polynomials.") as c:
             self.play(Write(cor), run_time=2.2)
             self.play(Create(cfr), run_time=0.8)
-        self.clear_caption()
         self.play(FadeOut(VGroup(lem, sym, om, need)), VGroup(cor, cfr).animate.scale(0.8).to_edge(UP, buff=0.95), run_time=1.0)
 
         # the two flipped problems
@@ -292,10 +295,12 @@ class Flip(Captioned):
                 wt = MathTex(r"\text{no blank tiles} \ \Rightarrow\ 1", font_size=32)
             wt.next_to(botl, DOWN, buff=0.3)
             out.append((Bf, ent, top, botl, dts, wt))
-        caps = [r"For $\sigma_1$: one pipedream from $w_{21}$ at the top to $\neg\sigma_1$ at the bottom, with no blank tiles. Its top factor is $1$.",
-                r"For $\sigma_2$: one pipedream with a single blank tile, at $(1,-1)$. So $y_1 - y_{-1}$, which $\omega_1$ turns into $y_2 - y_0$."]
+        caps = ["For sigma one, there's a single bumpless pipe dream from w two one at the top to not sigma one at "
+                "the bottom, with no blank tiles. So its top factor is one.",
+                "For sigma two, there's again one bumpless pipe dream, with a single blank tile, at one, minus one. "
+                "That gives y one minus y sub minus one, which omega one turns into y two minus y zero."]
         for k, (Bf, ent, top, botl, dts, wt) in enumerate(out):
-            with self.cap(caps[k], extra=0.5) as c:
+            with self.say(caps[k], extra=0.5) as c:
                 self.play(Create(Bf.grid), FadeIn(ent), FadeIn(top), FadeIn(botl), run_time=1.0)
                 self.play(LaggedStart(*[Create(p) for p in Bf.pipe_group], lag_ratio=0.1), run_time=1.6)
                 if len(dts):
@@ -315,10 +320,10 @@ class Flip(Captioned):
             tl = Tex(f"type {ftype(i, j)} $\\mapsto$ type {ftype(p, q)}", font_size=28, color=LABEL)
             ex.add(VGroup(m, tl).arrange(RIGHT, buff=0.4))
         ex.arrange(DOWN, buff=0.25, aligned_edge=LEFT).move_to(np.array([0, -1.95, 0]))
-        with self.cap(r"In general $\omega_1$ turns type 1 forms into type 2 and keeps type 3. So top factors only ever use types 2 and 3.") as c:
+        with self.say("In general, omega one turns type one forms into type two, and keeps type three. So top factors"
+                      " only ever use types two and three.") as c:
             self.play(*[FadeOut(o[5]) for o in out], run_time=0.5)
             self.play(LaggedStart(*[FadeIn(e, shift=0.1 * UP) for e in ex], lag_ratio=0.4), run_time=1.6)
-        self.clear_caption()
         self.play(FadeOut(Group(*self.mobjects)), run_time=0.8)
 
         # the direct formula: this is where the four terms came from
@@ -340,13 +345,14 @@ class Flip(Captioned):
         hdr = VGroup(Tex("top factor", font_size=26, color=LABEL).move_to(np.array([-3.6, 1.75, 0])),
                      Tex(r"bottom piece of $\sigma$", font_size=26, color=LABEL).next_to(rows_[0][3], UP, buff=0.5))
         hdr[1].set_y(1.75)
-        with self.cap(r"Using the weights of the bottom pieces directly, we get exactly the four terms from the start.") as c:
+        with self.say("If we use the weights of the bottom pieces directly, we get exactly the four terms from the "
+                      "start.") as c:
             self.play(FadeIn(title2), FadeIn(hdr), run_time=0.6)
             self.play(Write(rows_[0]), run_time=1.6)
             self.play(Write(rows_[1]), run_time=1.0)
         msg = Tex(r"Left to do: rewrite the bottom piece of $\sigma_1$ positively.", font_size=36, color=HL).move_to(1.5 * DOWN)
-        with self.cap(r"The culprit is $y_3 - y_2$ in the bottom piece of $\sigma_1$. Steps 3 to 5 rewrite bottom pieces positively.") as c:
+        with self.say("The culprit is y three minus y two, in the bottom piece of sigma one. Steps three to five "
+                      "rewrite bottom pieces positively.") as c:
             self.play(Circumscribe(bot1[1], color=NEG), run_time=1.2)
             self.play(FadeIn(msg), run_time=0.8)
-        self.clear_caption()
         self.play(FadeOut(VGroup(title2, rows_, hdr, msg)), run_time=0.8)

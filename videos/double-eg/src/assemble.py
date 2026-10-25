@@ -2,9 +2,8 @@
 
     python assemble.py MEDIA_ROOT OUT_DIR [CRF]
 
-MEDIA_ROOT is the directory passed to render.sh.  The captions are part of the
-picture; the soundtrack is the scenes' own audio, i.e. the narration from
-tts.py, brought to a standard loudness.  There is no music.
+MEDIA_ROOT is the directory passed to render.sh.  The soundtrack is the scenes'
+own audio, i.e. the narration from tts.py, brought to a standard loudness.
 """
 
 import glob
@@ -15,7 +14,7 @@ import sys
 
 SCENES = [
     ("Hook", "Introduction"),
-    ("Setup", "Our permutation and its pipedreams"),
+    ("Setup", "Our permutation and its bumpless pipe dreams"),
     ("Coefficients", "Double Schur functions and the coefficients"),
     ("Problem", "The positivity problem"),
     ("HorizonCut", "Step 1: the horizon cut"),

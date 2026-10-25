@@ -1,19 +1,20 @@
 # Video: double Edelman–Greene coefficients
 
-A 3Blue1Brown-style explainer (about 12½ minutes) of the paper
+A 3Blue1Brown-style explainer of the paper
 *A positive combinatorial formula for the double Edelman–Greene coefficients*
 by Jack Chen-An Chou and Tianyi Yu ([arXiv:2512.12185](https://arxiv.org/abs/2512.12185)).
 
-- `double-eg.mp4`: the video (1080p60, chapter markers embedded). It is narrated by
-  a synthesized voice (Kokoro, voice `af_heart`; no human voice was recorded), and
-  the captions in the picture follow the narration. There is no music.
+- `double-eg.mp4`: the video (1080p60, chapter markers embedded). It is narrated by a
+  synthesized voice (Kyutai's [Pocket TTS](https://github.com/kyutai-labs/pocket-tts),
+  cloned from the reference clip that ships with the model; no human voice was
+  recorded for it). There are no captions and no music.
 
 The whole video is one worked example in $S_\mathbb{Z}$, taken from the paper:
 the coefficient of $s_{21}$ for $w = [1, -1, 0, 3, 4, 2]$ (on positions $-1, \ldots, 4$),
 
 $$j^w_{(2,1)}(y) = (y_1 - y_0) + (y_3 - y_{-1}) + (y_2 - y_0).$$
 
-After setting up bumpless pipedreams, back stable Schubert functions, double Schur
+After setting up bumpless pipe dreams, back stable Schubert functions, double Schur
 functions and the positivity problem (Lam–Lee–Shimozono, Anderson), it follows the
 paper's five steps on this example:
 
@@ -36,22 +37,23 @@ Everything is in `src/`:
 
 | file | what it does |
 | --- | --- |
-| `sz.py` | the paper's machinery on $S_\mathbb{Z}$: bumpless pipedreams of any region, horizon and diagonal cuts, $\neg$ and $\omega_1$, increasing chains, Corollary 3.9 |
+| `sz.py` | the paper's machinery on $S_\mathbb{Z}$: bumpless pipe dreams of any region, horizon and diagonal cuts, $\neg$ and $\omega_1$, increasing chains, Corollary 3.9 |
 | `sz_example.py` | computes every diagram and formula shown for the running example, asserts each identity used on screen, writes `sz_data.json` |
-| `common.py`, `scenes_*.py` | the manim scenes, drawn from `sz_data.json`; each caption plays its narration and stays up until it is spoken |
-| `narration.py` | what the narrator says for each caption, with the math read aloud |
-| `tts.py` | synthesizes the narration with [Kokoro](https://github.com/thewh1teagle/kokoro-onnx) (voice `af_heart`, phonemes from [misaki](https://github.com/hexgrad/misaki)) into `audio/` |
+| `common.py`, `scenes_*.py` | the manim scenes, drawn from `sz_data.json`; each `self.say("...")` is a line of narration, and the animations inside it run while it is spoken |
+| `tts.py` | reads every `say()` line with Pocket TTS into `audio/`, checking each phrase with Whisper and regenerating it until it says what it should |
 | `render.sh`, `assemble.py` | render all scenes in parallel, then join them with the narration at a standard loudness and add chapters |
 
 ```sh
-pip install -r src/requirements.txt   # also needs LaTeX, dvisvgm, ffmpeg, espeak-ng
+pip install -r src/requirements.txt   # also needs LaTeX, dvisvgm and ffmpeg
 cd src
 python sz_example.py                  # verify the math, regenerate sz_data.json
-/path/to/py3.12-env/bin/python tts.py /path/to/kokoro-model-dir   # see requirements-tts.txt
+python tts.py POCKET_DIR WHISPER_DIR  # see below
 ./render.sh h /tmp/media              # MANIM=/path/to/manim to pick a specific install
 python assemble.py /tmp/media ..
 ```
 
-The model directory needs `kokoro-v1.0.onnx` and `voices-v1.0.bin` from the
-[kokoro-onnx releases](https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0).
-Without `audio/` (skip `tts.py`) the same scenes render as a silent, captioned video.
+`POCKET_DIR` and `WHISPER_DIR` are `sherpa-onnx-pocket-tts-int8-2026-01-26` and
+`sherpa-onnx-whisper-small.en`, unpacked from the sherpa-onnx releases
+([tts-models](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models),
+[asr-models](https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models)).
+Without `audio/` (skip `tts.py`) the same scenes render as a silent video.

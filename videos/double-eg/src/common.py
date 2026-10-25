@@ -1,4 +1,4 @@
-"""Shared pieces: captioned scenes, colours, pipedream drawing and chain tables."""
+"""Shared pieces: narrated scenes, colours, bumpless pipe dream drawing and chain tables."""
 
 import hashlib
 import json
@@ -22,21 +22,20 @@ DIM = "#8A8A8A"
 LABEL = "#B9B9B9"
 CUT = "#FF6B6B"
 FORCED = "#7FA7E8"
-CAPC = "#E8E8E8"
 T1, T2, T3 = "#83C167", "#C9A0DC", "#F4B860"   # colours of the three types
 
 config.background_color = "#0B0B0D"
-CAP_Y = -3.32            # centre of the caption band
-CONTENT_BOTTOM = -2.55   # nothing else goes below this line
-LOG = os.environ.get("CAPTION_LOG")
+# The scenes are laid out between y = -2.55 and the top of the frame; the view is
+# moved down by VIEW_SHIFT so that this region sits in the middle of the picture.
+VIEW_SHIFT = 0.65
 
-# narration: audio/<key>.wav for each caption, made by tts.py (absent = captions only)
+# narration: audio/<key>.wav for each spoken line, made by tts.py
 AUDIO = os.path.join(HERE, "audio")
 TIMING = json.load(open(os.path.join(AUDIO, "timing.json"))) if os.path.exists(os.path.join(AUDIO, "timing.json")) else None
-VOICE_PAD = 0.6          # pause after each spoken line
+VOICE_PAD = 0.5          # pause after each spoken line
 
 
-def caption_key(text):
+def line_key(text):
     return hashlib.sha1(text.encode()).hexdigest()[:12]
 
 
@@ -82,58 +81,31 @@ def reading_time(text):
     return max(3.2, 1.4 + 0.062 * plain_len(text))
 
 
-class Captioned(Scene):
-    """`with self.cap("...") as c:` shows a caption in the bottom band, speaks its
-    line from narration.py if the audio exists, and keeps it up for at least its
-    reading time and until the line has been spoken.  `c.until(t)` waits until t
-    seconds into it."""
+class Narrated(MovingCameraScene):
+    """`with self.say("..."):` plays that line of narration (audio/<key>.wav, made by
+    tts.py) while the animations inside the block run, and waits until it has been
+    spoken.  Without audio/ the scenes still render, silently, with each line timed
+    by its length."""
 
-    _cap = None
+    def setup(self):
+        super().setup()
+        self.camera.frame.shift(VIEW_SHIFT * UP)
 
-    def cap(self, text, extra=0.0, size=33, hold=None):
+    def say(self, text, extra=0.0):
         scene = self
-        dur = (hold if hold is not None else reading_time(text)) + extra
-        voice = None
         if TIMING is not None:
-            key = caption_key(text)
-            assert key in TIMING, f"no narration for caption (update narration.py, run tts.py): {text}"
-            voice = os.path.join(AUDIO, f"{key}.wav")
-            dur = max(dur, TIMING[key]["duration"] + VOICE_PAD + extra)
-
-        class Tr:
-            def __init__(self):
-                self.start = scene.renderer.time
-                self.duration = dur
-
-            def now(self):
-                return scene.renderer.time - self.start
-
-            def until(self, t):
-                if isinstance(t, float) and 0 < t <= 1.0 and t != 1.0:
-                    t = t * dur
-                if t - self.now() > 1e-3:
-                    scene.wait(t - self.now())
+            key = line_key(text)
+            assert key in TIMING, f"no audio for this line (run tts.py): {text}"
+            scene.add_sound(os.path.join(AUDIO, f"{key}.wav"))
+            dur = TIMING[key]["duration"] + VOICE_PAD + extra
+        else:
+            dur = reading_time(text) + extra
 
         @contextmanager
         def cm():
-            m = Tex(text, font_size=size, color=CAPC)
-            if m.width > 12.8:
-                m.scale_to_fit_width(12.8)
-            m.move_to(np.array([0, CAP_Y, 0]))
-            if voice:
-                scene.add_sound(voice)
-            if scene._cap is not None:
-                scene.play(FadeOut(scene._cap, run_time=0.3), FadeIn(m, run_time=0.3))
-            else:
-                scene.play(FadeIn(m), run_time=0.4)
-            scene._cap = m
-            tr = Tr()
-            if LOG:
-                with open(LOG, "a") as f:
-                    f.write(json.dumps({"scene": type(scene).__name__, "t": round(scene.renderer.time, 3),
-                                        "text": text}) + "\n")
-            yield tr
-            rest = dur - tr.now()
+            start = scene.renderer.time
+            yield
+            rest = dur - (scene.renderer.time - start)
             if rest > 0.02:
                 scene.wait(rest)
 
@@ -144,13 +116,8 @@ class Captioned(Scene):
         # so remove whole families or the old parent's pieces would stay on screen.
         return super().remove(*[m for mob in mobjects for m in mob.get_family()])
 
-    def clear_caption(self, run_time=0.4):
-        if self._cap is not None:
-            self.play(FadeOut(self._cap), run_time=run_time)
-            self._cap = None
 
-
-# ------------------------------------------------------------------ grids and pipedreams
+# ------------------------------------------------------------------ grids and bumpless pipe dreams
 def arc_pts(center, r, a0, a1, n=10):
     th = np.linspace(a0, a1, n)
     return [center + r * np.array([np.cos(t), np.sin(t), 0]) for t in th]
@@ -173,7 +140,7 @@ class Grid(VGroup):
 
 
 class BPD(VGroup):
-    """Bumpless pipedream.  `tiles` is a list of strings (top row first) over the
+    """Bumpless pipe dream.  `tiles` is a list of strings (top row first) over the
     given row and column indices, using the characters O + - | r j (space = no cell).
     Pipes are traced upwards from the bottom of the columns in `entries` (default:
     all) and stored in `pipes`, keyed by that column."""
@@ -236,7 +203,7 @@ class BPD(VGroup):
 
 
 def heading(text, size=36):
-    return Tex(text, font_size=size, color=PIPE).to_corner(UL, buff=0.45)
+    return Tex(text, font_size=size, color=PIPE).to_corner(UL, buff=0.45).shift(VIEW_SHIFT * UP)
 
 
 # ------------------------------------------------------------------ drawing
