@@ -140,9 +140,8 @@ class HorizonCut(Narrated):
 
         lt = MathTex(r"\text{top pieces: }", r"\overleftarrow{\mathfrak S}_{\sigma}", font_size=34)
         lb = MathTex(r"\text{bottom pieces: }", r"\mathfrak S^{\downarrow}_{\sigma, w}", font_size=34)
-        lt.move_to(np.array([3.0, top.get_center()[1] - 0.2, 0])).align_to(G1, LEFT)
+        lt.next_to(G1, DOWN, buff=0.5).align_to(G1, LEFT)
         lb.move_to(np.array([3.0, bot.get_center()[1], 0])).align_to(G1, LEFT)
-        lt.shift(0.2 * DOWN)
         with self.say("The top pieces are exactly the bumpless pipe dreams of sigma, so together they give the back "
                       "stable Schubert function of sigma.") as c:
             self.play(FadeOut(sm), FadeIn(lt[0]), run_time=0.7)
@@ -157,7 +156,7 @@ class HorizonCut(Narrated):
         f.move_to(np.array([3.4, 0.35, 0]))
         with self.say("Every bumpless pipe dream of w splits in exactly one way. So the back stable Schubert function"
                       " of w is a sum over sigma, of top times bottom.") as c:
-            self.play(FadeOut(VGroup(G1)), lt.animate.shift(0.5 * UP), lb.animate.shift(0.4 * DOWN), run_time=0.8)
+            self.play(FadeOut(VGroup(G1)), lt.animate.shift(0.8 * UP), lb.animate.shift(0.4 * DOWN), run_time=0.8)
             self.play(Write(f[:3]), run_time=1.0)
             self.play(TransformFromCopy(lt[1], f[3]), FadeIn(f[4]), TransformFromCopy(lb[1], f[5]), run_time=1.4)
             fr = SurroundingRectangle(f, color=PIPE, buff=0.18, corner_radius=0.1)
