@@ -1,0 +1,9 @@
+# for tts.py only; misaki needs Python < 3.13, so keep this in its own environment
+kokoro-onnx==0.6.1
+misaki[en]==0.9.4
+soundfile==0.14.0
+spacy==3.8.7
+preshed==3.0.9     # newer preshed/cymem/murmurhash fail to load en_core_web_sm
+cymem==2.0.11
+murmurhash==1.0.13
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
