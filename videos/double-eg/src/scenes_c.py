@@ -1,442 +1,359 @@
-"""Part C: the glasses, the gauntlet, the theorem, the outro."""
+"""Part C: step 3 (the staircase cut), step 4 (chains), step 5 (reversal), and the end."""
 
 from common import *
 
-
-def perm_row(p, size=46, dx=0.55, bar=None, color=WHITE):
-    ents = VGroup(*[MathTex(str(v), font_size=size, color=color) for v in p])
-    for k, e in enumerate(ents):
-        e.move_to(np.array([k * dx, 0, 0]))
-    g = VGroup(ents)
-    g.ents = ents
-    if bar is not None:
-        x = (bar - 0.5) * dx
-        b = Line(np.array([x, 0.32, 0]), np.array([x, -0.32, 0]), color=NEG, stroke_width=4)
-        g.add(b)
-        g.bar = b
-    return g
+P1, P2 = D["pieces"]
+T1D = P1["trap"][0]                          # the trapezoid data of sigma_1
+TA, TN = -1, 4                               # trapezoid columns -1..4, rows 1..4
+TCOLS, TROWS = list(range(TA, TN + 1)), list(range(1, TN + 1))
+NAMES = [r"(3,2)", r"(2,0)", r"(1,-1)"]
 
 
-def plain_steps(perms, ks):
-    steps = []
-    for s, k in enumerate(ks):
-        u, v = perms[s], perms[s + 1]
-        steps.append({"k": k, "r": 0, "highlights": [[p, "yellow"] for p in range(k, len(u)) if u[p] == v[p]]})
-    return steps
+def zone_color(i, j):
+    if j > i:
+        return T1
+    if j <= 0:
+        return T3
+    return NEG
 
 
-def step_labels(table, labels, size=28, color=HL):
-    """Put the chain labels (one per step) to the right of a ChainTable."""
-    g = VGroup()
-    m = len(table.bars)
-    right = table.numbers.get_right()[0] + 0.35
-    for s, lab in enumerate(labels):
-        bar = table.bars[s]
-        t = MathTex(lab, font_size=size, color=color).move_to(np.array([right, bar.get_center()[1], 0]))
-        g.add(t)
-    return g
+def weight_y(blanks, size=34):
+    (i, j), = blanks
+    m = MathTex(fac(i, j), font_size=size)
+    m.set_color(tcolor(i, j) if ftype(i, j) else NEG)
+    return m
 
 
-def trapezoid(tiles, cell=0.42):
-    rows, cols = [1, 2, 3, 4], list(range(-1, 5))
-    b = BPD(tiles, rows, cols, cell=cell, region="trap")
-    h = cell / 2
-    halves = VGroup()
-    for i in rows:
-        c = b.c(i, i)
-        halves.add(Polygon(c + np.array([-h, h, 0]), c + np.array([h, -h, 0]), c + np.array([-h, -h, 0]),
-                           stroke_color=GRIDC, stroke_width=1.5))
-    tl = b.c(1, -1) + np.array([-h, h, 0])
-    tr = b.c(1, 1) + np.array([-h, h, 0])
-    br = b.c(4, 4) + np.array([h, -h, 0])
-    bl = b.c(4, -1) + np.array([-h, -h, 0])
-    outline = Polygon(tl, tr, br, bl, stroke_color=WHITE, stroke_width=3)
-    g = VGroup(halves, b, outline)
-    g.bpd = b
-    return g
+def chain_table(data, size=28, dx=0.44, dy=0.46, header=True, var_labels=True):
+    T = ChainTable(data, TA, size=size, dx=dx, dy=dy)
+    extra = VGroup()
+    if header:
+        for p in TCOLS:
+            h = MathTex(str(p), font_size=size - 8, color=DIM)
+            h.move_to(np.array([T.cells[(0, p)].get_center()[0], T.numbers.get_top()[1] + 0.28, 0]))
+            extra.add(h)
+    if var_labels:
+        for s, v in enumerate(data["vars"]):
+            extra.add(T.step_label(s, f"x_{v}", size=size - 4, color=LABEL, buff=0.15))
+    T.extra = extra
+    T.add(extra)
+    return T
 
 
-class Glasses(Narrated):
+def green(T):
+    return T.circ_by_color["green"]
+
+
+def blue(T):
+    return T.circ_by_color["blue"]
+
+
+class DiagonalCut(Captioned):
     def construct(self):
-        title = Tex("The glasses", font_size=40, color=PIPE).to_corner(UL, buff=0.5)
-        glasses = image("glasses.png", 2.2).move_to(0.7 * UP)
-        power = Tex(r"Super power: \emph{pipes} $\longrightarrow$ \emph{chains}", font_size=42).next_to(glasses, DOWN, buff=0.5)
-        with self.voice("g1") as v:
-            self.play(FadeIn(glasses, shift=0.3 * UP), FadeIn(title), run_time=1.0)
-            self.play(Write(power), run_time=1.6)
+        title = heading(r"Step 3: the staircase cut")
+        cell = 0.5
+        Bs, labs = [], []
+        for k, L in enumerate(P1["lower"]):
+            tiles = [r[TA - (-3):] for r in L["tiles"]]
+            B = BPD(tiles, TROWS, TCOLS, cell=cell, stroke=4.5)
+            B.move_to(np.array([-4.5 + 4.5 * k, 1.0, 0]))
+            Bs.append(B)
+            labs.append(col_labels(B.grid.squares, TCOLS, 1, side=UP, size=20, color=DIM))
+        rlab = row_labels(Bs[0].grid.squares, TROWS, TA, side=LEFT, size=22)
+        with self.cap(r"Step 3. Back to the bottom piece of $\sigma_1$. It consists of exactly three pipedreams.") as c:
+            self.play(FadeIn(title), run_time=0.5)
+            self.play(*[Create(B.grid) for B in Bs], *[FadeIn(l) for l in labs], FadeIn(rlab), run_time=1.2)
+            self.play(*[LaggedStart(*[Create(p) for p in B.pipe_group], lag_ratio=0.1) for B in Bs], run_time=1.8)
+        dts = [dots_on(B.grid.squares, L["blanks"], scale=0.28) for B, L in zip(Bs, P1["lower"])]
+        wts = [weight_y(L["blanks"]).next_to(B, DOWN, buff=0.4) for B, L in zip(Bs, P1["lower"])]
+        with self.cap(r"Each has one blank tile. At $x = y$ they give $y_3 - y_2$, $y_2 - y_0$ and $y_1 - y_{-1}$; the first is negative.") as c:
+            self.play(*[FadeIn(d, scale=0.5) for d in dts], run_time=0.7)
+            self.play(*[TransformFromCopy(d, w) for d, w in zip(dts, wts)], run_time=1.3)
+            self.play(Indicate(wts[0], color=NEG), run_time=1.0)
 
-        # ---------------------------------------------------- Bruhat order
-        with self.voice("g2") as v:
-            self.play(FadeOut(power), glasses.animate.scale(0.4).to_corner(UR, buff=0.4), run_time=1.0)
-            v.until("s1")
-            a = perm_row([2, 1, 3]).move_to(5.2 * LEFT + 1.0 * UP)
-            b = perm_row([3, 1, 2]).move_to(2.3 * LEFT + 1.0 * UP)
-            ar1 = Arrow(a.get_right(), b.get_left(), buff=0.25, color=GREY_B, stroke_width=4)
-            ok = MathTex(r"\checkmark", color=POS, font_size=52).next_to(b, RIGHT, buff=0.35)
-            self.play(FadeIn(a), run_time=0.5)
-            self.play(GrowArrow(ar1), TransformFromCopy(a, b), run_time=0.9)
-            self.play(Indicate(a.ents[1], color=YELLOW), FadeIn(ok), run_time=0.9)
-            c = perm_row([1, 2, 3]).move_to(5.2 * LEFT + 1.0 * DOWN)
-            d = perm_row([3, 2, 1]).move_to(2.3 * LEFT + 1.0 * DOWN)
-            ar2 = Arrow(c.get_right(), d.get_left(), buff=0.25, color=GREY_B, stroke_width=4)
-            no = MathTex(r"\times", color=NEG, font_size=56).next_to(d, RIGHT, buff=0.35)
-            self.play(FadeIn(c), run_time=0.5)
-            self.play(GrowArrow(ar2), TransformFromCopy(c, d), run_time=0.9)
-            self.play(Indicate(c.ents[1], color=NEG), FadeIn(no), run_time=0.9)
-            v.until("s2")
-            pos = {"123": 2.6 * DOWN, "213": 1.0 * DOWN + 1.5 * LEFT, "132": 1.0 * DOWN + 1.5 * RIGHT,
-                   "231": 0.6 * UP + 1.5 * LEFT, "312": 0.6 * UP + 1.5 * RIGHT, "321": 2.2 * UP}
-            shift = 3.0 * RIGHT + 0.2 * DOWN
-            nodes = {k: MathTex(k, font_size=40).move_to(p + shift) for k, p in pos.items()}
-            edges = [("123", "213"), ("123", "132"), ("213", "231"), ("213", "312"), ("132", "231"),
-                     ("132", "312"), ("231", "321"), ("312", "321")]
-            lines = VGroup(*[Line(nodes[x].get_top(), nodes[y].get_bottom(), buff=0.12, color=GREY_B, stroke_width=3)
-                             for x, y in edges])
-            self.play(LaggedStart(*[FadeIn(n) for n in nodes.values()], lag_ratio=0.1), Create(lines), run_time=2.0)
+        fills = []
+        for B in Bs:
+            for (i, j), sq in B.grid.squares.items():
+                fills.append(sq.animate.set_fill(zone_color(i, j), opacity=0.17))
+        legend = VGroup()
+        for col, txt in [(T1, r"type 1"), (T3, r"type 3"), (NEG, r"negative or $0$")]:
+            sw = Square(0.3, stroke_width=1, stroke_color=GRIDC, fill_color=col, fill_opacity=0.5)
+            legend.add(VGroup(sw, Tex(txt, font_size=28, color=col)).arrange(RIGHT, buff=0.15))
+        legend.arrange(RIGHT, buff=0.8).move_to(np.array([0, -1.55, 0]))
+        with self.cap(r"Colour each cell $(i,j)$ by the kind of form $y_i - y_j$ a blank tile there would give.") as c:
+            self.play(*fills, run_time=1.4)
+            self.play(FadeIn(legend), run_time=0.8)
+        with self.cap(r"Right of the staircase ($j > i$) we get type 1, in columns $j \le 0$ type 3. "
+                      r"The bad blank sits in between.") as c:
+            self.play(Indicate(dts[0], color=WHITE, scale_factor=1.8), run_time=1.2)
+        stairs = [staircase(B.grid.squares, TN, color=WHITE, width=5) for B in Bs]
+        with self.cap(r"So cut along the staircase, into a \emph{trapezoid} ($j \le i$) and a \emph{triangle} ($j > i$).") as c:
+            self.play(*[Create(s) for s in stairs], run_time=1.4)
+            # replace each pipedream by its two pieces and pull them apart
+            pieces = []
+            for k, B in enumerate(Bs):
+                tr = tile_drawing(T1D["fillings"][k]["tiles"], TROWS, TCOLS, cell, stroke=4.5)
+                tri = tile_drawing(T1D["tri"][0], TROWS, TCOLS, cell, stroke=4.5)
+                v = B.grid.squares[(1, TA)].get_center() - tr.squares[(1, TA)].get_center()
+                tr.shift(v)
+                tri.shift(v)
+                for (i, j), sq in list(tr.squares.items()) + list(tri.squares.items()):
+                    sq.set_fill(zone_color(i, j), opacity=0.17)
+                pieces.append((tr, tri))
+            self.remove(*Bs, *stairs)
+            for tr, tri in pieces:
+                self.add(tr, tri)
+            self.bring_to_front(*dts)
+            self.play(*[tri.animate.shift(0.22 * UR) for _, tri in pieces], *[FadeOut(l) for l in labs], run_time=1.2)
+        tl = Tex("trapezoid", font_size=24, color=LABEL).next_to(pieces[0][0], DOWN, buff=0.12).shift(0.6 * LEFT)
+        tg = Tex("triangle", font_size=24, color=LABEL).next_to(pieces[0][1], UP, buff=0.1).shift(0.25 * RIGHT)
+        self.play(FadeIn(tl), FadeIn(tg), *[w.animate.shift(0.15 * DOWN) for w in wts], run_time=0.6)
 
-        # ---------------------------------------------------- k-chains
-        dx = 0.62
-        rows = [[4, 1, 3, 2, 7, 6, 5], [4, 2, 3, 1, 7, 6, 5], [6, 2, 3, 1, 7, 4, 5], [7, 2, 3, 1, 6, 4, 5]]
-        swaps = [(1, 3), (0, 5), (0, 4)]  # 0-indexed positions
-        with self.voice("g3") as v:
-            self.play(FadeOut(VGroup(a, b, c, d, ar1, ar2, ok, no, lines, *nodes.values())), run_time=0.8)
-            r0 = perm_row(rows[0], dx=dx, bar=3).move_to(3.0 * LEFT + 2.4 * DOWN)
-            self.play(FadeIn(r0.ents), run_time=0.6)
-            self.play(Create(r0.bar), run_time=0.6)
-            kk = MathTex("k = 3", font_size=36, color=NEG).next_to(r0.bar, DOWN, buff=0.25)
-            self.play(FadeIn(kk), run_time=0.5)
-            v.until("s1")
-            defs = VGroup(
-                Tex(r"increasing $k$-chain:", font_size=38, color=PIPE),
-                Tex(r"$\bullet$ each step swaps across the bar", font_size=34),
-                Tex(r"$\bullet$ each step goes up in Bruhat order", font_size=34),
-                Tex(r"$\bullet$ the smaller swapped numbers increase", font_size=34),
-            ).arrange(DOWN, aligned_edge=LEFT, buff=0.25).move_to(3.4 * RIGHT + 1.2 * UP)
-            self.play(FadeIn(defs[0]), run_time=0.6)
-            for dd in defs[1:]:
-                self.play(FadeIn(dd, shift=0.1 * RIGHT), run_time=0.8)
-
-        with self.voice("g4") as v:
-            cur = r0
-            built = [r0]
-            smalls = []
-            for s, key in enumerate(["sw1", "sw2", "sw3"]):
-                v.until(key)
-                nxt = perm_row(rows[s], dx=dx, bar=3).move_to(cur.get_center())
-                self.add(nxt)
-                self.play(nxt.animate.shift(1.1 * UP), run_time=0.5)
-                p, q = swaps[s]
-                small = nxt.ents[p] if rows[s][p] < rows[s][q] else nxt.ents[q]
-                self.play(small.animate.set_color(YELLOW), run_time=0.3)
-                self.play(Swap(nxt.ents[p], nxt.ents[q]), run_time=0.8)
-                smalls.append(rows[s][min(p, q, key=lambda z: rows[s][z])])
-                built.append(nxt)
-                cur = nxt
-            v.until("small")
-            lst = MathTex("1", "<", "4", "<", "6", font_size=48, color=YELLOW).next_to(defs, DOWN, buff=0.7)
-            self.play(Write(lst), run_time=1.0)
-
-        with self.voice("g5") as v:
-            self.play(FadeOut(VGroup(defs, lst)), built[3].animate.set_opacity(0.25), run_time=0.8)
-            v.until("s1")
-            # fixed entries right of the bar between rows[0] and rows[2]
-            hl = VGroup()
-            for p in range(3, 7):
-                if rows[0][p] == rows[2][p]:
-                    x = built[0].ents[p].get_center()[0]
-                    y0 = built[0].ents[p].get_center()[1]
-                    y1 = built[2].ents[p].get_center()[1]
-                    rr = RoundedRectangle(corner_radius=0.15, width=0.45, height=y1 - y0 + 0.65, fill_color=HL,
-                                          fill_opacity=0.45, stroke_width=0).move_to(np.array([x, (y0 + y1) / 2, 0]))
-                    rr.set_z_index(-1)
-                    hl.add(rr)
-            self.play(FadeIn(hl), run_time=0.9)
-            v.until("s2")
-            wt = MathTex(r"\mathrm{wt}\big(u \xrightarrow[z]{3} w\big)", "=", "(z - y_7)", "(z - y_5)", font_size=46)
-            wt.move_to(3.2 * RIGHT + 0.8 * UP)
-            uw = MathTex(r"u = 4132765,\quad w = 6231745", font_size=34, color=LABEL).next_to(wt, DOWN, buff=0.35)
-            self.play(Write(wt[0]), FadeIn(uw), run_time=1.2)
-            self.play(Write(wt[1:]), run_time=1.4)
-
-        # ---------------------------------------------- Lenart-Sottile
-        with self.voice("g6") as v:
-            self.play(FadeOut(VGroup(*built, kk, hl, wt, uw)), run_time=0.8)
-            th_t = Tex(r"\textbf{Theorem} [Lenart--Sottile]", font_size=36, color=PIPE)
-            th = MathTex(r"\text{pipe dreams of } u", r"\;\longleftrightarrow\;",
-                         r"u \xrightarrow[x_1]{1} \cdot \xrightarrow[x_2]{2} \cdots \xrightarrow[x_{n-1}]{n-1} w_0", font_size=44)
-            th2 = MathTex(r"\mathrm{wt}(D) = \mathrm{wt}(\text{chains})", font_size=40)
-            G = VGroup(th_t, th, th2).arrange(DOWN, buff=0.35).to_edge(UP, buff=0.9)
-            self.play(FadeIn(th_t), Write(th), run_time=2.4)
-            v.until("s1")
-            self.play(Write(th2), run_time=1.2)
-
-        def chain_block(perms, ks, labels, dx_=0.5):
-            T = ChainTable(perms, plain_steps(perms, ks), size=36, dx=dx_, dy=0.55)
-            L = step_labels(T, labels, size=30)
-            return VGroup(T, L)
-
-        with self.voice("g7") as v:
-            pds = [PipeDream(3, d, cell=0.62) for d in DATA["pd_132"]]
-            ls = DATA["chains_132_ls"]
-            # match: cross (1,2) <-> chain through 312
-            cA = [c for c in ls if c[1] == [3, 1, 2]][0]
-            cB = [c for c in ls if c[1] == [3, 2, 1]][0]
-            blocks = [chain_block(cA, [1, 2], ["x_1", "x_2"]), chain_block(cB, [1, 2], ["x_1", "x_2"])]
-            ws = [MathTex(fac(1, 2, "x"), font_size=40), MathTex(fac(2, 1, "x"), font_size=40)]
-            rowsg = []
-            for P, B_, W in zip(pds, blocks, ws):
-                arrow = MathTex(r"\longleftrightarrow", font_size=44)
-                r = VGroup(P, arrow, B_, W).arrange(RIGHT, buff=0.55)
-                rowsg.append(r)
-            VGroup(*rowsg).arrange(DOWN, buff=0.45).next_to(G, DOWN, buff=0.45)
-            self.play(FadeIn(rowsg[0][:3]), FadeIn(rowsg[1][:3]), run_time=1.6)
-            cds = [P.cross_dots() for P in pds]
-            v.until("w1")
-            self.play(FadeIn(cds[0]), FadeIn(rowsg[0][3]), run_time=0.9)
-            v.until("w2")
-            self.play(FadeIn(cds[1]), FadeIn(rowsg[1][3]), run_time=0.9)
-
-        with self.voice("g8") as v:
-            self.play(FadeOut(VGroup(*rowsg, *cds)), run_time=0.6)
-            th_t2 = Tex(r"\textbf{Theorem} [Yu]", font_size=36, color=PIPE)
-            thb = MathTex(r"\text{bumpless pipe dreams of } u", r"\;\longleftrightarrow\;",
-                          r"u \xrightarrow[x_{n-1}]{n-1} \cdots \xrightarrow[x_2]{2} \cdot \xrightarrow[x_1]{1} w_0", font_size=44)
-            G2 = VGroup(th_t2, thb, th2.copy()).arrange(DOWN, buff=0.35).to_edge(UP, buff=0.9)
-            self.play(ReplacementTransform(G, G2), run_time=1.5)
-            yu = DATA["chains_132_yu"]
-            cA = [c for c in yu if c[1] == [1, 3, 2]][0]
-            cB = [c for c in yu if c[1] == [2, 3, 1]][0]
-            bp = [BPD(t, [1, 2, 3], [1, 2, 3], cell=0.55) for t in DATA["bpd_132"]]
-            blocks = [chain_block(cA, [2, 1], ["x_2", "x_1"]), chain_block(cB, [2, 1], ["x_2", "x_1"])]
-            ws = [MathTex(fac(2, 2, "x"), font_size=40), MathTex(fac(1, 1, "x"), font_size=40)]
-            rows2 = []
-            for P, B_, W in zip(bp, blocks, ws):
-                r = VGroup(P, MathTex(r"\longleftrightarrow", font_size=44), B_, W).arrange(RIGHT, buff=0.55)
-                rows2.append(r)
-            VGroup(*rows2).arrange(DOWN, buff=0.45).next_to(G2, DOWN, buff=0.45)
-            self.play(FadeIn(rows2[0][:3]), FadeIn(rows2[1][:3]), run_time=1.4)
-            v.until("w1")
-            self.play(FadeIn(bp[0].empty_dots()), FadeIn(rows2[0][3]), run_time=0.8)
-            v.until("w2")
-            self.play(FadeIn(bp[1].empty_dots()), FadeIn(rows2[1][3]), run_time=0.8)
-
-        # ------------------------------------------------- trapezoids
-        traps = [trapezoid(t) for t in DATA["trap"]["grids"]]
-        tw = [((3, 2),), ((2, 0),), ((1, -1),)]
-        with self.voice("g9") as v:
-            others = [m for m in self.mobjects if m is not title and m is not glasses]
-            self.play(*[FadeOut(m) for m in others], run_time=0.8)
-            col_x = [-4.5, 0.0, 4.5]
-            for T, x in zip(traps, col_x):
-                T.move_to(np.array([x, 2.05, 0]))
-            self.play(LaggedStart(*[FadeIn(T) for T in traps], lag_ratio=0.3), run_time=1.8)
-            dots = [T.bpd.empty_dots() for T in traps]
-            self.play(*[FadeIn(d, scale=0.5) for d in dots], run_time=0.6)
-            wts = []
-            for T, ((i, j),) in zip(traps, tw):
-                w_ = MathTex(fac(i, j), font_size=40, color=fac_color(i, j)).next_to(T, DOWN, buff=0.22)
-                wts.append(w_)
-            for key, k in [("t1", 0), ("t2", 1), ("t3", 2)]:
-                v.until(key)
-                self.play(TransformFromCopy(dots[k], wts[k]), run_time=0.7)
-            v.until("s3")
-            self.play(Indicate(wts[0], color=NEG, scale_factor=1.2), run_time=1.0)
-
-        self.tables = []
-        with self.voice("g10") as v:
-            blocks = []
-            for k, c in enumerate(DATA["chains_glasses"]):
-                T = ChainTable(c["perms"], c["steps"], size=32, dx=0.4, dy=0.44)
-                L = step_labels(T, ["y_3", "y_2", "y_1"], size=28)
-                B_ = VGroup(T, L).next_to(wts[k], DOWN, buff=0.3)
-                blocks.append(B_)
-            self.play(LaggedStart(*[FadeIn(B_[0].numbers) for B_ in blocks], lag_ratio=0.2), run_time=1.4)
-            self.play(*[Create(B_[0].bars) for B_ in blocks], *[FadeIn(B_[1]) for B_ in blocks], run_time=1.0)
-            v.until("s1")
-            yel = [h for B_ in blocks for h in B_[0].hls if h.kind == "yellow"]
-            grn = [h for B_ in blocks for h in B_[0].hls if h.kind == "green"]
-            self.play(*[FadeIn(h) for h in yel], *[Indicate(d, color=HL) for d in dots], run_time=1.2)
-            v.until("s2")
-            self.play(*[FadeIn(h) for h in grn], run_time=1.0)
-            form = MathTex(r"\mathrm{wt}(D) = \frac{\mathrm{wt}(\text{chains})}{\prod_{1\le i<j\le 4}(y_i - y_j)}", font_size=34)
-            form.to_edge(DOWN, buff=0.3)
-            self.play(Write(form), run_time=1.5)
-        self.play(FadeOut(Group(*traps, *dots, *wts, *blocks, form, glasses, title)), run_time=0.8)
+        f = MathTex(r"\mathfrak S^{\downarrow}_{\sigma, w}", "=", r"\sum_{\gamma}", r"\Big(\sum_{\text{trapezoids}} \mathrm{wt}\Big)",
+                    r"\Big(\sum_{\text{triangles}} \mathrm{wt}\Big)", font_size=38).move_to(np.array([0, -1.55, 0]))
+        with self.cap(r"Trapezoid and triangle meet along a boundary $\gamma$, and the bottom piece is a sum over $\gamma$ of "
+                      r"trapezoids times triangles (Proposition 3.11).", extra=0.5) as c:
+            self.play(FadeOut(legend), run_time=0.4)
+            self.play(Write(f), run_time=2.0)
+        with self.cap(r"Triangle cells only give type 1 forms, each at most once: already positive. "
+                      r"Here all three pipedreams share one triangle, with no blank tiles.") as c:
+            self.play(Indicate(f[4], color=T1), *[Indicate(tri, color=T1, scale_factor=1.0) for _, tri in pieces], run_time=1.4)
+        f2 = MathTex(r"\mathfrak S^{\downarrow}_{\sigma_1, w}", "=", r"\big[", fac(3, 2, "x"), "+", fac(2, 0, "x"), "+", fac(1, -1, "x"),
+                     r"\big]", r"\cdot", "1", font_size=38).move_to(f)
+        with self.cap(r"So everything rests on the trapezoid sum $(x_3 - y_2) + (x_2 - y_0) + (x_1 - y_{-1})$.") as c:
+            self.play(FadeOut(f, shift=0.2 * UP), FadeIn(f2, shift=0.2 * UP), run_time=1.2)
+        self.clear_caption()
+        self.play(FadeOut(Group(*self.mobjects)), run_time=0.8)
 
 
-class Gauntlet(Narrated):
+class Chains(Captioned):
     def construct(self):
-        title = Tex("The gauntlet", font_size=40, color=PIPE).to_corner(UL, buff=0.5)
-        g = image("gauntlet.png", 2.6).move_to(0.7 * UP)
-        power = Tex(r"Super power: \emph{swap labels in chains}", font_size=42).next_to(g, DOWN, buff=0.5)
-        with self.voice("h1") as v:
-            self.play(FadeIn(g, shift=0.3 * UP), FadeIn(title), run_time=1.0)
-            self.play(Write(power), run_time=1.6)
+        title = heading(r"Step 4: trapezoids as chains")
+        U = T1D["fillings"][0]["table"]["rows"][0]
+        v = [-1, 1, 2, 3, 4, 0]
+        demo = {"rows": [U, v], "bars": [1], "vars": [2], "circles": [[0, 2, "blue"], [0, 3, "blue"]]}
+        T = ChainTable(demo, TA, size=44, dx=0.8, dy=1.0)
+        T.move_to(np.array([-1.0, 0.7, 0]))
+        hdr = VGroup(*[MathTex(str(p), font_size=26, color=DIM).move_to(
+            np.array([T.cells[(0, p)].get_center()[0], T.cells[(1, p)].get_center()[1] + 0.6, 0])) for p in TCOLS])
+        plab = Tex("positions", font_size=24, color=DIM).next_to(hdr, LEFT, buff=0.4)
+        bot = VGroup(*[T.cells[(0, p)] for p in TCOLS])
+        topr = VGroup(*[T.cells[(1, p)] for p in TCOLS])
+        with self.cap(r"Step 4. Sottile's \emph{increasing chains} come from the Pieri rule for Schubert polynomials.") as c:
+            self.play(FadeIn(title), FadeIn(hdr), FadeIn(plab), run_time=0.8)
+            self.play(FadeIn(bot), run_time=0.8)
+        with self.cap(r"A step swaps an entry left of a bar with a larger entry right of it, going up exactly one step in Bruhat order.") as c:
+            self.play(Create(T.bars[0]), run_time=0.6)
+            kl = MathTex(r"k = 1", font_size=30, color=CUT).next_to(T.bars[0], DOWN, buff=0.12)
+            self.play(FadeIn(kl), run_time=0.4)
+            cp = bot.copy()
+            self.play(cp.animate.shift(T.dy * UP), run_time=0.8)
+            a_, b_ = cp[TCOLS.index(1)], cp[TCOLS.index(4)]
+            self.play(Swap(a_, b_), run_time=1.2)
+            self.remove(cp)
+            self.add(topr)
+        with self.cap(r"An \emph{increasing $k$-chain} is a run of such swaps whose smaller swapped values increase.") as c:
+            self.play(Indicate(VGroup(T.cells[(1, 1)], T.cells[(1, 4)]), color=HL), run_time=1.2)
+        vl = T.step_label(0, "x_2", size=40, color=LABEL, buff=0.3)
+        wt = MathTex(fac(2, 3, "x"), fac(2, 4, "x"), font_size=38).move_to(np.array([4.6, 0.6, 0]))
+        with self.cap(r"Values right of the bar that stay put are circled. With variable $x_i$, each circled $j$ gives a factor $x_i - y_j$.") as c:
+            self.play(Create(T.circ), run_time=1.0)
+            self.play(FadeIn(vl), run_time=0.5)
+            self.play(TransformFromCopy(T.circ, wt), run_time=1.2)
+        self.clear_caption()
+        self.play(FadeOut(VGroup(T, hdr, plab, kl, vl, wt)), run_time=0.7)
 
-        with self.voice("h2") as v:
-            self.play(FadeOut(power), g.animate.scale(0.4).to_corner(UR, buff=0.35), run_time=1.0)
-            pt = Tex(r"\textbf{Proposition} [Samuel]", font_size=38, color=PIPE).move_to(2.2 * UP)
-            lhs = MathTex(r"\sum \mathrm{wt}\Big(u", r"\xrightarrow[z_a]{\;a\;}", r"\cdot", r"\xrightarrow[z_b]{\;b\;}", r"w\Big)", font_size=50)
-            rhs = MathTex(r"\sum \mathrm{wt}\Big(u", r"\xrightarrow[z_b]{\;b\;}", r"\cdot", r"\xrightarrow[z_a]{\;a\;}", r"w\Big)", font_size=50)
-            eq = MathTex("=", font_size=50)
-            row = VGroup(lhs, eq, rhs).arrange(RIGHT, buff=0.35).move_to(0.6 * UP)
-            self.play(FadeIn(pt), Write(lhs), run_time=1.8)
-            self.play(FadeIn(eq), *[TransformFromCopy(lhs[k], rhs[k]) for k in (0, 2, 4)],
-                      TransformFromCopy(lhs[1], rhs[3], path_arc=-PI / 2),
-                      TransformFromCopy(lhs[3], rhs[1], path_arc=-PI / 2), run_time=1.8)
-            v.until("s1")
-            note = Tex(r"$\Rightarrow$ the labels can be reordered freely", font_size=38, color=YELLOW).next_to(row, DOWN, buff=0.7)
-            self.play(Write(note), run_time=1.6)
+        # ---- one trapezoid, read line by line
+        cell = 0.62
+        F0 = T1D["fillings"][0]
+        B = BPD(F0["tiles"], TROWS, TCOLS, cell=cell, stroke=5)
+        B.move_to(np.array([-3.9, 0.35, 0]))
+        rl = row_labels(B.grid.squares, TROWS, TA, side=LEFT, size=24)
+        cl = col_labels(B.grid.squares, TCOLS, 1, side=UP, size=20, color=DIM)
+        dt = dots_on(B.grid.squares, F0["blanks"], scale=0.28)
+        tab = chain_table(F0["table"], size=32, dx=0.55, dy=cell, header=False, var_labels=False)
+        # align table row s with the line above trapezoid row TN - s
+        y_line = lambda r: B.grid.squares[(r, TA)].get_top()[1]
+        tab.shift(np.array([1.2 - tab.numbers.get_left()[0], y_line(TN) - tab.cells[(0, TA)].get_center()[1], 0]))
+        guides = VGroup(*[DashedLine(np.array([B.grid.get_right()[0] + 0.15, y_line(TN - s), 0]),
+                                     np.array([tab.numbers.get_left()[0] - 0.25, y_line(TN - s), 0]),
+                                     color=GREY_D, stroke_width=2, dash_length=0.08) for s in range(4)])
+        ulab = VGroup(*[MathTex(f"u_{TN - s}", font_size=28, color=LABEL).next_to(tab.cells[(s, TN)], RIGHT, buff=0.45)
+                        for s in range(4)])
+        with self.cap(r"Now take a trapezoid. Above each of its rows, the pipes' positions form a permutation $u_r$ (Definition 4.8).") as c:
+            self.play(Create(B.grid), FadeIn(rl), FadeIn(cl), run_time=1.0)
+            self.play(LaggedStart(*[Create(p) for p in B.pipe_group], lag_ratio=0.12), FadeIn(dt), run_time=1.6)
+            for s in range(4):
+                row = VGroup(*[tab.cells[(s, p)] for p in TCOLS])
+                self.play(Create(guides[s]), FadeIn(row, shift=0.2 * RIGHT), FadeIn(ulab[s]), run_time=0.55)
+        with self.cap(r"Crossing one row of the trapezoid is an increasing chain, so we get a chain sequence from "
+                      r"$U$ at the bottom to $W$ at the top.") as c:
+            self.play(LaggedStart(*[Create(b) for b in tab.bars], lag_ratio=0.3), run_time=1.4)
+            Ul = MathTex("U", font_size=30, color=HL).next_to(ulab[0], RIGHT, buff=0.25)
+            Wl = MathTex("W", font_size=30, color=HL).next_to(ulab[3], RIGHT, buff=0.25)
+            self.play(FadeIn(Ul), FadeIn(Wl), run_time=0.6)
+        vlabs = VGroup(*[MathTex(f"x_{v}", font_size=26, color=LABEL).move_to(
+            np.array([B.grid.get_left()[0] - 0.75, B.grid.squares[(v, TA)].get_center()[1], 0])) for v in F0["table"]["vars"]])
+        with self.cap(r"The step across row $i$ uses the variable $x_i$. The blue circles are the same for every trapezoid.") as c:
+            self.play(FadeOut(rl), FadeIn(vlabs), run_time=0.6)
+            self.play(Create(blue(tab)), run_time=1.2)
+        with self.cap(r"The one green circle is the blank tile: the value $2$ stays put in the step $x_3$, giving $x_3 - y_2$.") as c:
+            self.play(Create(green(tab)), run_time=0.8)
+            self.play(Indicate(dt, color=WHITE, scale_factor=1.8), Indicate(green(tab), color=POS), run_time=1.2)
+        eq = MathTex(r"\mathrm{wt}(D)\cdot \prod_{1 \le i < j \le 4} (x_i - y_j)", "=", r"\mathrm{wt}^4_{\mathrm{rev}(\alpha)}(u_4, \ldots, u_1)",
+                     font_size=36).move_to(np.array([0, -2.05, 0]))
+        with self.cap(r"So the weight of the trapezoid, times a fixed product from the blue circles, is the weight of its chain.") as c:
+            self.play(Write(eq), run_time=1.8)
+        self.clear_caption()
+        self.play(FadeOut(VGroup(B, cl, dt, tab, guides, ulab, Ul, Wl, vlabs, eq)), run_time=0.8)
 
-        with self.voice("h3") as v:
-            self.play(FadeOut(VGroup(pt, row, note)), run_time=0.8)
-            l1 = MathTex(r"\text{pipe dreams:}\quad", r"\sum \mathrm{wt}\big(u \xrightarrow[x_1]{1} \cdot \xrightarrow[x_2]{2} \cdots \xrightarrow[x_{n-1}]{n-1} w_0\big)", font_size=40)
-            l2 = MathTex(r"\text{bumpless:}\quad", r"\sum \mathrm{wt}\big(u \xrightarrow[x_{n-1}]{n-1} \cdots \xrightarrow[x_2]{2} \cdot \xrightarrow[x_1]{1} w_0\big)", font_size=40)
-            VGroup(l1, l2).arrange(DOWN, buff=0.6, aligned_edge=RIGHT).move_to(0.9 * UP)
-            self.play(Write(l1), run_time=1.6)
-            v.until("s1")
-            self.play(Write(l2), run_time=1.6)
-            eqs = MathTex(r"\mathfrak{S}_{132}:\quad", fac(1, 2, "x"), "+", fac(2, 1, "x"), "=", fac(2, 2, "x"), "+", fac(1, 1, "x"),
-                          font_size=42).next_to(VGroup(l1, l2), DOWN, buff=0.8)
-            v.until("s2")
-            self.play(Write(eqs), run_time=1.8)
-
-        glasses_data = DATA["chains_glasses"]
-        gaunt_data = DATA["chains_gauntlet"]
-        col_x = [-4.5, 0.0, 4.5]
-
-        def block(c, labels, x):
-            T = ChainTable(c["perms"], c["steps"], size=34, dx=0.42, dy=0.5)
-            L = step_labels(T, labels, size=30)
-            B_ = VGroup(T, L).move_to(np.array([x, 0.6, 0]))
-            return B_
-
-        with self.voice("h4") as v:
-            self.play(FadeOut(VGroup(l1, l2, eqs)), run_time=0.6)
-            gb = [block(c, ["y_3", "y_2", "y_1"], x) for c, x in zip(glasses_data, col_x)]
-            gw = [MathTex(fac(i, j), font_size=40, color=fac_color(i, j)).next_to(B_, DOWN, buff=0.4)
-                  for B_, (i, j) in zip(gb, [(3, 2), (2, 0), (1, -1)])]
-            self.play(*[FadeIn(B_) for B_ in gb], *[FadeIn(w_) for w_ in gw], run_time=1.2)
-            v.until(0.4 * v.duration)
-            # reverse the label columns
-            anims = []
-            for B_ in gb:
-                L = B_[1]
-                anims += [L[0].animate.move_to(L[2].get_center()), L[2].animate.move_to(L[0].get_center())]
-            self.play(*anims, path_arc=PI / 2, run_time=1.4)
-
-        with self.voice("h5") as v:
-            nb = [block(c, ["y_1", "y_2", "y_3"], x) for c, x in zip(gaunt_data, col_x)]
-            nw = [MathTex(fac(i, j), font_size=40, color=fac_color(i, j)).next_to(B_, DOWN, buff=0.4)
-                  for B_, (i, j) in zip(nb, [(3, -1), (2, 2), (1, 0)])]
-            nw[1] = MathTex(fac(2, 2), "=0", font_size=40, color=DIM).move_to(nw[1])
-            self.play(*[FadeOut(w_) for w_ in gw], *[ReplacementTransform(a_, b_) for a_, b_ in zip(gb, nb)], run_time=1.6)
-            for key, k in [("t1", 0), ("t2", 1), ("t3", 2)]:
-                v.until(key)
-                self.play(FadeIn(nw[k], shift=0.2 * UP), run_time=0.7)
-            v.until("s2")
-            old = MathTex(fac(3, 2), "+", fac(2, 0), "+", fac(1, -1), font_size=38)
-            new = MathTex("=", fac(3, -1), "+", "0", "+", fac(1, 0), font_size=38)
-            for idx_, (i, j) in zip([0, 2, 4], [(3, 2), (2, 0), (1, -1)]):
-                old[idx_].set_color(fac_color(i, j))
-            new[1].set_color(POS)
-            new[5].set_color(POS)
-            new[3].set_color(DIM)
-            VGroup(old, new).arrange(RIGHT, buff=0.3).to_edge(DOWN, buff=0.6)
-            self.play(FadeIn(old), run_time=0.8)
-            self.play(Write(new), run_time=1.2)
-            self.play(Circumscribe(new[1:], color=POS), run_time=1.2)
-        self.play(FadeOut(Group(*nb, *nw, old, new, g, title)), run_time=0.8)
+        # ---- all three
+        groups = []
+        for k, F in enumerate(T1D["fillings"]):
+            Bk = BPD(F["tiles"], TROWS, TCOLS, cell=0.36, stroke=3.5)
+            Bk.move_to(np.array([-4.6 + 4.6 * k, 1.75, 0]))
+            dk = dots_on(Bk.grid.squares, F["blanks"], scale=0.3)
+            Tk = chain_table(F["table"], size=24, dx=0.42, dy=0.44, header=False)
+            Tk.move_to(np.array([-4.6 + 4.6 * k, -0.45, 0]))
+            wk = MathTex(fac(*F["blanks"][0], "x"), font_size=30).next_to(Tk, DOWN, buff=0.25)
+            groups.append(VGroup(Bk, dk, Tk, wk))
+        Ulab = MathTex(r"U = [-1, 1, 0, 3, 4, 2]", font_size=28, color=LABEL)
+        Wlab = MathTex(r"W = [0, 1, 2, 3, 4, -1]", font_size=28, color=LABEL)
+        alab = MathTex(r"\mathrm{rev}(\alpha) = (2, 1, 0)", font_size=28, color=CUT)
+        info = VGroup(Ulab, Wlab, alab).arrange(RIGHT, buff=0.8).move_to(np.array([0, -2.15, 0]))
+        with self.cap(r"All three trapezoids become chains from $U$ to $W$ with bars at $\mathrm{rev}(\alpha) = (2,1,0)$. "
+                      r"This is a bijection (Proposition 4.10).", extra=0.5) as c:
+            self.play(LaggedStart(*[FadeIn(g, shift=0.15 * UP) for g in groups], lag_ratio=0.3), run_time=2.2)
+            self.play(FadeIn(info), run_time=0.8)
+        with self.cap(r"The green circles still say $(x_3 - y_2) + (x_2 - y_0) + (x_1 - y_{-1})$. Nothing has improved yet.") as c:
+            self.play(*[Indicate(green(g[2]), color=POS) for g in groups], run_time=1.2)
+        self.clear_caption()
+        self.play(FadeOut(VGroup(*groups, info, title)), run_time=0.8)
 
 
-class Theorem(Narrated):
+class Reverse(Captioned):
     def construct(self):
-        with self.voice("m1") as v:
-            pt = Tex(r"\textbf{Proposition} [Chou--Yu]", font_size=38, color=PIPE)
-            p1 = Tex(r"For $u, w$ coming from a trapezoid,", font_size=38)
-            p2 = MathTex(r"\frac{\mathrm{wt}\big(u \xrightarrow[y_1]{\alpha_1} \cdots \xrightarrow[y_m]{\alpha_m} w\big)}{\prod_{i<j}(y_i - y_j)}",
-                         r"\;\text{ is either } 0 \text{ or }\;", r"\prod (y_{>0} - y_{\le 0}).", font_size=42)
-            box = VGroup(pt, p1, p2).arrange(DOWN, buff=0.35)
-            fr = SurroundingRectangle(box, buff=0.35, color=PIPE, corner_radius=0.15)
-            G = VGroup(box, fr).move_to(0.6 * UP)
-            self.play(FadeIn(pt), Create(fr), run_time=1.0)
-            self.play(Write(p1), run_time=1.2)
-            self.play(Write(p2), run_time=2.6)
-            v.until("s2")
-            pos = Tex("positive!", font_size=44, color=POS).next_to(fr, DOWN, buff=0.4)
-            self.play(p2[2].animate.set_color(POS), FadeIn(pos, shift=0.2 * UP), run_time=1.0)
+        title = heading(r"Step 5: reverse the bars")
+        sym = MathTex(r"C^{4}_{U, W, \mathrm{rev}(\alpha)}(x_3, x_2, x_1; y)", "=", r"C^{4}_{U, W, \alpha}(x_1, x_2, x_3; y)", font_size=42)
+        sym.move_to(np.array([0, 2.2, 0]))
+        sym[0].set_color(LABEL)
+        cg = Tex(r"$C$ = generating function of the chains", font_size=26, color=DIM).next_to(sym, DOWN, buff=0.25)
+        with self.cap(r"Step 5. A Pieri identity of Samuel gives a hidden symmetry: permuting the bars together with the "
+                      r"variables does not change the sum (Proposition 2.29).", extra=0.5) as c:
+            self.play(FadeIn(title), run_time=0.5)
+            self.play(Write(sym), run_time=2.0)
+            self.play(FadeIn(cg), run_time=0.6)
+        groups = []
+        for k, Fd in enumerate(T1D["forward"]):
+            Tk = chain_table(Fd, size=28, dx=0.5, dy=0.52, header=False)
+            Tk.move_to(np.array([-4.5 + 4.5 * k, -0.5, 0]))
+            (i, j), = Fd["factors"]
+            wk = MathTex(fac(i, j, "x"), font_size=34).next_to(Tk, DOWN, buff=0.3)
+            groups.append(VGroup(Tk, wk))
+        al = MathTex(r"\alpha = (0, 1, 2)", font_size=30, color=CUT).next_to(cg, DOWN, buff=0.25)
+        with self.cap(r"So count chains from $U$ to $W$ with the bars in increasing order, $\alpha = (0,1,2)$, "
+                      r"and the variables $x_1, x_2, x_3$.") as c:
+            self.play(FadeIn(al), run_time=0.6)
+            self.play(LaggedStart(*[FadeIn(g[0], shift=0.15 * UP) for g in groups], lag_ratio=0.3), run_time=2.2)
+        with self.cap(r"Again there are three. Their green circles give $x_1 - y_0$, $x_2 - y_2$ and $x_3 - y_{-1}$.") as c:
+            self.play(*[Indicate(green(g[0]), color=POS) for g in groups], run_time=1.0)
+            self.play(*[TransformFromCopy(green(g[0]), g[1]) for g in groups], run_time=1.2)
+        self.clear_caption()
+        self.play(FadeOut(VGroup(sym, cg, al)), *[g.animate.shift(1.6 * UP) for g in groups], run_time=0.9)
 
-        icons = [image("sword.png", 0.9), image("glasses.png", 0.65), image("gauntlet.png", 0.9)]
-        with self.voice("m2") as v:
-            self.play(FadeOut(VGroup(G, pos)), run_time=0.8)
-            l0 = MathTex(r"j^w_\lambda(y)", font_size=44).move_to(5.3 * LEFT + 2.4 * UP)
-            l1 = MathTex(r"= \sum_\delta \big[\,\text{trapezoid}\,\big] \times \big[\,\text{triangle}\,\big]", font_size=40)
-            l2 = MathTex(r"= \sum_\delta \sum \frac{\mathrm{wt}\big(u \xrightarrow[y_m]{\alpha_m} \cdots \xrightarrow[y_1]{\alpha_1} w\big)}{\prod_{i<j}(y_i-y_j)} \times \big[\,\text{triangle}\,\big]", font_size=40)
-            l3 = MathTex(r"= \sum_\delta \sum \frac{\mathrm{wt}\big(u \xrightarrow[y_1]{\alpha_1} \cdots \xrightarrow[y_m]{\alpha_m} w\big)}{\prod_{i<j}(y_i-y_j)} \times \big[\,\text{triangle}\,\big]", font_size=40)
-            lines = VGroup(l1, l2, l3).arrange(DOWN, aligned_edge=LEFT, buff=0.45).move_to(0.7 * RIGHT + 0.2 * UP)
-            l0.next_to(l1, LEFT, buff=0.25)
-            for ic, ln in zip(icons, lines):
-                ic.next_to(ln, LEFT, buff=0.35).shift(0.0 * UP)
-                ic.set_x(-5.6)
-            self.play(Write(l0), run_time=0.8)
-            v.until("s1")
-            self.play(FadeIn(icons[0]), Write(l1), run_time=1.8)
-            v.until("s2")
-            self.play(FadeIn(icons[1]), Write(l2), run_time=2.0)
-            v.until("s3")
-            self.play(FadeIn(icons[2]), Write(l3), run_time=2.0)
-            v.until("s4")
-            ep = Tex(r"Each term is positive!", font_size=46, color=POS).to_edge(DOWN, buff=0.5)
-            self.play(Write(ep), Circumscribe(l3, color=POS), run_time=1.8)
-
-        with self.voice("m3") as v:
-            self.play(FadeOut(Group(l0, lines, *icons, ep)), run_time=0.8)
-            tt = Tex(r"\textbf{Theorem} [Chou--Yu]", font_size=40, color=PIPE)
-            t1 = Tex(r"A positive combinatorial formula for every $j^w_\lambda(y)$,", font_size=40)
-            t2 = Tex(r"proving $j^w_\lambda(y) \in \mathbb{Z}_{\ge 0}[\,y_i - y_j : i \prec j\,]$ combinatorially.", font_size=40)
-            box = VGroup(tt, t1, t2).arrange(DOWN, buff=0.3)
-            fr = SurroundingRectangle(box, buff=0.35, color=PIPE, corner_radius=0.15)
-            G = VGroup(box, fr).move_to(0.8 * UP)
-            self.play(FadeIn(tt), Create(fr), Write(t1), run_time=2.0)
-            self.play(Write(t2), run_time=2.0)
-            v.until("s1")
-            extra = Tex(r"Also works for $w \in S_{\mathbb{Z}}$ $\;\Rightarrow\;$ a combinatorial proof of Anderson's positivity.",
-                        font_size=34, color=LABEL).next_to(fr, DOWN, buff=0.6)
-            self.play(FadeIn(extra, shift=0.2 * UP), run_time=1.2)
-        self.play(FadeOut(VGroup(G, extra)), run_time=0.8)
+        before = MathTex(fac(3, 2, "x"), "+", fac(2, 0, "x"), "+", fac(1, -1, "x"), font_size=36)
+        after = MathTex(fac(1, 0, "x"), "+", fac(2, 2, "x"), "+", fac(3, -1, "x"), font_size=36)
+        eq = VGroup(before, MathTex("=", font_size=36), after).arrange(RIGHT, buff=0.25).move_to(np.array([0, -1.2, 0]))
+        with self.cap(r"The two sums are the same polynomial, written in two ways.") as c:
+            self.play(Write(eq), run_time=2.0)
+        aty = MathTex(fac(1, 0), "+", "0", "+", fac(3, -1), font_size=40)
+        aty[0].set_color(T3)
+        aty[4].set_color(T3)
+        aty[2].set_color(DIM)
+        lab = MathTex(r"x = y:", font_size=36, color=LABEL)
+        row = VGroup(lab, aty).arrange(RIGHT, buff=0.35).next_to(eq, DOWN, buff=0.5).align_to(after, LEFT).shift(1.4 * LEFT)
+        with self.cap(r"But now set $x = y$: the middle term vanishes, and the other two are type 3.") as c:
+            self.play(FadeIn(lab), TransformFromCopy(after, aty), run_time=1.6)
+            self.play(Circumscribe(aty, color=T3), run_time=1.2)
+        with self.cap(r"This always happens (Proposition 4.17): with increasing bars, each chain gives $0$ "
+                      r"or a product of distinct type 3 forms.") as c:
+            self.play(Indicate(groups[1][1], color=DIM), run_time=1.0)
+        self.clear_caption()
+        self.play(FadeOut(Group(*self.mobjects)), run_time=0.8)
 
 
-class Outro(Narrated):
+class Assemble(Captioned):
     def construct(self):
-        with self.voice("o1") as v:
-            t = Tex("What's next?", font_size=48, color=PIPE).to_edge(UP, buff=0.8)
-            items = VGroup(
-                Tex(r"$\bullet$ A $K$-theory version", font_size=40),
-                Tex(r"$\bullet$ Triple Edelman--Greene coefficients $j^w_\lambda(y;z)$", font_size=40),
-                Tex(r"$\bullet$ Schubert structure constants?", font_size=40),
-            ).arrange(DOWN, aligned_edge=LEFT, buff=0.5).move_to(0.2 * DOWN)
-            self.play(Write(t), run_time=1.0)
-            v.until("s1")
-            self.play(FadeIn(items[0], shift=0.2 * RIGHT), run_time=0.8)
-            v.until("s2")
-            self.play(FadeIn(items[1], shift=0.2 * RIGHT), run_time=0.8)
-            v.until("s3")
-            self.play(FadeIn(items[2], shift=0.2 * RIGHT), run_time=0.8)
+        title = heading(r"Putting it together")
+        cor = MathTex(r"j^w_{21}(y)", "=", r"\underbrace{1}_{\text{top}}", r"\cdot",
+                      r"\underbrace{\big[" + fac(1, 0) + "+" + fac(3, -1) + r"\big]}_{\text{bottom}}",
+                      "+", r"\underbrace{" + fac(2, 0) + r"}_{\text{top}}", r"\cdot", r"\underbrace{1}_{\text{bottom}}", font_size=40)
+        cor.move_to(np.array([0, 1.6, 0]))
+        s1 = Tex(r"$\sigma_1$", font_size=30, color=PIPE).next_to(VGroup(cor[2], cor[4]), UP, buff=0.3)
+        s2 = Tex(r"$\sigma_2$", font_size=30, color=PIPE).next_to(VGroup(cor[6], cor[8]), UP, buff=0.3)
+        with self.cap(r"Back to Corollary 3.9: the bottom piece of $\sigma_1$ is now $(y_1 - y_0) + (y_3 - y_{-1})$.") as c:
+            self.play(FadeIn(title), run_time=0.5)
+            self.play(Write(cor), run_time=2.4)
+            self.play(FadeIn(s1), FadeIn(s2), run_time=0.6)
+        fin = MathTex(r"j^w_{21}(y)", "=", fac(1, 0), "+", fac(3, -1), "+", fac(2, 0), font_size=46)
+        for k in (2, 4, 6):
+            fin[k].set_color(T3)
+        fin.move_to(np.array([0, -0.2, 0]))
+        box = SurroundingRectangle(fin, color=POS, buff=0.2, corner_radius=0.1)
+        with self.cap(r"Every term is positive. This is the formula from the very beginning.") as c:
+            self.play(FadeIn(fin, shift=0.3 * DOWN), run_time=1.2)
+            self.play(Create(box), run_time=0.8)
+        self.clear_caption()
+        self.play(FadeOut(VGroup(cor, s1, s2)), VGroup(fin, box).animate.scale(0.75).move_to(np.array([0, 2.3, 0])), run_time=0.9)
 
-        with self.voice("o2") as v:
-            self.play(FadeOut(VGroup(t, items)), run_time=0.8)
-            t1 = Tex(r"A positive combinatorial formula for the", font_size=44)
-            t2 = Tex(r"double Edelman--Greene coefficients", font_size=58, color=PIPE)
-            au = Tex(r"Jack Chou \quad and \quad Tianyi Yu", font_size=38, color=LABEL)
-            ax = Tex(r"arXiv:2512.12185", font_size=34, color=YELLOW)
-            card = VGroup(t1, t2, au, ax).arrange(DOWN, buff=0.32).move_to(0.9 * UP)
-            icons = Group(image("sword.png", 1.1), image("glasses.png", 0.85), image("gauntlet.png", 1.1)).arrange(RIGHT, buff=1.0)
-            icons.next_to(card, DOWN, buff=0.7)
-            self.play(FadeIn(card), run_time=1.2)
-            self.play(LaggedStart(*[FadeIn(i, shift=0.2 * UP) for i in icons], lag_ratio=0.3), run_time=1.5)
-            v.until("s1")
-            thanks = Tex("Thanks for watching!", font_size=44).to_edge(DOWN, buff=0.5)
-            self.play(Write(thanks), run_time=1.2)
-        self.wait(2.5)
-        self.play(FadeOut(Group(card, icons, thanks)), run_time=1.5)
+        # the structure of a general term
+        parts = [(r"$\omega_1$(top factor)", r"types 2 and 3", T2), (r"triangle", r"type 1", T1), (r"trapezoid chain", r"type 3", T3)]
+        blocks = VGroup()
+        for name, ty, col in parts:
+            r = RoundedRectangle(width=3.4, height=1.3, corner_radius=0.15, stroke_color=col, stroke_width=3,
+                                 fill_color=col, fill_opacity=0.12)
+            t = VGroup(Tex(name, font_size=30), Tex(ty, font_size=28, color=col)).arrange(DOWN, buff=0.15).move_to(r)
+            blocks.add(VGroup(r, t))
+        times = [MathTex(r"\times", font_size=40) for _ in range(2)]
+        row = VGroup(blocks[0], times[0], blocks[1], times[1], blocks[2]).arrange(RIGHT, buff=0.3).move_to(np.array([0, 0.25, 0]))
+        with self.cap(r"In general, every term of the formula is a product of three parts, each with distinct factors.") as c:
+            self.play(LaggedStart(*[FadeIn(m, shift=0.15 * UP) for m in row], lag_ratio=0.25), run_time=2.0)
+        concl = Tex(r"type 1 and type 2 forms at most once, type 3 forms at most twice", font_size=32, color=HL)
+        concl.next_to(row, DOWN, buff=0.55)
+        with self.cap(r"So type 1 and type 2 forms appear at most once, and type 3 at most twice: Anderson's positivity, "
+                      r"now visible term by term.", extra=0.5) as c:
+            self.play(Write(concl), run_time=1.6)
+        self.clear_caption()
+        self.play(FadeOut(VGroup(row, concl, fin, box)), run_time=0.8)
+
+        steps = VGroup(*[Tex(t, font_size=32) for t in [
+            r"1. cut along the horizon: $\overleftarrow{\mathfrak S}_w = \sum_\sigma \overleftarrow{\mathfrak S}_\sigma\, \mathfrak S^\downarrow_{\sigma,w}$",
+            r"2. flip the top piece: both factors become bottom pieces",
+            r"3. cut along the staircase: triangle (type 1) and trapezoid",
+            r"4. read the trapezoid as increasing chains",
+            r"5. reverse the bars: each chain gives $0$ or type 3 forms"]]).arrange(DOWN, aligned_edge=LEFT, buff=0.3)
+        steps.move_to(np.array([0, 0.3, 0]))
+        checks = VGroup(*[MathTex(r"\checkmark", font_size=36, color=POS).next_to(s, LEFT, buff=0.3) for s in steps])
+        with self.cap(r"To recap, the five steps we followed for one example work for every $w \in S_{\mathbb Z}$ and every $\lambda$.") as c:
+            self.play(LaggedStart(*[FadeIn(s, shift=0.15 * RIGHT) for s in steps], lag_ratio=0.25), run_time=2.4)
+            self.play(LaggedStart(*[FadeIn(k, scale=0.5) for k in checks], lag_ratio=0.15), run_time=1.0)
+        self.clear_caption()
+        self.play(FadeOut(VGroup(steps, checks, title)), run_time=0.8)
+
+
+class Outro(Captioned):
+    def construct(self):
+        t1 = Tex(r"A positive combinatorial formula for the", font_size=44)
+        t2 = Tex(r"double Edelman--Greene coefficients", font_size=58, color=PIPE)
+        au = Tex(r"Jack Chen-An Chou \quad and \quad Tianyi Yu", font_size=36, color=LABEL)
+        ax = Tex(r"arXiv:2512.12185", font_size=30, color=DIM)
+        card = VGroup(t1, t2, au, ax).arrange(DOWN, buff=0.3).move_to(0.6 * UP)
+        au.shift(0.2 * DOWN)
+        ax.shift(0.2 * DOWN)
+        with self.cap(r"The details, and the general proofs, are in the paper. Thanks for watching!") as c:
+            self.play(FadeIn(t1), FadeIn(t2), run_time=1.2)
+            self.play(FadeIn(au), FadeIn(ax), run_time=0.8)
+        self.wait(1.5)
+        self.clear_caption()
+        self.play(FadeOut(card), run_time=1.2)
         self.wait(0.5)

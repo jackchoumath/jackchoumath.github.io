@@ -1,6 +1,9 @@
 """Generate the light background music: calm piano over a warm pad.
 
-    python bgm.py DURATION_SECONDS OUT.mid
+    python bgm.py DURATION_SECONDS OUT.mid [FLOW BRIGHT RESOLVE]
+
+The optional arguments are the start times (in seconds) of the later sections,
+so the music can follow the chapters of the video.
 
 The MIDI is rendered with FluidSynth and the FluidR3 General MIDI soundfont
 (see assemble.py).  Everything is diatonic in C major; melody notes on strong
@@ -172,4 +175,7 @@ def main(duration, out):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) == 6:
+        starts = [0.0] + [float(a) for a in sys.argv[3:6]]
+        SECTIONS[:] = [(t, style, progs) for t, (_, style, progs) in zip(starts, SECTIONS)]
     main(float(sys.argv[1]), sys.argv[2])
