@@ -39,8 +39,8 @@ GOOD_ENOUGH = 0.08             # word error rate at which a take is accepted
 
 # how letters and names should sound (only the TTS input is respelled)
 LETTERS = {"w": "double-you", "x": "ex", "y": "why", "i": "eye", "j": "jay", "s": "ess", "u": "you", "r": "are",
-           "k": "kay", "n": "en", "U": "you", "W": "double-you", "S": "ess", "Z": "zee"}
-WORDS = {"Sottile's": "Soh-teel's", "Edelman-Greene": "Edelman Greene"}
+           "k": "kay", "n": "en", "z": "zee", "U": "you", "W": "double-you", "S": "ess", "Z": "zee"}
+WORDS = {"Sottile's": "Sotteel's", "Edelman-Greene": "Edelman Greene"}
 CONTRACTIONS = {"here's": "here is", "there's": "there is", "that's": "that is", "it's": "it is", "let's": "let us",
                 "we'll": "we will", "doesn't": "does not", "can't": "can not", "don't": "do not"}
 NUMS = {"0": "zero", "1": "one", "2": "two", "3": "three", "4": "four", "5": "five", "6": "six",
@@ -111,7 +111,8 @@ def words(text):
         t = t.replace(a, b)
     t = re.sub(r"(?<![a-z0-9])-(?=\d)", " minus ", t)
     t = re.sub(r"\d", lambda m: f" {NUMS[m.group(0)]} ", t)
-    t = t.replace("-", " ").replace("'s", "s").replace("greene", "green")
+    t = t.replace("-", " ").replace("'s", "s").replace("greene", "green").replace("shur", "schur")
+    t = re.sub(r"\b(piri|peri|pierre)\b", "pieri", t)    # Whisper's spellings of Pieri
     out = []
     for w in re.findall(r"[a-z']+", t):
         if re.fullmatch(r"[a-z]sub", w):
@@ -126,27 +127,41 @@ def words(text):
     return out
 
 
+def check(said, heard):
+    """Word error rate, counting a wrong first or last word as a failure (that is
+    where a clipped or invented word shows up).  Respelled names (WORDS) match any
+    word, since Whisper cannot spell them anyway."""
+    for name in WORDS.values():
+        said = said.replace(name, "ANYWORD")
+    ref, hyp = words(said), words(heard)
+    e = wer(ref, hyp)
+    if not hyp or ref[0] not in (hyp[0], "anyword") or ref[-1] not in (hyp[-1], "anyword"):
+        e += 1.0
+    return e
+
+
 def wer(ref, hyp):
     d = list(range(len(hyp) + 1))
     for i, a in enumerate(ref, 1):
         prev, d[0] = d[0], i
         for j, b in enumerate(hyp, 1):
-            prev, d[j] = d[j], min(d[j] + 1, d[j - 1] + 1, prev + (a != b))
+            prev, d[j] = d[j], min(d[j] + 1, d[j - 1] + 1, prev + (a != b and a != "anyword"))
     return d[-1] / max(1, len(ref))
 
 
 def trim(audio):
-    """Cut silence at both ends, and the short click the model often makes just
-    before it starts speaking (a burst of a few frames, then a gap)."""
+    """Cut silence at both ends, and the click the model makes at the very start of
+    its output (a burst in the first few frames, then a gap, then the speech)."""
     frame = SR // 100
     n = len(audio) // frame
     rms = np.sqrt(np.mean(audio[: n * frame].reshape(n, frame) ** 2, axis=1) + 1e-12)
     loud = rms > 0.03 * rms.max()
     first = int(np.argmax(loud))
-    for k in range(first + 1, min(first + 13, n - 4)):      # burst shorter than 120 ms ...
-        if not loud[k: k + 4].any():                         # ... followed by 40 ms of quiet
-            first = k + 4 + int(np.argmax(loud[k + 4:]))
-            break
+    if first <= 3:
+        for k in range(first + 1, min(first + 8, n - 4)):
+            if not loud[k: k + 4].any():
+                first = k + 4 + int(np.argmax(loud[k + 4:]))
+                break
     last = n - 1 - int(np.argmax(loud[::-1]))
     return audio[max(0, first - 3) * frame: min(len(audio), (last + 5) * frame)]
 
@@ -204,17 +219,25 @@ def main(pocket_dir, whisper_dir):
         if meta.get(key, {}).get("sig") == sig and os.path.exists(wav):
             continue
         chunks = []
-        for text, pause in pieces(line):
+        todo = pieces(line)
+        while todo:
+            text, pause = todo.pop(0)
             said = respell(text)
             best = None
             for attempt in range(TRIES):
                 a = trim(np.array(tts.generate(said, gen).samples, dtype=np.float32))
                 heard = hear(a)
-                e = wer(words(said), words(heard))
+                e = check(said, heard)
                 if best is None or e < best[0]:
                     best = (e, a, heard)
                 if e <= GOOD_ENOUGH:
                     break
+            if best[0] > GOOD_ENOUGH and re.search(r",\s", text[:-1]):
+                # read it in two halves instead (e.g. repetitive phrasing makes the model stutter)
+                parts = re.split(r"(?<=,)\s+", text)
+                h = len(parts) // 2
+                todo[:0] = [(" ".join(parts[:h]), PAUSE[","]), (" ".join(parts[h:]), pause)]
+                continue
             if best[0] > GOOD_ENOUGH:
                 doubtful.append((round(best[0], 2), said, best[2]))
             chunks += [best[1], np.zeros(int(pause * SR), dtype=np.float32)]
