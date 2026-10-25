@@ -146,7 +146,7 @@ class HorizonCut(Narrated):
                       "stable Schubert function of sigma.") as c:
             self.play(FadeOut(sm), FadeIn(lt[0]), run_time=0.7)
             self.play(Write(lt[1]), Indicate(top.grid, color=PIPE, scale_factor=1.0), run_time=1.3)
-        with self.say("The bottom pieces run from sigma at the top to w at the bottom. Together they give the lower "
+        with self.say("The bottom pieces run from sigma at the top to w at the bottom. We call their total the lower "
                       "Schubert polynomial of sigma and w.") as c:
             self.play(FadeIn(lb[0]), run_time=0.7)
             self.play(Write(lb[1]), Indicate(bot.grid, color=PIPE, scale_factor=1.0), run_time=1.3)
@@ -263,8 +263,8 @@ class Flip(Narrated):
                       run_time=2.0)
         arr2 = swap_arrows(0, 2, yb, HL)
         lab2 = MathTex(r"\neg\sigma_1", font_size=34, color=HL).next_to(VGroup(*bot_n.values()), LEFT, buff=0.5)
-        with self.say("This turns sigma into not sigma, where not sigma of i is one minus sigma of one minus i. Here,"
-                      " sigma one swaps negative one and one, so not sigma one swaps two and zero.") as c:
+        with self.say("This turns sigma into the negate of sigma, which sends i to one minus sigma of one minus i. "
+                      "Here, sigma one swaps negative one and one, so the negate of sigma one swaps two and zero.") as c:
             self.play(TransformFromCopy(arr1, arr2, path_arc=-PI / 2), TransformFromCopy(lab1, lab2), run_time=1.8)
         nums = VGroup(*top_n.values(), *bot_n.values())
         arr1 = VGroup(arr1, arr2)
@@ -281,14 +281,15 @@ class Flip(Narrated):
         lamc = MathTex(r"\lambda' = \lambda = (2,1)", font_size=32).next_to(yd, RIGHT, buff=0.3)
         om = MathTex(r"\omega_1 :\ y_i \mapsto -y_{1-i}", font_size=34).move_to(np.array([3.3, -2.0, 0]))
         with self.say("Partitions get transposed, so lambda goes to lambda prime, and our two one is its own "
-                      "transpose. The variables change by omega one, which sends y i to negative y sub one minus i.") as c:
+                      "transpose. The variables change by omega one, which sends y i to negative y one minus i.") as c:
             self.play(FadeIn(yd), run_time=0.6)
             self.play(Rotate(yd, PI, axis=np.array([1, -1, 0]), about_point=yd[0].get_corner(UL)), run_time=1.2)
             self.play(FadeIn(lamc), run_time=0.6)
             self.play(Write(om), run_time=1.0)
         sym = MathTex(r"j^{\sigma}_{\lambda}", "=", r"\omega_1\big(", r"j^{\neg\sigma}_{\lambda'}", r"\big)", font_size=46)
         sym.move_to(np.array([0, -1.6, 0]))
-        with self.say("So the coefficient we want equals a coefficient for not sigma, after this substitution.") as c:
+        with self.say("So the coefficient we want equals a coefficient for the negate of sigma, after this "
+                      "substitution.") as c:
             self.play(FadeOut(VGroup(n1, n1s, yd, lamc)), om.animate.move_to(np.array([3.6, -2.15, 0])).scale(0.85), run_time=0.7)
             self.play(Write(sym), run_time=1.4)
         self.play(FadeOut(VGroup(nums, mirror, half, arr1, lab1)), sym.animate.move_to(np.array([-3.4, 2.0, 0])).scale(0.85),
@@ -333,8 +334,8 @@ class Flip(Narrated):
                 wt = MathTex(r"\text{no blank tiles} \ \Rightarrow\ 1", font_size=32)
             wt.next_to(botl, DOWN, buff=0.3)
             out.append((Bf, ent, top, botl, dts, wt))
-        caps = ["For sigma one, there's a single bumpless pipe dream from w two one at the top to not sigma one at "
-                "the bottom, with no blank tiles. So its top factor is one.",
+        caps = ["For sigma one, there's a single bumpless pipe dream from w two one at the top to the negate of sigma"
+                " one at the bottom, with no blank tiles. So its top factor is one.",
                 "For sigma two, there's again one bumpless pipe dream, with a single blank tile, in row one and "
                 "column negative one. That gives y one minus y negative one, which omega one turns into y two minus y"
                 " zero."]

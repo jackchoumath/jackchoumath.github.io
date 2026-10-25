@@ -1,4 +1,4 @@
-"""Part C: step 3 (the staircase cut), step 4 (chains), step 5 (reversal), and the end."""
+"""Part C: step 3 (the diagonal cut), step 4 (chains), step 5 (reversal), and the end."""
 
 from common import *
 
@@ -10,11 +10,18 @@ NAMES = [r"(3,2)", r"(2,0)", r"(1,-1)"]
 
 
 def zone_color(i, j):
+    if j == i:
+        return DIM
     if j > i:
         return T1
     if j <= 0:
         return T3
     return NEG
+
+
+def lower_tiles(k):
+    """Tiles of the k-th bottom piece of sigma_1, on the columns TA..TN."""
+    return [r[TA - (-3):] for r in P1["lower"][k]["tiles"]]
 
 
 def weight_y(blanks, size=34):
@@ -50,12 +57,11 @@ def blue(T):
 
 class DiagonalCut(Narrated):
     def construct(self):
-        title = heading(r"Step 3: the staircase cut")
+        title = heading(r"Step 3: the diagonal cut")
         cell = 0.5
         Bs, labs = [], []
-        for k, L in enumerate(P1["lower"]):
-            tiles = [r[TA - (-3):] for r in L["tiles"]]
-            B = BPD(tiles, TROWS, TCOLS, cell=cell, stroke=4.5)
+        for k in range(len(P1["lower"])):
+            B = BPD(lower_tiles(k), TROWS, TCOLS, cell=cell, stroke=4.5)
             B.move_to(np.array([-4.5 + 4.5 * k, 1.0, 0]))
             Bs.append(B)
             labs.append(col_labels(B.grid.squares, TCOLS, 1, side=UP, size=20, color=DIM))
@@ -78,44 +84,62 @@ class DiagonalCut(Narrated):
             for (i, j), sq in B.grid.squares.items():
                 fills.append(sq.animate.set_fill(zone_color(i, j), opacity=0.17))
         legend = VGroup()
-        for col, txt in [(T1, r"type 1"), (T3, r"type 3"), (NEG, r"negative or $0$")]:
+        for col, txt in [(T1, r"type 1"), (T3, r"type 3"), (NEG, r"negative"), (DIM, r"zero")]:
             sw = Square(0.3, stroke_width=1, stroke_color=GRIDC, fill_color=col, fill_opacity=0.5)
             legend.add(VGroup(sw, Tex(txt, font_size=28, color=col)).arrange(RIGHT, buff=0.15))
-        legend.arrange(RIGHT, buff=0.8).move_to(np.array([0, -1.55, 0]))
+        legend.arrange(RIGHT, buff=0.7).move_to(np.array([0, -1.55, 0]))
         with self.say("Let's color each cell i j by the kind of form, y i minus y j, that a blank tile there would "
                       "give.") as c:
             self.play(*fills, run_time=1.4)
             self.play(FadeIn(legend), run_time=0.8)
-        with self.say("To the right of the staircase, we get type one. In column zero and to its left, type three. "
-                      "The bad blank sits in between.") as c:
+        with self.say("Above the diagonal, we get type one. In column zero and to its left, type three. In between, "
+                      "the forms are negative, and that's where our bad blank sits.") as c:
             self.play(Indicate(dts[0], color=WHITE, scale_factor=1.8), run_time=1.2)
-        stairs = [staircase(B.grid.squares, TN, color=WHITE, width=5) for B in Bs]
-        with self.say("So we cut along the staircase, into a trapezoid and a triangle.") as c:
-            self.play(*[Create(s) for s in stairs], run_time=1.4)
+        diag = [VGroup(*[B.grid.squares[(r, r)] for r in TROWS]) for B in Bs]
+        with self.say("On the diagonal itself, a blank tile in row i and column i gives x i minus y i, which is zero "
+                      "once x equals y. So we only need bottom pieces with no blank tiles on the diagonal, like our "
+                      "three.", extra=0.5) as c:
+            self.play(*[Indicate(g, color=WHITE, scale_factor=1.0) for g in diag], run_time=1.4)
+            self.play(*[Indicate(g, color=WHITE, scale_factor=1.0) for g in diag], run_time=1.4)
+        cuts = [diagonal_line(B.grid.squares, TN, color=WHITE, width=5) for B in Bs]
+        with self.say("Then every diagonal tile carries a pipe, and we can cut straight along the diagonal: a "
+                      "trapezoid below it, and a triangle above it.") as c:
+            self.play(*[Create(l) for l in cuts], run_time=1.4)
             # replace each bumpless pipe dream by its two pieces and pull them apart
             pieces = []
             for k, B in enumerate(Bs):
-                tr = tile_drawing(T1D["fillings"][k]["tiles"], TROWS, TCOLS, cell, stroke=4.5)
-                tri = tile_drawing(T1D["tri"][0], TROWS, TCOLS, cell, stroke=4.5)
-                v = B.grid.squares[(1, TA)].get_center() - tr.squares[(1, TA)].get_center()
+                tr = cut_drawing(lower_tiles(k), TROWS, TCOLS, cell, "lower", stroke=4.5)
+                tri = cut_drawing(lower_tiles(k), TROWS, TCOLS, cell, "upper", stroke=4.5)
+                v = B.grid.squares[(1, TA)].get_center() - tr.cells[(1, TA)].get_center()
                 tr.shift(v)
                 tri.shift(v)
-                for (i, j), sq in list(tr.squares.items()) + list(tri.squares.items()):
-                    sq.set_fill(zone_color(i, j), opacity=0.17)
+                for part in (tr, tri):
+                    for (i, j), sq in part.squares.items():
+                        sq.set_fill(zone_color(i, j), opacity=0.17)
+                    for sh in part.halves.values():
+                        sh.set_fill(DIM, opacity=0.17)
                 pieces.append((tr, tri))
-            self.remove(*Bs, *stairs)
+            self.remove(*Bs)
             for tr, tri in pieces:
                 self.add(tr, tri)
-            self.bring_to_front(*dts)
-            self.play(*[tri.animate.shift(0.22 * UR) for _, tri in pieces], *[FadeOut(l) for l in labs], run_time=1.2)
+            self.bring_to_front(*dts, *cuts)
+            self.play(*[tri.animate.shift(0.35 * UR) for _, tri in pieces], *[FadeOut(l) for l in labs],
+                      *[FadeOut(l) for l in cuts], run_time=1.2)
         tl = Tex("trapezoid", font_size=24, color=LABEL).next_to(pieces[0][0], DOWN, buff=0.12).shift(0.6 * LEFT)
         tg = Tex("triangle", font_size=24, color=LABEL).next_to(pieces[0][1], UP, buff=0.1).shift(0.25 * RIGHT)
         self.play(FadeIn(tl), FadeIn(tg), *[w.animate.shift(0.15 * DOWN) for w in wts], run_time=0.6)
 
-        f = MathTex(r"\mathfrak S^{\downarrow}_{\sigma, w}", "=", r"\sum_{\gamma}", r"\Big(\sum_{\text{trapezoids}} \mathrm{wt}\Big)",
-                    r"\Big(\sum_{\text{triangles}} \mathrm{wt}\Big)", font_size=38).move_to(np.array([0, -1.55, 0]))
-        with self.say("The trapezoid and the triangle meet along a boundary, gamma. So the bottom piece is a sum over"
-                      " gamma, of trapezoids times triangles.", extra=0.5) as c:
+        gls = [gamma_labels(tr.cells, P1["gamma_diag"], P1["gamma_top"], TCOLS, size=22) for tr, _ in pieces]
+        gtags = [MathTex(r"\gamma", font_size=34, color=HL).next_to(tr.cells[(1, TA)], UL, buff=0.12) for tr, _ in pieces]
+        with self.say("The pipes crossing the cut, together with the pipes coming in from the top, give the boundary"
+                      " labels, gamma. All three of ours have the same gamma.", extra=0.5) as c:
+            self.play(LaggedStart(*[FadeIn(VGroup(g, t)) for g, t in zip(gls, gtags)], lag_ratio=0.3), run_time=1.6)
+            self.play(*[Indicate(g, color=WHITE) for g in gls], run_time=1.2)
+
+        f = MathTex(r"\mathfrak S^{\downarrow}_{\sigma, w}(y;y)", "=", r"\sum_{\gamma}", r"\Big(\sum_{\text{trapezoids}} \mathrm{wt}\Big)",
+                    r"\Big(\sum_{\text{triangles}} \mathrm{wt}\Big)", font_size=36).move_to(np.array([0, -1.6, 0]))
+        with self.say("So, after setting x equal to y, the bottom piece is a sum over gamma, of trapezoids times "
+                      "triangles.", extra=0.5) as c:
             self.play(FadeOut(legend), run_time=0.4)
             self.play(Write(f), run_time=2.0)
         with self.say("Triangle cells only give type one forms, each at most once, so that part is already positive. "
@@ -172,14 +196,14 @@ class Chains(Narrated):
         # ---- one trapezoid, read line by line
         cell = 0.62
         F0 = T1D["fillings"][0]
-        B = BPD(F0["tiles"], TROWS, TCOLS, cell=cell, stroke=5)
+        B = cut_drawing(lower_tiles(0), TROWS, TCOLS, cell, "lower", stroke=5)
         B.move_to(np.array([-3.9, 0.35, 0]))
-        rl = row_labels(B.grid.squares, TROWS, TA, side=LEFT, size=24)
-        cl = col_labels(B.grid.squares, TCOLS, 1, side=UP, size=20, color=DIM)
-        dt = dots_on(B.grid.squares, F0["blanks"], scale=0.28)
+        rl = row_labels(B.cells, TROWS, TA, side=LEFT, size=24)
+        cl = col_labels(B.cells, TCOLS, 1, side=UP, size=20, color=DIM)
+        dt = dots_on(B.cells, F0["blanks"], scale=0.28)
         tab = chain_table(F0["table"], size=32, dx=0.55, dy=cell, header=False, var_labels=False)
         # align table row s with the line above trapezoid row TN - s
-        y_line = lambda r: B.grid.squares[(r, TA)].get_top()[1]
+        y_line = lambda r: B.cells[(r, TA)].get_top()[1]
         tab.shift(np.array([1.2 - tab.numbers.get_left()[0], y_line(TN) - tab.cells[(0, TA)].get_center()[1], 0]))
         guides = VGroup(*[DashedLine(np.array([B.grid.get_right()[0] + 0.15, y_line(TN - s), 0]),
                                      np.array([tab.numbers.get_left()[0] - 0.25, y_line(TN - s), 0]),
@@ -187,9 +211,9 @@ class Chains(Narrated):
         ulab = VGroup(*[MathTex(f"u_{TN - s}", font_size=28, color=LABEL).next_to(tab.cells[(s, TN)], RIGHT, buff=0.45)
                         for s in range(4)])
         with self.say("Now take a trapezoid. Above each of its rows, the positions of the pipes form a permutation, u"
-                      " sub r.") as c:
+                      " r.") as c:
             self.play(Create(B.grid), FadeIn(rl), FadeIn(cl), run_time=1.0)
-            self.play(LaggedStart(*[Create(p) for p in B.pipe_group], lag_ratio=0.12), FadeIn(dt), run_time=1.6)
+            self.play(LaggedStart(*[Create(p) for p in B.pipes], lag_ratio=0.05), FadeIn(dt), run_time=1.6)
             for s in range(4):
                 row = VGroup(*[tab.cells[(s, p)] for p in TCOLS])
                 self.play(Create(guides[s]), FadeIn(row, shift=0.2 * RIGHT), FadeIn(ulab[s]), run_time=0.55)
@@ -200,7 +224,7 @@ class Chains(Narrated):
             Wl = MathTex("W", font_size=30, color=HL).next_to(ulab[3], RIGHT, buff=0.25)
             self.play(FadeIn(Ul), FadeIn(Wl), run_time=0.6)
         vlabs = VGroup(*[MathTex(f"x_{v}", font_size=26, color=LABEL).move_to(
-            np.array([B.grid.get_left()[0] - 0.75, B.grid.squares[(v, TA)].get_center()[1], 0])) for v in F0["table"]["vars"]])
+            np.array([B.grid.get_left()[0] - 0.75, B.cells[(v, TA)].get_center()[1], 0])) for v in F0["table"]["vars"]])
         with self.say("Crossing row i comes with the variable x i. The blue circles are the same for every trapezoid.") as c:
             self.play(FadeOut(rl), FadeIn(vlabs), run_time=0.6)
             self.play(Create(blue(tab)), run_time=1.2)
@@ -218,9 +242,9 @@ class Chains(Narrated):
         # ---- all three
         groups = []
         for k, F in enumerate(T1D["fillings"]):
-            Bk = BPD(F["tiles"], TROWS, TCOLS, cell=0.36, stroke=3.5)
+            Bk = cut_drawing(lower_tiles(k), TROWS, TCOLS, 0.36, "lower", stroke=3.5)
             Bk.move_to(np.array([-4.6 + 4.6 * k, 1.75, 0]))
-            dk = dots_on(Bk.grid.squares, F["blanks"], scale=0.3)
+            dk = dots_on(Bk.cells, F["blanks"], scale=0.3)
             Tk = chain_table(F["table"], size=24, dx=0.42, dy=0.44, header=False)
             Tk.move_to(np.array([-4.6 + 4.6 * k, -0.45, 0]))
             wk = MathTex(fac(*F["blanks"][0], "x"), font_size=30).next_to(Tk, DOWN, buff=0.25)
@@ -334,13 +358,13 @@ class Assemble(Narrated):
         steps = VGroup(*[Tex(t, font_size=32) for t in [
             r"1. cut along the horizon: $\overleftarrow{\mathfrak S}_w = \sum_\sigma \overleftarrow{\mathfrak S}_\sigma\, \mathfrak S^\downarrow_{\sigma,w}$",
             r"2. flip the top piece: both factors become bottom pieces",
-            r"3. cut along the staircase: triangle (type 1) and trapezoid",
+            r"3. cut along the diagonal: triangle (type 1) and trapezoid",
             r"4. read the trapezoid as increasing chains",
             r"5. reverse the bars: each chain gives $0$ or type 3 forms"]]).arrange(DOWN, aligned_edge=LEFT, buff=0.3)
         steps.move_to(np.array([0, 0.3, 0]))
         checks = VGroup(*[MathTex(r"\checkmark", font_size=36, color=POS).next_to(s, LEFT, buff=0.3) for s in steps])
-        with self.say("To recap: the five steps we followed for this one example work for every w in S sub Z, and "
-                      "every lambda.") as c:
+        with self.say("To recap: the five steps we followed for this one example work for every w in S Z, and every "
+                      "lambda.") as c:
             self.play(LaggedStart(*[FadeIn(s, shift=0.15 * RIGHT) for s in steps], lag_ratio=0.25), run_time=2.4)
             self.play(LaggedStart(*[FadeIn(k, scale=0.5) for k in checks], lag_ratio=0.15), run_time=1.0)
         self.play(FadeOut(VGroup(steps, checks, title)), run_time=0.8)

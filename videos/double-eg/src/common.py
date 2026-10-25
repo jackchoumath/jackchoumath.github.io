@@ -247,6 +247,100 @@ def tile_drawing(rows_str, row_idx, col_idx, cell, color=PIPE, stroke=5, corner=
     return g
 
 
+def _clip(pts, side):
+    """Pieces of a polyline (points relative to a cell centre) on one side of the
+    cell's diagonal x + y = 0: side = -1 keeps the lower-left half, +1 the upper-right."""
+    f = lambda p: side * (p[0] + p[1])
+    out, cur = [], []
+    for k, p in enumerate(pts):
+        if k:
+            q = pts[k - 1]
+            fq, fp = f(q), f(p)
+            if (fq >= 0) != (fp >= 0):
+                m = q + fq / (fq - fp) * (p - q)
+                if fq >= 0:
+                    out.append(cur + [m])
+                    cur = []
+                else:
+                    cur = [m]
+        if f(p) >= 0:
+            cur.append(p)
+    out.append(cur)
+    return [c for c in out if len(c) > 1]
+
+
+def cut_drawing(rows_str, row_idx, col_idx, cell, part, color=PIPE, stroke=5, corner=0.45):
+    """One side of the straight diagonal cut of a tiling: part = "lower" keeps the
+    cells with j < i and the lower-left halves of the diagonal cells, part = "upper"
+    the cells with j > i and the upper-right halves."""
+    h, rc = cell / 2, corner * cell / 2
+    B, T, L, R = (np.array(v) for v in [(0, -h, 0), (0, h, 0), (-h, 0, 0), (h, 0, 0)])
+    side = 1 if part == "lower" else -1         # sign of x + y on the kept half, negated
+    grid, pipes, squares, halves, ghosts = VGroup(), VGroup(), {}, {}, {}
+    for r, line in zip(row_idx, rows_str):
+        for c, ch in zip(col_idx, line):
+            if ch == " " or (part == "lower" and c > r) or (part == "upper" and c < r):
+                continue
+            cen = np.array([col_idx.index(c) * cell, -row_idx.index(r) * cell, 0.0])
+            ghosts[(r, c)] = Square(cell, stroke_opacity=0, stroke_width=0).move_to(cen)
+            if c == r:
+                corners = [(-h, h), (-h, -h), (h, -h)] if part == "lower" else [(-h, h), (h, h), (h, -h)]
+                shape = Polygon(*[cen + np.array([x, y, 0]) for x, y in corners], stroke_color=GRIDC, stroke_width=1.5)
+                halves[(r, c)] = shape
+            else:
+                shape = Square(cell, stroke_color=GRIDC, stroke_width=1.5).move_to(cen)
+                squares[(r, c)] = shape
+            grid.add(shape)
+            polys = []
+            if ch in "|+":
+                polys.append([B, T])
+            if ch in "-+":
+                polys.append([L, R])
+            if ch == "r":
+                k = np.array([rc, -rc, 0])
+                polys.append([B, np.array([0, -rc, 0])] + arc_pts(k, rc, np.pi, 0.5 * np.pi, 10) + [R])
+            if ch == "j":
+                k = np.array([-rc, rc, 0])
+                polys.append([L, np.array([-rc, 0, 0])] + arc_pts(k, rc, -0.5 * np.pi, 0, 10) + [T])
+            for pts in polys:
+                for piece in (_clip(pts, -side) if c == r else [pts]):
+                    p = VMobject(stroke_color=color, stroke_width=stroke)
+                    p.set_points_as_corners([cen + q for q in piece])
+                    pipes.add(p)
+    g = VGroup(grid, pipes, VGroup(*ghosts.values()))
+    g.squares, g.halves, g.grid, g.pipes = squares, halves, grid, pipes
+    g.cells = ghosts                     # every cell, diagonal ones included, for positioning
+    return g
+
+
+def diagonal_line(squares_or_cells, n, color=WHITE, width=5, overhang=0.15):
+    """The straight cut through the diagonal cells (1,1), ..., (n,n), from the
+    top-left corner of (1,1) to the bottom-right corner of (n,n)."""
+    a = squares_or_cells[(1, 1)].get_corner(UL)
+    b = squares_or_cells[(n, n)].get_corner(DR)
+    d = (b - a) / np.linalg.norm(b - a)
+    return Line(a - overhang * d, b + overhang * d, color=color, stroke_width=width)
+
+
+def gamma_labels(squares, gamma_diag, gamma_top, cols, size=22, color=HL):
+    """The boundary gamma of the trapezoid: labels of the pipes entering from the top
+    (columns <= 0) and of the pipes crossing the diagonal in each cell (r, r)."""
+    g = VGroup()
+    for c, lab in gamma_top:
+        if c in cols and (1, c) in squares:
+            g.add(MathTex(str(lab), font_size=size, color=color).next_to(squares[(1, c)], UP, buff=0.08))
+    for r, (top, right) in enumerate(gamma_diag, start=1):
+        if (r, r) not in squares:
+            continue
+        sq = squares[(r, r)]
+        cen, w = sq.get_center(), sq.width
+        if top is not None:
+            g.add(MathTex(str(top), font_size=size, color=color).move_to(cen + np.array([-0.05 * w, 0.62 * w, 0])))
+        if right is not None:
+            g.add(MathTex(str(right), font_size=size, color=color).move_to(cen + np.array([0.68 * w, -0.08 * w, 0])))
+    return g
+
+
 def dots_on(squares, cells, color=HL, scale=0.3):
     out = VGroup()
     for c in cells:
@@ -255,22 +349,6 @@ def dots_on(squares, cells, color=HL, scale=0.3):
             sq = squares[c]
             out.add(Dot(sq.get_center(), radius=scale * sq.width, color=color))
     return out
-
-
-def staircase(squares, n, color=POS, width=5):
-    """The staircase between cells j <= i and j > i, for rows 1..n."""
-    pts = []
-    for r in range(1, n + 1):
-        sq = squares[(r, r)]
-        if r == 1:
-            pts.append(sq.get_corner(UR))
-        pts.append(sq.get_corner(DR))
-        if r < n:
-            nxt = squares[(r + 1, r + 1)]
-            pts.append(nxt.get_corner(UR))
-    m = VMobject(stroke_color=color, stroke_width=width)
-    m.set_points_as_corners(pts)
-    return m
 
 
 def row_labels(squares, rows, col, side=RIGHT, size=24, buff=0.16, color=LABEL, text=None):

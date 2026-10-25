@@ -117,6 +117,21 @@ def main():
         piece["upper_example"] = grid(ups[0], range(A, 1), range(A, N + 1))
         piece["upper_example_blanks"] = blanks(ups[0])
 
+        # the straight diagonal cut: which pipes cross the diagonal in cell (r, r).
+        # A blank on the diagonal would give x_r - y_r, which vanishes at x = y.
+        phi = phi_of_sigma(s, A)
+        cells = lower_cells(A, N)
+        top = {c: phi[c] for c in range(A, N + 1) if c in phi}
+        gammas = []
+        for g in d["low_groups"].values():
+            for D in g["D"]:
+                assert all(D[(r, r)] != "O" for r in range(1, N + 1))
+                vert, horiz = labels_on_edges(D, cells, {r: r for r in range(1, N + 1)}, top)
+                gammas.append([[vert.get((r, r)), horiz.get((r, r))] for r in range(1, N + 1)])
+        assert all(gm == gammas[0] for gm in gammas), gammas
+        piece["gamma_diag"] = gammas[0]          # per row r: [label on top edge, label on right edge] of (r, r)
+        piece["gamma_top"] = sorted([c, l] for c, l in top.items() if c <= 0)
+
         # chains for the trapezoid groups of the lower piece
         piece["trap"] = []
         for g in d["low_groups"].values():

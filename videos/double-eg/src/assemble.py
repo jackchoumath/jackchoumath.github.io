@@ -19,7 +19,7 @@ SCENES = [
     ("Problem", "The positivity problem"),
     ("HorizonCut", "Step 1: the horizon cut"),
     ("Flip", "Step 2: flip the top piece"),
-    ("DiagonalCut", "Step 3: the staircase cut"),
+    ("DiagonalCut", "Step 3: the diagonal cut"),
     ("Chains", "Step 4: trapezoids as chains"),
     ("Reverse", "Step 5: reverse the bars"),
     ("Assemble", "Putting it together"),

@@ -91,8 +91,7 @@ class Setup(Narrated):
         dots = VGroup(*[Dot(np.array([xs[i], -0.2, 0]), radius=0.05, color=GREY_B) for i in xs])
         nums = VGroup(*[MathTex(str(i), font_size=38).move_to(np.array([xs[i], -1.15, 0])) for i in xs])
         axis = Line(np.array([xs[-3] - 0.7, -0.2, 0]), np.array([xs[5] + 0.7, -0.2, 0]), color=GREY_D)
-        with self.say("Our permutation lives in S sub Z: bijections of the integers that move only finitely many of "
-                      "them.") as c:
+        with self.say("Our permutation lives in S Z: bijections of the integers that move only finitely many of them.") as c:
             self.play(FadeIn(title), Create(axis), FadeIn(dots), FadeIn(nums), run_time=1.6)
         arrows = VGroup()
         for i in [-1, 0, 1, 2, 3, 4]:
@@ -291,7 +290,7 @@ class Problem(Narrated):
             r[0].set_x(-4.3)
             r[1].set_x(-1.3)
             r[2].set_x(2.6)
-        with self.say("Anderson refined this. Positive forms y i minus y j come in three types.") as c:
+        with self.say("Anderson refined their theorem. The positive forms y i minus y j come in three types.") as c:
             self.play(LaggedStart(*[FadeIn(r, shift=0.15 * RIGHT) for r in tab], lag_ratio=0.35), run_time=2.0)
         rule = Tex(r"each term: types 1, 2 at most once; type 3 at most twice", font_size=32, color=LABEL).next_to(tab, DOWN, buff=0.4)
         ex = MathTex(r"\text{e.g. the coefficient of } s_1:\quad", fac(1, 0) + "^2", fac(3, 0), font_size=34)
@@ -310,7 +309,7 @@ class Problem(Narrated):
             self.play(Write(q), run_time=1.6)
         with self.say("The paper solves this in five steps. We'll follow them on our w, with lambda equal to two one.") as c:
             steps = VGroup(*[Tex(t, font_size=32) for t in [
-                r"1. cut along the horizon", r"2. flip the top piece", r"3. cut along the staircase",
+                r"1. cut along the horizon", r"2. flip the top piece", r"3. cut along the diagonal",
                 r"4. read the trapezoid as chains", r"5. reverse the bars"]]).arrange(DOWN, aligned_edge=LEFT, buff=0.22)
             steps.move_to(0.4 * DOWN)
             self.play(FadeOut(VGroup(G, tab, q)), run_time=0.6)
