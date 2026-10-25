@@ -113,6 +113,7 @@ def words(text):
     t = re.sub(r"\d", lambda m: f" {NUMS[m.group(0)]} ", t)
     t = t.replace("-", " ").replace("'s", "s").replace("greene", "green").replace("shur", "schur")
     t = re.sub(r"\b(piri|peri|pierre)\b", "pieri", t)    # Whisper's spellings of Pieri
+    t = t.replace("non negative", "nonnegative")
     out = []
     for w in re.findall(r"[a-z']+", t):
         if re.fullmatch(r"[a-z]sub", w):
@@ -223,6 +224,7 @@ def main(pocket_dir, whisper_dir):
         while todo:
             text, pause = todo.pop(0)
             said = respell(text)
+            said = said[0].upper() + said[1:]    # a lowercase start reads as "and ..."
             best = None
             for attempt in range(TRIES):
                 a = trim(np.array(tts.generate(said, gen).samples, dtype=np.float32))
