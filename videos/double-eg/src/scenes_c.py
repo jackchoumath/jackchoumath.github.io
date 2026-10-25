@@ -210,8 +210,8 @@ class Chains(Narrated):
                                      color=GREY_D, stroke_width=2, dash_length=0.08) for s in range(4)])
         ulab = VGroup(*[MathTex(f"u_{TN - s}", font_size=28, color=LABEL).next_to(tab.cells[(s, TN)], RIGHT, buff=0.45)
                         for s in range(4)])
-        with self.say("Now take a trapezoid. Above each of its rows, the positions of the pipes form a permutation, u"
-                      " r.") as c:
+        with self.say("Now take a trapezoid. Above each of its rows, the positions of the pipes form a "
+                      "permutation.") as c:
             self.play(Create(B.grid), FadeIn(rl), FadeIn(cl), run_time=1.0)
             self.play(LaggedStart(*[Create(p) for p in B.pipes], lag_ratio=0.05), FadeIn(dt), run_time=1.6)
             for s in range(4):
