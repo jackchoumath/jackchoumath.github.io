@@ -34,13 +34,18 @@ REFERENCE_SECONDS = 21.4       # three whole sentences; a clip that stops mid-wo
 SR = 24000
 TARGET_RMS_DB = -20.0          # loudness of the voiced parts of every line
 PAUSE = {",": 0.16, ":": 0.3, ".": 0.36, "?": 0.42, "!": 0.36}
-TRIES = 8
+TRIES = 10
+TAKES = 3                      # good takes of each phrase to compare; the most typical one is kept
 GOOD_ENOUGH = 0.08             # word error rate at which a take is accepted
+LONGEST_GAP = 0.5              # seconds of silence inside a phrase that make a take unnatural
 
-# how letters and names should sound (only the TTS input is respelled)
-LETTERS = {"w": "double-you", "x": "ex", "y": "why", "i": "eye", "j": "jay", "s": "ess", "u": "you", "r": "are",
-           "k": "kay", "n": "en", "z": "zee", "U": "you", "W": "double-you", "S": "ess", "Z": "zee"}
-WORDS = {"Sottile's": "Sotteel's", "Edelman-Greene": "Edelman Greene"}
+# how letters and names are written for the model (only the TTS input changes):
+# single-letter variables as capitals, which it reads as letters in a natural tone
+LETTERS = "wxyijsurknz"
+WORDS = {"Sottile's": "Sotteel's", "Edelman-Greene": "Edelman Greene",
+         "Lam, Lee and Shimozono": "Lam Lee and Shimozono"}
+UNSPELLABLE = ("Sotteel's",)   # Whisper cannot spell these, so they match any word
+LETTER_NAMES = {"why": "y", "ex": "x", "eye": "i", "jay": "j", "ess": "s", "kay": "k", "zee": "z"}
 CONTRACTIONS = {"here's": "here is", "there's": "there is", "that's": "that is", "it's": "it is", "let's": "let us",
                 "we'll": "we will", "doesn't": "does not", "can't": "can not", "don't": "do not"}
 NUMS = {"0": "zero", "1": "one", "2": "two", "3": "three", "4": "four", "5": "five", "6": "six",
@@ -77,7 +82,8 @@ def spoken_lines():
 def respell(text):
     for a, b in WORDS.items():
         text = text.replace(a, b)
-    return re.sub(r"(?<![\w'-])([A-Za-z])(?![\w'-])", lambda m: LETTERS.get(m.group(1), m.group(1)), text)
+    return re.sub(r"(?<![\w'-])([a-z])(?![\w'-])", lambda m: m.group(1).upper() if m.group(1) in LETTERS
+                  else m.group(1), text)
 
 
 def pieces(text):
@@ -113,16 +119,15 @@ def words(text):
     t = re.sub(r"\d", lambda m: f" {NUMS[m.group(0)]} ", t)
     t = t.replace("-", " ").replace("'s", "s").replace("greene", "green").replace("shur", "schur")
     t = re.sub(r"\b(piri|peri|pierre)\b", "pieri", t)    # Whisper's spellings of Pieri
-    t = t.replace("non negative", "nonnegative")
+    t = t.replace("non negative", "nonnegative").replace("double you", "w").replace("double u", "w")
     out = []
     for w in re.findall(r"[a-z']+", t):
         if re.fullmatch(r"[a-z]sub", w):
-            out += respell(w[0]).replace("-", " ").split() + ["sub"]
-        elif len(w) == 1 and w in LETTERS:
-            out += respell(w).replace("-", " ").split()
-        elif len(w) == 2 and all(c in LETTERS for c in w) and w not in ("us", "is", "in", "un"):
-            for c in w:
-                out += respell(c).replace("-", " ").split()
+            out += [w[0], "sub"]
+        elif w in LETTER_NAMES:
+            out.append(LETTER_NAMES[w])
+        elif len(w) == 2 and all(c in LETTERS for c in w) and w not in ("us", "is", "in"):
+            out += list(w)                       # Whisper writes "x i" as "xi"
         else:
             out.append(w)
     return out
@@ -130,9 +135,8 @@ def words(text):
 
 def check(said, heard):
     """Word error rate, counting a wrong first or last word as a failure (that is
-    where a clipped or invented word shows up).  Respelled names (WORDS) match any
-    word, since Whisper cannot spell them anyway."""
-    for name in WORDS.values():
+    where a clipped or invented word shows up)."""
+    for name in UNSPELLABLE:
         said = said.replace(name, "ANYWORD")
     ref, hyp = words(said), words(heard)
     e = wer(ref, hyp)
@@ -165,6 +169,44 @@ def trim(audio):
                 break
     last = n - 1 - int(np.argmax(loud[::-1]))
     return audio[max(0, first - 3) * frame: min(len(audio), (last + 5) * frame)]
+
+
+def longest_gap(audio):
+    frame = SR // 100
+    n = len(audio) // frame
+    rms = np.sqrt(np.mean(audio[: n * frame].reshape(n, frame) ** 2, axis=1) + 1e-12)
+    quiet = rms < 0.04 * rms.max()
+    longest = run = 0
+    for q in quiet:
+        run = run + 1 if q else 0
+        longest = max(longest, run)
+    return longest / 100
+
+
+def prosody(audio):
+    """Pitch (semitones around the median) and loudness contours on a common time
+    axis, and the duration: what distinguishes one take's delivery from another's."""
+    hop, win = SR // 100, SR // 25
+    n = (len(audio) - win) // hop
+    frames = np.lib.stride_tricks.sliding_window_view(audio, win)[::hop][:n] * np.hanning(win)
+    ac = np.fft.irfft(np.abs(np.fft.rfft(frames, 2 * win, axis=1)) ** 2, axis=1)[:, :win]
+    lo, hi = SR // 400, SR // 70
+    lag = lo + np.argmax(ac[:, lo:hi], axis=1)
+    db = 10 * np.log10(ac[:, 0] / win + 1e-10)
+    voiced = (ac[np.arange(n), lag] > 0.4 * ac[:, 0]) & (db > db.max() - 30)
+    t, grid = np.linspace(0, 1, n), np.linspace(0, 1, 40)
+    st = 12 * np.log2(SR / lag)
+    pitch = np.interp(grid, t[voiced], st[voiced] - np.median(st[voiced])) if voiced.sum() > 5 else np.zeros(40)
+    return pitch, np.interp(grid, t, db - db.max()), len(audio) / SR
+
+
+def most_typical(takes):
+    """The take whose delivery is closest to the others': an odd stress or pause
+    in one take makes it the outlier."""
+    feats = [prosody(a) for a in takes]
+    dist = lambda f, g: (np.mean(np.abs(f[0] - g[0])) + 0.15 * np.mean(np.abs(f[1] - g[1]))
+                         + 8 * abs(np.log(f[2] / g[2])))
+    return takes[int(np.argmin([sum(dist(f, g) for g in feats) for f in feats]))]
 
 
 def level(audio):
@@ -215,7 +257,8 @@ def main(pocket_dir, whisper_dir):
     doubtful = []
     for line in lines:
         key = line_key(line)
-        sig = hashlib.sha1(json.dumps([line, REFERENCE, REFERENCE_SECONDS, PAUSE, LETTERS, WORDS, TARGET_RMS_DB]).encode()).hexdigest()
+        sig = hashlib.sha1(json.dumps([line, REFERENCE, REFERENCE_SECONDS, PAUSE, LETTERS, WORDS, TARGET_RMS_DB,
+                                         TAKES]).encode()).hexdigest()
         wav = os.path.join(OUT, f"{key}.wav")
         if meta.get(key, {}).get("sig") == sig and os.path.exists(wav):
             continue
@@ -225,22 +268,26 @@ def main(pocket_dir, whisper_dir):
             text, pause = todo.pop(0)
             said = respell(text)
             said = said[0].upper() + said[1:]    # a lowercase start reads as "and ..."
-            best = None
+            best, good = None, []
             for attempt in range(TRIES):
                 a = trim(np.array(tts.generate(said, gen).samples, dtype=np.float32))
                 heard = hear(a)
                 e = check(said, heard)
                 if best is None or e < best[0]:
                     best = (e, a, heard)
-                if e <= GOOD_ENOUGH:
-                    break
-            if best[0] > GOOD_ENOUGH and re.search(r",\s", text[:-1]):
+                if e <= GOOD_ENOUGH and longest_gap(a) <= LONGEST_GAP:
+                    good.append(a)
+                    if len(good) == TAKES:
+                        break
+            if good:
+                best = (0.0, most_typical(good), "")
+            elif re.search(r",\s", text[:-1]):
                 # read it in two halves instead (e.g. repetitive phrasing makes the model stutter)
                 parts = re.split(r"(?<=,)\s+", text)
                 h = len(parts) // 2
                 todo[:0] = [(" ".join(parts[:h]), PAUSE[","]), (" ".join(parts[h:]), pause)]
                 continue
-            if best[0] > GOOD_ENOUGH:
+            else:
                 doubtful.append((round(best[0], 2), said, best[2]))
             chunks += [best[1], np.zeros(int(pause * SR), dtype=np.float32)]
         audio = level(np.concatenate(chunks[:-1]))

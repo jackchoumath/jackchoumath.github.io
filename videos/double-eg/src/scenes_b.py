@@ -46,6 +46,30 @@ def cross_section(phi, cols, x_of, y, size=30, color=HL):
     return g
 
 
+def fill_positive(phi, cols):
+    """The empty columns of a horizon section, each with the positive label it gets
+    (1, 2, 3, ... from left to right)."""
+    taken = {c for c, _ in phi}
+    return {c: k + 1 for k, c in enumerate(c for c in cols if c not in taken)}
+
+
+def one_line_row(name, vals, size=34, dx=0.66, header=True):
+    """name = [ ..., v_-3, ..., v_4, ... ] with the positions -3..4 written above."""
+    head = MathTex(name + r" = [\ \cdots", font_size=size)
+    cells = VGroup(*[MathTex(str(v), font_size=size) for v in vals])
+    for k, c in enumerate(cells):
+        c.move_to(np.array([k * dx, 0, 0]))
+    head.next_to(cells, LEFT, buff=0.25)
+    tail = MathTex(r"\cdots\ ]", font_size=size).next_to(cells, RIGHT, buff=0.25)
+    g = VGroup(head, cells, tail)
+    if header:
+        top = cells.get_top()[1] + 0.28
+        g.add(VGroup(*[MathTex(str(p), font_size=size - 14, color=DIM).move_to(np.array([c.get_x(), top, 0]))
+                       for p, c in zip(WIN, cells)]))
+    g.cells = cells
+    return g
+
+
 class HorizonCut(Narrated):
     def construct(self):
         title = heading(r"Step 1: the horizon cut")
@@ -67,8 +91,8 @@ class HorizonCut(Narrated):
 
         # pipes 0 and -1 are the ones that matter near the cut
         p0, pm1 = B.pipes[Wf(0)], B.pipes[Wf(-1)]
-        with self.say("Pipes zero and minus one cross it in columns zero and one. Pipes minus two, minus three, and "
-                      "so on, go straight down their own columns.") as c:
+        with self.say("Pipes zero and negative one cross it in columns zero and one. Pipes negative two, negative "
+                      "three, and so on, go straight down their own columns.") as c:
             for p in (p0, pm1):
                 self.play(p.animate.set_stroke(color=HL, width=7), run_time=0.8)
             self.play(Indicate(B.pipes[-2], color=HL, scale_factor=1.0), Indicate(B.pipes[-3], color=HL, scale_factor=1.0), run_time=1.2)
@@ -93,15 +117,24 @@ class HorizonCut(Narrated):
                       FadeOut(hor), run_time=1.4)
             self.play(LaggedStart(*[FadeIn(s, shift=0.1 * DOWN) for s in sec], lag_ratio=0.08), run_time=1.2)
 
-        s1 = perm_tex(r"\sigma_1", [1, 0, -1], size=42)
-        s1n = Tex(r"on positions $-1, 0, 1$", font_size=26, color=LABEL)
-        G1 = VGroup(s1, s1n).arrange(DOWN, buff=0.15).move_to(np.array([3.3, 2.1, 0]))
+        fill = fill_positive(P1["phi"], WIN)
+        pos_labels = {c: MathTex(str(k), font_size=28, color=PIPE).move_to(sec[WIN.index(c)]) for c, k in fill.items()}
         with self.say("The cut defines a permutation, sigma. Each pipe i, at most zero, goes to the column where it "
-                      "crosses, and one, two, three, and so on fill the empty columns in order.", extra=1.0) as c:
-            self.play(Indicate(sec[WIN.index(1)], color=WHITE), Indicate(sec[WIN.index(0)], color=WHITE), run_time=1.2)
-            self.play(Write(s1), run_time=1.2)
-            self.play(Indicate(sec[WIN.index(-1)], color=WHITE, scale_factor=1.6), FadeIn(s1n), run_time=1.2)
-        sm = MathTex(r"\sigma_1 \in S_- :\ \text{all descents} \le 0", font_size=32).next_to(G1, DOWN, buff=0.35)
+                      "crosses.") as c:
+            self.play(Indicate(sec[WIN.index(1)], color=WHITE), Indicate(sec[WIN.index(0)], color=WHITE), run_time=1.4)
+        with self.say("The positive numbers one, two, three, and so on fill the empty columns, in order.") as c:
+            self.play(LaggedStart(*[ReplacementTransform(sec[WIN.index(col)], pos_labels[col]) for col in sorted(fill)],
+                                  lag_ratio=0.35), run_time=2.0)
+        for col, lab in pos_labels.items():
+            sec.submobjects[WIN.index(col)] = lab
+        s1vals = one_line(P1["sigma_moved"], WIN[0], WIN[-1])
+        G1 = one_line_row(r"\sigma_1", s1vals, size=34).move_to(np.array([3.1, 2.0, 0]))
+        with self.say("Reading off where each pipe goes, sigma one swaps negative one and one, and fixes everything "
+                      "else. Here is its one-line notation.", extra=0.5) as c:
+            self.play(Indicate(sec[WIN.index(1)], color=WHITE, scale_factor=1.5),
+                      Indicate(sec[WIN.index(-1)], color=WHITE, scale_factor=1.5), run_time=1.2)
+            self.play(FadeIn(G1[3]), Write(G1[0]), Write(G1[2]), TransformFromCopy(sec, G1[1]), run_time=1.8)
+        sm = MathTex(r"\sigma_1 \in S_- :\ \text{all descents} \le 0", font_size=32).next_to(G1, DOWN, buff=0.4)
         with self.say("All its descents are at most zero. We write S minus for the set of such permutations.") as c:
             self.play(FadeIn(sm, shift=0.1 * UP), run_time=1.0)
 
@@ -153,14 +186,20 @@ class HorizonCut(Narrated):
             yy = y0 - r * 0.62
             boxes = VGroup(*[Square(cs, stroke_color=GRIDC, stroke_width=1.5).move_to(np.array([-5.2 + cs * q, yy, 0]))
                              for q in range(len(WIN))])
-            labs = cross_section(s["phi"], WIN, lambda col: -5.2 + cs * WIN.index(col), yy, size=24)
+            x_of_col = lambda col: -5.2 + cs * WIN.index(col)
+            labs = cross_section(s["phi"], WIN, x_of_col, yy, size=24)
+            for col, k_ in fill_positive(s["phi"], WIN).items():
+                labs.submobjects[WIN.index(col)] = MathTex(str(k_), font_size=24, color=PIPE).move_to(
+                    np.array([x_of_col(col), yy, 0]))
             nm = MathTex(names[r], font_size=32).next_to(boxes, LEFT, buff=0.3)
-            lo = min(min(i for i, _ in s["moved"]), -1)
-            hi = max(max(i for i, _ in s["moved"]), 1)
-            ol = MathTex(r"= [\," + r",\ ".join(map(str, one_line(s["moved"], lo, hi))) + r"\,]", font_size=30)
+            ol = MathTex(r"= [\,\cdots,\ " + r",\ ".join(map(str, one_line(s["moved"], WIN[0], WIN[-1])))
+                         + r",\ \cdots\,]", font_size=28)
             ol.next_to(boxes, RIGHT, buff=0.35)
-            pos = Tex(rf"positions ${lo}..{hi}$".replace("..", r"\ldots "), font_size=22, color=DIM).next_to(ol, RIGHT, buff=0.3)
+            pos = VGroup()
             strips.add(VGroup(nm, boxes, labs, ol, pos))
+        ol_hdr = Tex(r"one-line notation on positions $-3, \ldots, 4$", font_size=22, color=DIM)
+        ol_hdr.next_to(strips[0][3], UP, buff=0.22).align_to(strips[0][3], LEFT)
+        hdr.add(ol_hdr)
         with self.say("For our w, exactly five permutations sigma show up as horizon cuts.") as c:
             self.play(FadeIn(hdr), run_time=0.5)
             self.play(LaggedStart(*[FadeIn(s, shift=0.15 * RIGHT) for s in strips], lag_ratio=0.25), run_time=2.4)
@@ -226,7 +265,7 @@ class Flip(Narrated):
         arr2 = swap_arrows(0, 2, yb, HL)
         lab2 = MathTex(r"\neg\sigma_1", font_size=34, color=HL).next_to(VGroup(*bot_n.values()), LEFT, buff=0.5)
         with self.say("This turns sigma into not sigma, where not sigma of i is one minus sigma of one minus i. Here,"
-                      " sigma one swaps minus one and one, so not sigma one swaps two and zero.") as c:
+                      " sigma one swaps negative one and one, so not sigma one swaps two and zero.") as c:
             self.play(TransformFromCopy(arr1, arr2, path_arc=-PI / 2), TransformFromCopy(lab1, lab2), run_time=1.8)
         nums = VGroup(*top_n.values(), *bot_n.values())
         arr1 = VGroup(arr1, arr2)
@@ -243,7 +282,7 @@ class Flip(Narrated):
         lamc = MathTex(r"\lambda' = \lambda = (2,1)", font_size=32).next_to(yd, RIGHT, buff=0.3)
         om = MathTex(r"\omega_1 :\ y_i \mapsto -y_{1-i}", font_size=34).move_to(np.array([3.3, -2.0, 0]))
         with self.say("Partitions get transposed, so lambda goes to lambda prime, and our two one is its own "
-                      "transpose. The variables change by omega one, which sends y i to minus y sub one minus i.") as c:
+                      "transpose. The variables change by omega one, which sends y i to negative y sub one minus i.") as c:
             self.play(FadeIn(yd), run_time=0.6)
             self.play(Rotate(yd, PI, axis=np.array([1, -1, 0]), about_point=yd[0].get_corner(UL)), run_time=1.2)
             self.play(FadeIn(lamc), run_time=0.6)
@@ -297,8 +336,9 @@ class Flip(Narrated):
             out.append((Bf, ent, top, botl, dts, wt))
         caps = ["For sigma one, there's a single bumpless pipe dream from w two one at the top to not sigma one at "
                 "the bottom, with no blank tiles. So its top factor is one.",
-                "For sigma two, there's again one bumpless pipe dream, with a single blank tile, at one, minus one. "
-                "That gives y one minus y sub minus one, which omega one turns into y two minus y zero."]
+                "For sigma two, there's again one bumpless pipe dream, with a single blank tile, in row one and "
+                "column negative one. That gives y one minus y negative one, which omega one turns into y two minus y"
+                " zero."]
         for k, (Bf, ent, top, botl, dts, wt) in enumerate(out):
             with self.say(caps[k], extra=0.5) as c:
                 self.play(Create(Bf.grid), FadeIn(ent), FadeIn(top), FadeIn(botl), run_time=1.0)

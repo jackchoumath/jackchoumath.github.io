@@ -68,7 +68,7 @@ class DiagonalCut(Narrated):
         dts = [dots_on(B.grid.squares, L["blanks"], scale=0.28) for B, L in zip(Bs, P1["lower"])]
         wts = [weight_y(L["blanks"]).next_to(B, DOWN, buff=0.4) for B, L in zip(Bs, P1["lower"])]
         with self.say("Each one has a single blank tile. At x equals y, they give y three minus y two, y two minus y "
-                      "zero, and y one minus y sub minus one. The first one is negative.") as c:
+                      "zero, and y one minus y negative one. The first one is negative.") as c:
             self.play(*[FadeIn(d, scale=0.5) for d in dts], run_time=0.7)
             self.play(*[TransformFromCopy(d, w) for d, w in zip(dts, wts)], run_time=1.3)
             self.play(Indicate(wts[0], color=NEG), run_time=1.0)
@@ -124,7 +124,7 @@ class DiagonalCut(Narrated):
         f2 = MathTex(r"\mathfrak S^{\downarrow}_{\sigma_1, w}", "=", r"\big[", fac(3, 2, "x"), "+", fac(2, 0, "x"), "+", fac(1, -1, "x"),
                      r"\big]", r"\cdot", "1", font_size=38).move_to(f)
         with self.say("So everything rests on the trapezoid sum: x three minus y two, plus x two minus y zero, plus x"
-                      " one minus y sub minus one.") as c:
+                      " one minus y negative one.") as c:
             self.play(FadeOut(f, shift=0.2 * UP), FadeIn(f2, shift=0.2 * UP), run_time=1.2)
         self.play(FadeOut(Group(*self.mobjects)), run_time=0.8)
 
@@ -263,7 +263,7 @@ class Reverse(Narrated):
             self.play(FadeIn(al), run_time=0.6)
             self.play(LaggedStart(*[FadeIn(g[0], shift=0.15 * UP) for g in groups], lag_ratio=0.3), run_time=2.2)
         with self.say("Again, there are three of them. Their green circles give x one minus y zero, x two minus y "
-                      "two, and x three minus y sub minus one.") as c:
+                      "two, and x three minus y negative one.") as c:
             self.play(*[Indicate(green(g[0]), color=POS) for g in groups], run_time=1.0)
             self.play(*[TransformFromCopy(green(g[0]), g[1]) for g in groups], run_time=1.2)
         self.play(FadeOut(VGroup(sym, cg, al)), *[g.animate.shift(1.6 * UP) for g in groups], run_time=0.9)
@@ -298,7 +298,7 @@ class Assemble(Narrated):
         s1 = Tex(r"$\sigma_1$", font_size=30, color=PIPE).next_to(VGroup(cor[2], cor[4]), UP, buff=0.3)
         s2 = Tex(r"$\sigma_2$", font_size=30, color=PIPE).next_to(VGroup(cor[6], cor[8]), UP, buff=0.3)
         with self.say("Back to our formula. The bottom piece of sigma one is now y one minus y zero, plus y three "
-                      "minus y sub minus one.") as c:
+                      "minus y negative one.") as c:
             self.play(FadeIn(title), run_time=0.5)
             self.play(Write(cor), run_time=2.4)
             self.play(FadeIn(s1), FadeIn(s2), run_time=0.6)

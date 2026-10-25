@@ -44,7 +44,7 @@ class Hook(Narrated):
             self.play(Write(s), run_time=2.2)
         line, precs, pos = order_line(y0=-0.9, size=36)
         with self.say("Let's call y i minus y j positive when i comes before j in this order: first one, two, three, "
-                      "and so on, and then, at the very end, minus two, minus one, zero.", extra=1.5) as c:
+                      "and so on, and then, at the very end, negative two, negative one, zero.", extra=1.5) as c:
             self.play(LaggedStart(*[FadeIn(m) for m in line], lag_ratio=0.08), run_time=1.6)
             self.play(LaggedStart(*[FadeIn(p) for p in precs], lag_ratio=0.06), run_time=1.0)
         with self.say("Three of these terms are positive. But y three minus y two is negative, because two comes "
@@ -55,7 +55,7 @@ class Hook(Narrated):
         p = positive_sum().move_to(0.0 * UP)
         eq = MathTex("=", font_size=46).next_to(p, LEFT, buff=0.3)
         with self.say("And yet, the very same polynomial can be written as y one minus y zero, plus y three minus y "
-                      "sub minus one, plus y two minus y zero. Now every term is positive.") as c:
+                      "negative one, plus y two minus y zero. Now every term is positive.") as c:
             self.play(FadeOut(VGroup(line, precs, arr)), run_time=0.6)
             grp = VGroup(eq, p)
             grp.next_to(s, DOWN, buff=0.7)
@@ -103,13 +103,13 @@ class Setup(Narrated):
             yy = -0.36 if j > i else -0.04
             arrows.add(CurvedArrow(np.array([xs[i], yy, 0]), np.array([xs[j], yy, 0]), angle=-ang if j > i else ang,
                                    color=PIPE if i <= 1 else HL, stroke_width=4, tip_length=0.18))
-        with self.say("Our permutation w sends minus one to one, one to zero, and zero back to minus one. It also "
-                      "cycles two, three and four. Every other integer stays put.") as c:
+        with self.say("Our permutation w sends negative one to one, one to zero, and zero back to negative one. It "
+                      "also cycles two, three and four. Every other integer stays put.") as c:
             self.play(LaggedStart(*[Create(a) for a in arrows[:3]], lag_ratio=0.3), run_time=1.6)
             self.play(LaggedStart(*[Create(a) for a in arrows[3:]], lag_ratio=0.3), run_time=1.6)
         one = MathTex(r"w = [\,1,\ -1,\ 0,\ 3,\ 4,\ 2\,]", font_size=50).move_to(2.1 * UP)
         sub = Tex(r"(one-line notation on positions $-1, 0, 1, 2, 3, 4$)", font_size=28, color=LABEL).next_to(one, DOWN, buff=0.2)
-        with self.say("In one-line notation, w is one, minus one, zero, three, four, two. Since it moves negative "
+        with self.say("In one-line notation, w is one, negative one, zero, three, four, two. Since it moves negative "
                       "numbers too, it doesn't live in any S n.") as c:
             self.play(Write(one), FadeIn(sub), run_time=1.6)
         self.play(FadeOut(VGroup(axis, dots, nums, arrows)), VGroup(one, sub).animate.scale(0.7).to_corner(UR, buff=0.45),
@@ -128,22 +128,29 @@ class Setup(Narrated):
         rl = VGroup(*[MathTex(str(r), font_size=24, color=LABEL).next_to(B.grid.squares[(r, 4)], RIGHT, buff=0.18) for r in win])
         cl = VGroup(*[MathTex(str(WinvF(c)), font_size=24, color=PIPE).next_to(B.grid.squares[(4, c)], DOWN, buff=0.15) for c in win])
         ctop = VGroup(*[MathTex(str(c), font_size=22, color=DIM).next_to(B.grid.squares[(-3, c)], UP, buff=0.12) for c in win])
-        with self.say("We draw w as a bumpless pipe dream on the whole plane. Here's one of them, near the origin.") as c:
-            self.play(Create(B.grid), run_time=1.2)
-            self.play(LaggedStart(*[Create(B.pipes[k]) for k in sorted(B.pipes)], lag_ratio=0.15), run_time=2.4)
-            self.play(FadeIn(rl), FadeIn(ctop), run_time=0.6)
-        with self.say("Pipe i enters from the right of row i, and leaves through the bottom of column w of i.") as c:
-            self.play(FadeIn(cl), run_time=0.6)
+        icons = VGroup(*[tile_icon(ch, 0.62) for ch in "O+-|rj"]).arrange_in_grid(3, 2, buff=0.25)
+        icons.move_to(4.2 * RIGHT + 1.0 * UP)
+        tiles = icons.copy().scale(1.6).move_to(0.5 * UP)
+        with self.say("To draw w, we use bumpless pipe dreams. A bumpless pipe dream is a tiling of the plane by "
+                      "these six tiles.") as c:
+            self.play(LaggedStart(*[FadeIn(t, scale=0.8) for t in tiles], lag_ratio=0.15), run_time=1.6)
+        for p in B.pipes.values():          # draw each pipe from where it enters to where it leaves
+            p.reverse_direction()
+        with self.say("The tiles have to join up into pipes, each entering from the right and leaving through the "
+                      "bottom, and two pipes may cross at most once.") as c:
+            self.play(tiles.animate.scale(1 / 1.6).move_to(icons), run_time=1.0)
+            self.play(Create(B.grid), run_time=1.0)
+            self.play(LaggedStart(*[Create(B.pipes[k]) for k in sorted(B.pipes)], lag_ratio=0.15), run_time=2.6)
+        icons = tiles
+        with self.say("Here's one for our w, near the origin. Pipe i enters from the right of row i, and leaves "
+                      "through the bottom of column w of i.") as c:
+            self.play(FadeIn(rl), FadeIn(ctop), FadeIn(cl), run_time=0.8)
             for lab in (0, -1):
                 k = Wf(lab)
                 p = B.pipes[k]
                 self.play(p.animate.set_stroke(color=HL, width=7), Indicate(rl[win.index(lab)], color=HL),
                           Indicate(cl[win.index(k)], color=HL), run_time=1.0)
                 self.play(p.animate.set_stroke(color=PIPE, width=5), run_time=0.4)
-        icons = VGroup(*[tile_icon(ch, 0.62) for ch in "O+-|rj"]).arrange_in_grid(3, 2, buff=0.25)
-        icons.move_to(4.2 * RIGHT + 1.0 * UP)
-        with self.say("Only these six tiles are allowed, and two pipes can cross at most once.") as c:
-            self.play(LaggedStart(*[FadeIn(i, scale=0.8) for i in icons], lag_ratio=0.12), run_time=1.2)
         dts = dots_on(B.grid.squares, D["opening"]["blanks"])
         wt = MathTex(fac(-1, -1, "x"), fac(-1, 0, "x"), fac(0, -1, "x"), fac(3, 2, "x"), font_size=28)
         wlab = MathTex(r"\mathrm{wt}(D) =", font_size=30)
