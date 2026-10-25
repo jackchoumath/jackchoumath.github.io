@@ -217,12 +217,17 @@ class Chains(Narrated):
             for s in range(4):
                 row = VGroup(*[tab.cells[(s, p)] for p in TCOLS])
                 self.play(Create(guides[s]), FadeIn(row, shift=0.2 * RIGHT), FadeIn(ulab[s]), run_time=0.55)
+        gl = gamma_labels(B.cells, P1["gamma_diag"], P1["gamma_top"], TCOLS, size=26)
+        gt = MathTex(r"\gamma", font_size=38, color=HL).next_to(B.cells[(1, TA)], UL, buff=0.14)
         with self.say("Crossing one row of the trapezoid is an increasing chain. So we get a sequence of chains, from"
-                      " U at the bottom to W at the top.") as c:
+                      " U at the bottom to W at the top. Both ends are fixed by gamma.") as c:
             self.play(LaggedStart(*[Create(b) for b in tab.bars], lag_ratio=0.3), run_time=1.4)
             Ul = MathTex("U", font_size=30, color=HL).next_to(ulab[0], RIGHT, buff=0.25)
             Wl = MathTex("W", font_size=30, color=HL).next_to(ulab[3], RIGHT, buff=0.25)
             self.play(FadeIn(Ul), FadeIn(Wl), run_time=0.6)
+            self.wait(1.5)
+            self.play(FadeOut(cl), FadeIn(gl), FadeIn(gt), run_time=0.8)
+            self.play(Indicate(gl), Indicate(VGroup(Ul, Wl)), run_time=1.2)
         vlabs = VGroup(*[MathTex(f"x_{v}", font_size=26, color=LABEL).move_to(
             np.array([B.grid.get_left()[0] - 0.75, B.cells[(v, TA)].get_center()[1], 0])) for v in F0["table"]["vars"]])
         with self.say("Crossing row i comes with the variable x i. The blue circles are the same for every trapezoid.") as c:
@@ -237,7 +242,7 @@ class Chains(Narrated):
         with self.say("So the weight of the trapezoid, times a fixed product from the blue circles, is exactly the "
                       "weight of its chain.") as c:
             self.play(Write(eq), run_time=1.8)
-        self.play(FadeOut(VGroup(B, cl, dt, tab, guides, ulab, Ul, Wl, vlabs, eq)), run_time=0.8)
+        self.play(FadeOut(VGroup(B, gl, gt, dt, tab, guides, ulab, Ul, Wl, vlabs, eq)), run_time=0.8)
 
         # ---- all three
         groups = []

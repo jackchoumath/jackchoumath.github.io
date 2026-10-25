@@ -20,7 +20,9 @@ paper's five steps on this example:
 
 1. the horizon cut (Corollary 3.7): $\overleftarrow{\mathfrak S}_w = \sum_\sigma \overleftarrow{\mathfrak S}_\sigma\, \mathfrak S^\downarrow_{\sigma,w}$, here with $\sigma_1 = [1,0,-1]$ and $\sigma_2 = [2,0,-1,1]$;
 2. the flip $\sigma \mapsto \neg\sigma$ (Corollary 3.9), so both factors are lower Schubert polynomials;
-3. the staircase cut into a trapezoid and a triangle (Proposition 3.11);
+3. the diagonal cut (Proposition 3.11): a blank tile on the diagonal gives $x_i - y_i = 0$ at $x = y$,
+   so only bottom pieces with a pipe in every diagonal tile count, and those are cut straight along
+   the diagonal into a trapezoid and a triangle, glued along the boundary labels $\gamma$;
 4. trapezoids as increasing chains from $U = [-1,1,0,3,4,2]$ to $W = [0,1,2,3,4,-1]$ (Proposition 4.10);
 5. reversing the bars with Samuel's symmetry (Proposition 2.29), after which every chain
    gives $0$ or distinct type 3 forms (Proposition 4.17).
