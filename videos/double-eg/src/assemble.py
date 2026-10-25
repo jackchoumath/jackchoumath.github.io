@@ -131,17 +131,24 @@ def main(root, out_dir, crf="22"):
     open(os.path.join(out_dir, "double-eg.srt"), "w").write(srt)
     open(os.path.join(out_dir, "double-eg.vtt"), "w").write(vtt)
 
-    # video
-    lst = os.path.join(out_dir, "concat.txt")
-    open(lst, "w").write("".join(f"file '{f}'\n" for f in files))
+    # video: each scene's audio ends with its last narration clip, so pad it to the
+    # exact length of the scene's video before joining, or the sound drifts early
     out = os.path.join(out_dir, "double-eg.mp4")
-    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", lst, "-i", meta_path,
-           "-map", "0:v", "-map", "0:a", "-map_metadata", "1", "-map_chapters", "1",
-           "-c:v", "libx264", "-preset", "slow", "-crf", str(crf), "-tune", "animation", "-pix_fmt", "yuv420p",
-           "-af", "loudnorm=I=-16:TP=-1.5:LRA=11", "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
-           "-movflags", "+faststart", out]
+    cmd = ["ffmpeg", "-y", "-loglevel", "error"]
+    for f in files:
+        cmd += ["-i", f]
+    cmd += ["-i", meta_path]
+    parts, chain = [], ""
+    for k, (scene, _) in enumerate(SCENES):
+        d = offsets[scene][1]
+        parts.append(f"[{k}:a]aresample=48000,apad=whole_dur={d:.6f},atrim=0:{d:.6f}[a{k}]")
+        chain += f"[{k}:v][a{k}]"
+    graph = ";".join(parts) + f";{chain}concat=n={len(files)}:v=1:a=1[v][a];[a]loudnorm=I=-16:TP=-1.5:LRA=11[an]"
+    cmd += ["-filter_complex", graph, "-map", "[v]", "-map", "[an]",
+            "-map_metadata", str(len(files)), "-map_chapters", str(len(files)),
+            "-c:v", "libx264", "-preset", "slow", "-crf", str(crf), "-tune", "animation", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-movflags", "+faststart", out]
     subprocess.run(cmd, check=True)
-    os.remove(lst)
     print(f"{out}: {total / 60:.2f} min, {os.path.getsize(out) / 1e6:.1f} MB, {len(cues)} subtitle cues")
 
 

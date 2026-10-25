@@ -1,6 +1,6 @@
 # Video: double Edelman–Greene coefficients
 
-A 3Blue1Brown-style explainer (about 16 minutes) of the paper
+A 3Blue1Brown-style explainer (about 15 minutes) of the paper
 *A positive combinatorial formula for the double Edelman–Greene coefficients*
 by Jack Chou and Tianyi Yu ([arXiv:2512.12185](https://arxiv.org/abs/2512.12185)).
 
