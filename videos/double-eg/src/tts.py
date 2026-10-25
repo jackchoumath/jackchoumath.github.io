@@ -40,8 +40,9 @@ GOOD_ENOUGH = 0.08             # word error rate at which a take is accepted
 LONGEST_GAP = 0.5              # seconds of silence inside a phrase that make a take unnatural
 
 # how letters and names are written for the model (only the TTS input changes):
-# single-letter variables as capitals, which it reads as letters in a natural tone
-LETTERS = "wxyijsurknz"
+# single-letter variables as capitals, which it reads as letters in a natural tone,
+# except y, which as a capital it tends to read as "Yi" (spelled "why" it is fine)
+LETTERS = "wxijsurknz"
 WORDS = {"Sottile's": "Sotteel's", "Edelman-Greene": "Edelman Greene",
          "Lam, Lee and Shimozono": "Lam Lee and Shimozono"}
 UNSPELLABLE = ("Sotteel's",)   # Whisper cannot spell these, so they match any word
@@ -54,6 +55,15 @@ NUMS = {"0": "zero", "1": "one", "2": "two", "3": "three", "4": "four", "5": "fi
 
 def line_key(text):
     return hashlib.sha1(text.encode()).hexdigest()[:12]
+
+
+def tts_input(line):
+    """What the model is actually given for a line: (text, pause after it) pieces."""
+    out = []
+    for text, pause in pieces(line):
+        said = respell(text)
+        out.append((said[0].upper() + said[1:], pause))    # a lowercase start reads as "and ..."
+    return out
 
 
 def spoken_lines():
@@ -82,8 +92,8 @@ def spoken_lines():
 def respell(text):
     for a, b in WORDS.items():
         text = text.replace(a, b)
-    return re.sub(r"(?<![\w'-])([a-z])(?![\w'-])", lambda m: m.group(1).upper() if m.group(1) in LETTERS
-                  else m.group(1), text)
+    return re.sub(r"(?<![\w'-])([a-z])(?![\w'-])", lambda m: "why" if m.group(1) == "y"
+                  else m.group(1).upper() if m.group(1) in LETTERS else m.group(1), text)
 
 
 def pieces(text):
@@ -112,10 +122,13 @@ def pieces(text):
 
 def words(text):
     """Normalized words for comparing what was meant with what Whisper heard."""
-    t = text.lower().replace("−", " minus ").replace("–", " ").replace("’", "'")
+    t = text.lower().replace("−", " minus ").replace("–", " ").replace("’", "'").replace("+", " plus ")
     for a, b in CONTRACTIONS.items():
         t = t.replace(a, b)
-    t = re.sub(r"(?<![a-z0-9])-(?=\d)", " minus ", t)
+    t = re.sub(r"(?<=\d)\s*-\s*", " minus ", t)              # "y2-y0", "y2 - y0"
+    t = re.sub(r"\s-\s", " minus ", t)
+    t = re.sub(r"(?<![a-z0-9])-(?=\d)", " negative ", t)     # "-1"
+    t = re.sub(r"\b([a-z])-(?=\s|$|[.,])", r"\1 minus", t)  # "S-"
     t = re.sub(r"\d", lambda m: f" {NUMS[m.group(0)]} ", t)
     t = t.replace("-", " ").replace("'s", "s").replace("greene", "green").replace("shur", "schur")
     t = re.sub(r"\b(piri|peri|pierre)\b", "pieri", t)    # Whisper's spellings of Pieri
@@ -224,6 +237,12 @@ def level(audio):
     return audio.astype(np.float32)
 
 
+def signature(line):
+    """Changes exactly when the audio for a line has to be made again."""
+    return hashlib.sha1(json.dumps([tts_input(line), REFERENCE, REFERENCE_SECONDS, TARGET_RMS_DB, TAKES,
+                                    GOOD_ENOUGH]).encode()).hexdigest()
+
+
 def main(pocket_dir, whisper_dir):
     P, Wd = pocket_dir, whisper_dir
     tts = sherpa_onnx.OfflineTts(sherpa_onnx.OfflineTtsConfig(model=sherpa_onnx.OfflineTtsModelConfig(
@@ -257,17 +276,14 @@ def main(pocket_dir, whisper_dir):
     doubtful = []
     for line in lines:
         key = line_key(line)
-        sig = hashlib.sha1(json.dumps([line, REFERENCE, REFERENCE_SECONDS, PAUSE, LETTERS, WORDS, TARGET_RMS_DB,
-                                         TAKES]).encode()).hexdigest()
+        sig = signature(line)
         wav = os.path.join(OUT, f"{key}.wav")
         if meta.get(key, {}).get("sig") == sig and os.path.exists(wav):
             continue
         chunks = []
-        todo = pieces(line)
+        todo = tts_input(line)
         while todo:
-            text, pause = todo.pop(0)
-            said = respell(text)
-            said = said[0].upper() + said[1:]    # a lowercase start reads as "and ..."
+            said, pause = todo.pop(0)
             best, good = None, []
             for attempt in range(TRIES):
                 a = trim(np.array(tts.generate(said, gen).samples, dtype=np.float32))
@@ -281,9 +297,9 @@ def main(pocket_dir, whisper_dir):
                         break
             if good:
                 best = (0.0, most_typical(good), "")
-            elif re.search(r",\s", text[:-1]):
+            elif re.search(r",\s", said[:-1]):
                 # read it in two halves instead (e.g. repetitive phrasing makes the model stutter)
-                parts = re.split(r"(?<=,)\s+", text)
+                parts = re.split(r"(?<=,)\s+", said)
                 h = len(parts) // 2
                 todo[:0] = [(" ".join(parts[:h]), PAUSE[","]), (" ".join(parts[h:]), pause)]
                 continue

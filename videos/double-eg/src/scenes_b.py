@@ -84,8 +84,8 @@ class HorizonCut(Narrated):
         y_cut = B.grid.squares[(0, -3)].get_bottom()[1]
         x0, x1 = B.grid.get_left()[0] - 0.35, B.grid.get_right()[0] + 0.55
         hor = Line(np.array([x0, y_cut, 0]), np.array([x1, y_cut, 0]), color=CUT, stroke_width=4)
-        with self.say("Step one. Cut each bumpless pipe dream of w along the horizon: the line between row zero and "
-                      "row one.") as c:
+        with self.say("Now for step one. Cut each bumpless pipe dream of w along the horizon: the line between row "
+                      "zero and row one.") as c:
             self.play(FadeIn(title), FadeIn(B), FadeIn(rl), FadeIn(ct), run_time=1.2)
             self.play(Create(hor), run_time=1.0)
 
@@ -235,8 +235,8 @@ class Flip(Narrated):
         need = MathTex(r"\overleftarrow{\mathfrak S}_{\sigma_1}", r"=", r"\cdots", r"+", r"j^{\sigma_1}_{21}", r"\,s_{21}", r"+", r"\cdots",
                        font_size=42).move_to(np.array([3.2, 1.0, 0]))
         need[4].set_color(HL)
-        with self.say("Step two. Here's a top piece of sigma one. Its pipes can cross, so it mixes many double Schur "
-                      "functions together.") as c:
+        with self.say("On to step two. Here's a top piece of sigma one. Its pipes can cross, so it mixes many double "
+                      "Schur functions together.") as c:
             self.play(FadeIn(title), FadeIn(U), Create(hor), FadeIn(sec), run_time=1.4)
             self.play(Create(cross), run_time=0.8)
         with self.say("We need the coefficient of s two one in it.") as c:

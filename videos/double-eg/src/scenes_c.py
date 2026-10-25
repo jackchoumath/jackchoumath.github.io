@@ -60,8 +60,8 @@ class DiagonalCut(Narrated):
             Bs.append(B)
             labs.append(col_labels(B.grid.squares, TCOLS, 1, side=UP, size=20, color=DIM))
         rlab = row_labels(Bs[0].grid.squares, TROWS, TA, side=LEFT, size=22)
-        with self.say("Step three. Back to the bottom piece of sigma one. It consists of exactly three bumpless pipe "
-                      "dreams.") as c:
+        with self.say("On to step three. Back to the bottom piece of sigma one. It consists of exactly three bumpless"
+                      " pipe dreams.") as c:
             self.play(FadeIn(title), run_time=0.5)
             self.play(*[Create(B.grid) for B in Bs], *[FadeIn(l) for l in labs], FadeIn(rlab), run_time=1.2)
             self.play(*[LaggedStart(*[Create(p) for p in B.pipe_group], lag_ratio=0.1) for B in Bs], run_time=1.8)
@@ -142,7 +142,8 @@ class Chains(Narrated):
         plab = Tex("positions", font_size=24, color=DIM).next_to(hdr, LEFT, buff=0.4)
         bot = VGroup(*[T.cells[(0, p)] for p in TCOLS])
         topr = VGroup(*[T.cells[(1, p)] for p in TCOLS])
-        with self.say("Step four. Sottile's increasing chains come from the Pieri rule for Schubert polynomials.") as c:
+        with self.say("On to step four. Sottile's increasing chains come from the Pieri rule for Schubert "
+                      "polynomials.") as c:
             self.play(FadeIn(title), FadeIn(hdr), FadeIn(plab), run_time=0.8)
             self.play(FadeIn(bot), run_time=0.8)
         with self.say("A single step swaps an entry left of the bar with a larger entry to its right, going up "
@@ -245,8 +246,8 @@ class Reverse(Narrated):
         sym.move_to(np.array([0, 2.2, 0]))
         sym[0].set_color(LABEL)
         cg = Tex(r"$C$ = generating function of the chains", font_size=26, color=DIM).next_to(sym, DOWN, buff=0.25)
-        with self.say("Step five. A Pieri identity of Samuel gives a hidden symmetry: permuting the bars together "
-                      "with the variables doesn't change the sum.", extra=0.5) as c:
+        with self.say("On to step five. A Pieri identity of Samuel gives a hidden symmetry: permuting the bars "
+                      "together with the variables doesn't change the sum.", extra=0.5) as c:
             self.play(FadeIn(title), run_time=0.5)
             self.play(Write(sym), run_time=2.0)
             self.play(FadeIn(cg), run_time=0.6)
