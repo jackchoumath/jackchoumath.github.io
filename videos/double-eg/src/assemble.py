@@ -16,6 +16,7 @@ SCENES = [
     ("Hook", "Introduction"),
     ("Setup", "Our permutation and its bumpless pipe dreams"),
     ("Coefficients", "Double Schur functions and the coefficients"),
+    ("Geometry", "Where they come from: the infinite flag variety"),
     ("Problem", "The positivity problem"),
     ("HorizonCut", "Step 1: the horizon cut"),
     ("Flip", "Step 2: flip the top piece"),

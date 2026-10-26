@@ -4,7 +4,7 @@
 # the LaTeX caches do not race.  With no scene names, renders all of them.
 Q=$1; ROOT=$2; shift 2
 PY=${MANIM:-manim}
-ALL="scenes_a:Hook scenes_a:Setup scenes_a:Coefficients scenes_a:Problem \
+ALL="scenes_a:Hook scenes_a:Setup scenes_a:Coefficients scenes_a:Geometry scenes_a:Problem \
 scenes_b:HorizonCut scenes_b:Flip \
 scenes_c:DiagonalCut scenes_c:Chains scenes_c:Reverse scenes_c:Assemble scenes_c:Outro"
 WANT="$*"

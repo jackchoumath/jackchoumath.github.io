@@ -260,6 +260,125 @@ class Coefficients(Narrated):
         self.play(FadeOut(VGroup(head, table, box)), run_time=0.8)
 
 
+class Geometry(Narrated):
+    """Where the functions come from (Lam-Lee-Shimozono, Back stable Schubert calculus, sections 1 and 6)."""
+
+    def construct(self):
+        title = heading(r"Where they come from")
+        # a flag in C^3, in an oblique view: a line inside a plane
+        c = np.array([-3.35, 0.5, 0])
+        u, v = 1.2 * np.array([1.0, -0.12, 0]), 1.2 * np.array([0.55, 0.55, 0])
+        plane = Polygon(*[c + a * 1.7 * u + b * 1.3 * v for a, b in [(-1, -1), (1, -1), (1, 1), (-1, 1)]],
+                        stroke_color=PIPE, stroke_width=3, fill_color=PIPE, fill_opacity=0.18)
+        d = 1.4 * u + 1.2 * v
+        line = Line(c - d, c + d, color=HL, stroke_width=6)
+        origin = Dot(c, radius=0.07, color=WHITE)
+        v1 = MathTex("V_1", font_size=36, color=HL).next_to(c + d, UR, buff=0.08)
+        v2 = MathTex("V_2", font_size=36, color=PIPE).next_to(c + 1.7 * u - 1.3 * v, DR, buff=0.08)
+        c3 = MathTex(r"\mathbb{C}^3", font_size=40, color=LABEL).move_to(c + np.array([-2.3, 2.0, 0]))
+        chain = MathTex(r"V_1 \subset V_2 \subset \cdots \subset V_{n-1} \subset \mathbb{C}^n", font_size=40)
+        fln = MathTex(r"\mathrm{Fl}_n = \{\text{all flags}\}", font_size=40, color=PIPE)
+        sch = MathTex(r"\text{Schubert varieties } X_w,\ \ w \in S_n", font_size=36)
+        rep = MathTex(r"[X_w]", r"\ \longleftrightarrow\ ", r"\mathfrak S_w(x;", r"y", r")", font_size=44)
+        rep[3].set_color(HL)
+        tor = Tex(r"$y$: from the torus acting on $\mathbb{C}^n$", font_size=28, color=HL)
+        right = VGroup(chain, fln, sch, rep).arrange(DOWN, buff=0.55).move_to(np.array([2.9, 0.75, 0]))
+        tor.next_to(rep, DOWN, buff=0.25)
+        with self.say("Before we start, a quick word on where these functions come from. A flag is a chain of "
+                      "subspaces: a line, inside a plane, inside three dimensional space, and so on.") as _:
+            self.play(FadeIn(title), FadeIn(c3), run_time=0.6)
+            self.play(Create(plane), run_time=1.0)
+            self.play(FadeIn(origin), Create(line), FadeIn(v1), FadeIn(v2), run_time=1.2)
+            self.play(Write(chain), run_time=1.4)
+        with self.say("All the flags together form the flag variety. Its Schubert varieties are indexed by "
+                      "permutations.") as _:
+            self.play(FadeIn(fln, shift=0.15 * DOWN), run_time=0.8)
+            self.play(FadeIn(sch, shift=0.15 * DOWN), run_time=0.8)
+        with self.say("Double Schubert polynomials represent their classes in torus equivariant cohomology, and the "
+                      "torus is where the y variables come from.") as _:
+            self.play(Write(rep), run_time=1.4)
+            self.play(Indicate(rep[3], color=HL, scale_factor=1.5), FadeIn(tor), run_time=1.2)
+        self.play(FadeOut(VGroup(plane, line, origin, v1, v2, c3, chain, fln, sch, rep, tor)), run_time=0.8)
+
+        # the infinite flag variety, a union of finite ones
+        inf = MathTex(r"\cdots \subset V_{-1} \subset V_0 \subset V_1 \subset V_2 \subset \cdots", font_size=46)
+        inf.move_to(np.array([0, 2.55, 0]))
+        far = Tex(r"(equal to a standard flag far out)", font_size=28, color=LABEL).next_to(inf, DOWN, buff=0.2)
+        rings, ring_labels = VGroup(), VGroup()
+        cen = np.array([-3.3, -0.1, 0])
+        for k, (w_, h_) in enumerate([(1.4, 0.7), (2.6, 1.5), (3.8, 2.3), (5.0, 3.1)]):
+            r = RoundedRectangle(width=w_, height=h_, corner_radius=0.15, stroke_color=PIPE if k < 3 else WHITE,
+                                 stroke_width=3, fill_color=PIPE, fill_opacity=0.08).move_to(cen)
+            if k == 3:
+                r = DashedVMobject(r, num_dashes=40)
+            rings.add(r)
+        band = lambda k: (rings[k - 1].get_top() + rings[k].get_top()) / 2     # between ring k-1 and ring k
+        for k, txt in enumerate([r"\mathrm{Fl}_2", r"\mathrm{Fl}_4", r"\mathrm{Fl}_6"]):
+            t = MathTex(txt, font_size=30, color=PIPE)
+            t.move_to(cen if k == 0 else band(k))
+            ring_labels.add(t)
+        dots = MathTex(r"\cdots", font_size=34, color=LABEL).move_to(band(3))
+        fl = MathTex(r"\mathrm{Fl}", font_size=48).next_to(rings[3], LEFT, buff=0.25).align_to(rings[3], UP)
+        schz = MathTex(r"\text{Schubert varieties } X_w,\ \ w \in S_{\mathbb Z}", font_size=36)
+        repz = MathTex(r"[X_w]", r"\ \longleftrightarrow\ ", r"\overleftarrow{\mathfrak S}_w(x;y)", font_size=44)
+        repz[2].set_color(HL)
+        rz = VGroup(schz, repz).arrange(DOWN, buff=0.6).move_to(np.array([3.3, -0.1, 0]))
+        with self.say("Lam, Lee and Shimozono let the flags run forever in both directions, while agreeing with a "
+                      "standard flag far out. This infinite flag variety is a union of ordinary flag varieties, and "
+                      "its Schubert varieties are indexed by S Z.") as _:
+            self.play(Write(inf), run_time=1.6)
+            self.play(FadeIn(far), run_time=0.6)
+            self.play(LaggedStart(*[AnimationGroup(Create(r), FadeIn(t)) for r, t in zip(rings[:3], ring_labels)],
+                                  lag_ratio=0.5), run_time=2.2)
+            self.play(Create(rings[3]), FadeIn(dots), FadeIn(fl), run_time=1.0)
+            self.play(FadeIn(schz, shift=0.15 * DOWN), run_time=0.8)
+        with self.say("And the classes of these Schubert varieties are exactly the back stable double Schubert "
+                      "functions.") as _:
+            self.play(Write(repz), run_time=1.6)
+        self.play(FadeOut(VGroup(inf, far, rings, ring_labels, dots, schz)), run_time=0.8)
+
+        # down to the infinite Grassmannian
+        fl2 = MathTex(r"\mathrm{Fl}", font_size=48)
+        gr = MathTex(r"\mathrm{Gr}", font_size=48)
+        repg = MathTex(r"[X_\lambda]", r"\ \longleftrightarrow\ ", r"s_\lambda(x\|y)", font_size=44)
+        repg[2].set_color(HL)
+        fl2.move_to(np.array([-3.2, 2.3, 0]))
+        gr.move_to(np.array([-3.2, 0.4, 0]))
+        arr = Arrow(fl2.get_bottom(), gr.get_top(), buff=0.15, color=WHITE, stroke_width=4)
+        arr_l = MathTex(r"V_\bullet \mapsto V_0", font_size=32, color=LABEL).next_to(arr, RIGHT, buff=0.2)
+        names = VGroup(Tex("infinite flag variety", font_size=26, color=LABEL).next_to(fl2, LEFT, buff=0.3),
+                       Tex("infinite Grassmannian", font_size=26, color=LABEL).next_to(gr, LEFT, buff=0.3))
+        repz_t = repz.copy().next_to(fl2, RIGHT, buff=1.4)
+        repg.next_to(gr, RIGHT, buff=1.4).align_to(repz_t, LEFT)
+        with self.say("Keeping only the middle subspace maps it onto the infinite Grassmannian, whose Schubert "
+                      "classes are the double Schur functions.") as _:
+            self.play(ReplacementTransform(fl, fl2), repz.animate.move_to(repz_t), FadeIn(names[0]), run_time=1.0)
+            self.play(GrowArrow(arr), FadeIn(arr_l), run_time=0.8)
+            self.play(FadeIn(gr), FadeIn(names[1]), run_time=0.6)
+            self.play(Write(repg), run_time=1.2)
+        fw = MathTex(r"x = y:\quad", r"\overleftarrow{\mathfrak S}_w", r"\ \rightsquigarrow\ ",
+                     r"F_w(x\|y) = \sum_\lambda", r"j^w_\lambda(y)", r"\, s_\lambda(x\|y)", font_size=40)
+        fw[0].set_color(LABEL)
+        fw[4].set_color(HL)
+        fw.move_to(np.array([0, -1.05, 0]))
+        fwl = Tex(r"a class on $\mathrm{Gr}$", font_size=26, color=LABEL).next_to(fw[3:], DOWN, buff=0.2)
+        with self.say("Setting x equal to y turns the class of w into a class on the Grassmannian, and the double "
+                      "Edelman-Greene coefficients are its coordinates in the Schubert basis.") as _:
+            self.play(Write(fw[:4]), run_time=1.4)
+            self.play(Write(fw[4:]), FadeIn(fwl), run_time=1.2)
+            self.play(Indicate(fw[4], color=HL), run_time=1.0)
+        hom = MathTex(r"[X_\mu]\cdot[X_\nu] = \sum_\lambda", r"j^{\,w_{\lambda/\mu}}_\nu(y)", r"\,[X_\lambda]",
+                      font_size=40)
+        hom[1].set_color(HL)
+        homl = Tex(r"in the equivariant homology of $\mathrm{Gr}$", font_size=26, color=LABEL)
+        hg = VGroup(hom, homl).arrange(DOWN, buff=0.2).move_to(np.array([0, -2.2, 0]))
+        with self.say("And for special permutations, these coefficients are exactly the numbers for multiplying "
+                      "Schubert classes in the equivariant homology of the infinite Grassmannian.") as _:
+            self.play(FadeOut(fwl), fw.animate.shift(0.25 * UP), run_time=0.5)
+            self.play(Write(hom), FadeIn(homl), run_time=1.8)
+        self.play(FadeOut(Group(*self.mobjects)), run_time=0.8)
+
+
 class Problem(Narrated):
     def construct(self):
         title = heading(r"The positivity problem")
