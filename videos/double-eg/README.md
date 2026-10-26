@@ -14,9 +14,15 @@ the coefficient of $s_{21}$ for $w = [1, -1, 0, 3, 4, 2]$ (on positions $-1, \ld
 
 $$j^w_{(2,1)}(y) = (y_1 - y_0) + (y_3 - y_{-1}) + (y_2 - y_0).$$
 
-After setting up bumpless pipe dreams, back stable Schubert functions, double Schur
-functions and the positivity problem (Lam–Lee–Shimozono, Anderson), it follows the
-paper's five steps on this example:
+After setting up bumpless pipe dreams, back stable Schubert functions and double Schur
+functions, a short geometric interlude follows Lam–Lee–Shimozono
+([Back stable Schubert calculus](https://arxiv.org/abs/1806.11233), §§1, 6, 8): back stable
+double Schubert functions are the equivariant Schubert classes of the infinite flag variety,
+double Schur functions those of the infinite Grassmannian (Theorem 6.6), and the double
+Edelman–Greene coefficients are the Schubert coordinates of the double Stanley class on the
+Grassmannian; for $w = w_{\lambda/\mu}$ they are the structure constants of its equivariant
+homology (Propositions 4.23 and 8.1). Then comes the positivity problem (Lam–Lee–Shimozono,
+Anderson), and the video follows the paper's five steps on this example:
 
 1. the horizon cut (Corollary 3.7): $\overleftarrow{\mathfrak S}_w = \sum_\sigma \overleftarrow{\mathfrak S}_\sigma\, \mathfrak S^\downarrow_{\sigma,w}$, here with $\sigma_1 = [1,0,-1]$ and $\sigma_2 = [2,0,-1,1]$;
 2. the flip $\sigma \mapsto \neg\sigma$ (Corollary 3.9), so both factors are lower Schubert polynomials;
