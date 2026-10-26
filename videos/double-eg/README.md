@@ -8,6 +8,8 @@ by Jack Chen-An Chou and Tianyi Yu ([arXiv:2512.12185](https://arxiv.org/abs/251
   synthesized voice (Kyutai's [Pocket TTS](https://github.com/kyutai-labs/pocket-tts),
   cloned from the reference clip that ships with the model; no human voice was
   recorded for it). There are no captions and no music.
+- `thumbnail.png`: the thumbnail (1920×1080), a trapezoid bumpless pipe dream cut along the
+  diagonal; made by `src/thumbnail.py`.
 
 The whole video is one worked example in $S_\mathbb{Z}$, taken from the paper:
 the coefficient of $s_{21}$ for $w = [1, -1, 0, 3, 4, 2]$ (on positions $-1, \ldots, 4$),
@@ -49,6 +51,7 @@ Everything is in `src/`:
 | `sz_example.py` | computes every diagram and formula shown for the running example, asserts each identity used on screen, writes `sz_data.json` |
 | `common.py`, `scenes_*.py` | the manim scenes, drawn from `sz_data.json`; each `self.say("...")` is a line of narration, and the animations inside it run while it is spoken |
 | `tts.py` | reads every `say()` line with Pocket TTS into `audio/`, checking each phrase with Whisper and regenerating it until it says what it should |
+| `thumbnail.py` | the thumbnail (`manim -s -r 1920,1080 thumbnail.py Thumbnail`) |
 | `render.sh`, `assemble.py` | render all scenes in parallel, then join them with the narration at a standard loudness and add chapters |
 
 ```sh
