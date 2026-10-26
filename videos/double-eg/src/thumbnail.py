@@ -1,4 +1,4 @@
-"""The thumbnail: a trapezoid bumpless pipe dream and the title.
+"""The thumbnail: a trapezoid bumpless pipe dream, with the paper's title above the diagonal cut.
 
     manim -s -r 1920,1080 thumbnail.py Thumbnail      # then copy the PNG to ../thumbnail.png
 
@@ -21,22 +21,27 @@ def zone(i, j):
 
 class Thumbnail(Scene):
     def construct(self):
-        cell = 0.72
-        T = cut_drawing(TILES, ROWS, COLS, cell, "lower", stroke=11)
+        cell = 1.15
+        T = cut_drawing(TILES, ROWS, COLS, cell, "lower", stroke=14)
         for (i, j), sq in T.squares.items():
-            sq.set_fill(zone(i, j), opacity=0.24).set_stroke(GRIDC, width=2)
+            sq.set_fill(zone(i, j), opacity=0.24).set_stroke(GRIDC, width=2.5)
         for sh in T.halves.values():
-            sh.set_fill(DIM, opacity=0.24).set_stroke(GRIDC, width=2)
-        glow = T.pipes.copy().set_stroke(PIPE, width=22, opacity=0.12)
-        T.move_to(np.array([-3.55, -0.45, 0]))
+            sh.set_fill(DIM, opacity=0.24).set_stroke(GRIDC, width=2.5)
+        glow = T.pipes.copy().set_stroke(PIPE, width=30, opacity=0.12)
+        T.shift(np.array([-6.75, -3.65, 0]) - T.get_corner(DL))
         glow.move_to(T.pipes)
-        dots = VGroup(*[Dot(T.cells[(i, j)].get_center(), radius=0.15 * cell * 2, color=HL)
+        dots = VGroup(*[Dot(T.cells[(i, j)].get_center(), radius=0.28 * cell, color=HL)
                         for (i, j) in T.cells if TILES[ROWS.index(i)][COLS.index(j)] == "O"])
-        cut = diagonal_line(T.cells, 6, color=WHITE, width=6, overhang=0.3)
+        cut = diagonal_line(T.cells, 6, color=WHITE, width=7, overhang=0.35)
 
-        title = VGroup(Tex("Double", font_size=84), Tex("Edelman--Greene", font_size=84),
-                       Tex("coefficients", font_size=84)).arrange(DOWN, aligned_edge=LEFT, buff=0.2)
-        sub = Tex("a positive formula", font_size=66, color=POS)
-        text = VGroup(title, sub).arrange(DOWN, aligned_edge=LEFT, buff=0.45)
-        text.move_to(np.array([0, 0.55, 0])).align_to(np.array([0.55, 0, 0]), LEFT)
-        self.add(glow, T, dots, cut, text)
+        # the title fills the empty triangle above the cut, each line starting just past it
+        lines = [Tex(r"A ", r"positive", r" combinatorial", font_size=76), Tex(r"formula for the double", font_size=76),
+                 Tex(r"Edelman--Greene", font_size=76), Tex(r"coefficients", font_size=76)]
+        lines[0][1].set_color(POS)
+        corner = T.cells[(1, 1)].get_corner(UL)            # the cut is the line x + y = corner_x + corner_y
+        top = 3.55
+        for k, t in enumerate(lines):
+            t.align_to(np.array([0, top - 1.03 * k, 0]), UP)
+            yb = t.get_bottom()[1]
+            t.align_to(np.array([corner[0] + corner[1] - yb + 0.45, 0, 0]), LEFT)
+        self.add(glow, T, dots, cut, *lines)

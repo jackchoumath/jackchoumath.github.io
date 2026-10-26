@@ -8,7 +8,7 @@ by Jack Chen-An Chou and Tianyi Yu ([arXiv:2512.12185](https://arxiv.org/abs/251
   synthesized voice (Kyutai's [Pocket TTS](https://github.com/kyutai-labs/pocket-tts),
   cloned from the reference clip that ships with the model; no human voice was
   recorded for it). There are no captions and no music.
-- `thumbnail.png`: the thumbnail (1920×1080), a trapezoid bumpless pipe dream cut along the
+- `thumbnail.png`: the thumbnail (1920×1080): the paper's title over a trapezoid bumpless pipe dream cut along the
   diagonal; made by `src/thumbnail.py`.
 
 The whole video is one worked example in $S_\mathbb{Z}$, taken from the paper:
